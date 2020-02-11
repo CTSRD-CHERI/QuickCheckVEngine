@@ -66,6 +66,7 @@ module RISCV.Helpers (
 , prettyR_FI_1op_rm
 , prettyR_rm
 , prettyR4_rm
+, prettyS_F
 ) where
 
 import Data.Maybe (fromMaybe)
@@ -345,3 +346,6 @@ prettyR_rm instr rs2 rs1 rm rd =
 prettyR4_rm instr rs3 rs2 rs1 rm rd =
   concat $  [instr, " ", fpReg rd, ", ", fpReg rs1, ", ", fpReg rs2, ", ", fpReg rs3]
          ++ [", " ++ fpRoundingMode rm ]
+
+prettyS_F instr imm rs2 rs1 =
+  concat [instr, " ", fpReg rs2, ", ", reg rs1, "(", int imm, ")"]

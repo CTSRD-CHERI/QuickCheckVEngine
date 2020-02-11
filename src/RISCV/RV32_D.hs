@@ -64,7 +64,7 @@ module RISCV.RV32_D (
 
 import RISCV.Helpers (prettyR, prettyS, prettyR4_rm, prettyR_rm,
                       prettyR_IF_1op, prettyR_FF_1op_rm, prettyR_FI_1op_rm,
-                      prettyR_IF_1op_rm)
+                      prettyR_IF_1op_rm, prettyS_F)
 import InstrCodec (DecodeBranch, (-->), encode)
 
 ----------------------
@@ -100,7 +100,7 @@ fcvt_d_wu = "1101001        00001 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
 
 rv32_d_disass :: [DecodeBranch String]
 rv32_d_disass = [ fld       --> prettyR           "fld"
-                , fsd       --> prettyS           "fsd"
+                , fsd       --> prettyS_F         "fsd"
                 , fmadd_d   --> prettyR4_rm       "fmadd.d"
                 , fmsub_d   --> prettyR4_rm       "fmsub.d"
                 , fnmsub_d  --> prettyR4_rm       "fnmsub.d"
