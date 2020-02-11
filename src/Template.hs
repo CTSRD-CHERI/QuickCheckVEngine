@@ -56,7 +56,7 @@ module Template (
 
 import Test.QuickCheck
 import Data.List
-import Data.Semigroup
+import Data.Semigroup -- Should no longer be required with modern ghc
 
 -- | 'Template' type to describe sequences of instructions (represented as
 --   'Integer's) to be used as tests

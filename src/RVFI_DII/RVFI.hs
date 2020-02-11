@@ -51,6 +51,7 @@ import qualified Data.Bits.Bitwise as BW
 import Data.Binary
 import Data.Binary.Put
 import Data.Binary.Get
+import Data.Semigroup -- Should no longer be required with modern ghc
 import RISCV
 import Text.Printf
 
