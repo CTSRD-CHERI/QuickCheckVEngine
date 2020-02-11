@@ -5,20 +5,49 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 executable QCVEngine
-  hs-source-dirs:      src .
-  main-is:             Main.hs
-  build-depends:       base >=4.9, QuickCheck >=2.12, bytestring >=0.10, network >=2.8, binary >=0.8, regex-posix >=0.95, filemanip >=0.3, split >=0.2, bitwise >=1.0
-  other-modules:       InstrCodec, RISCV,
-                       RISCV.ArchDesc, RISCV.Helpers, RISCV.InstPretty,
-                       RISCV.RV32_I, RISCV.RV32_M, RISCV.RV32_A, RISCV.RV32_F, RISCV.RV32_D,
-                       RISCV.RV32_Zifencei, RISCV.RV32_Zicsr, RISCV.RV32_Xcheri,
-                       RISCV.RV64_I, RISCV.RV64_M, RISCV.RV64_A, RISCV.RV64_F, RISCV.RV64_D,
-                       RISCV.RV_C, Template,
-                       Templates.GenAll, Templates.GenArithmetic, Templates.GenCHERI,
-                       Templates.GenControlFlow, Templates.GenMemory,
-                       Templates.GenMulDiv, Templates.GenAtomics, Templates.GenFP,
-                       Templates.GenCSRs, Templates.RandomTest, Templates.Utils,
-                       Templates.Utils.General, Templates.Utils.CHERI, Templates.Utils.FP,
-                       RVFI_DII, RVFI_DII.RVFI, RVFI_DII.DII
-  other-extensions:    FlexibleInstances, MultiParamTypeClasses, FunctionalDependencies, OverloadedStrings, ScopedTypeVariables
+  hs-source-dirs:      src
+  main-is:             QuickCheckVEngine/Main.hs
+  other-modules:       InstrCodec,
+                       RISCV,
+                       RISCV.ArchDesc,
+                       RISCV.Helpers,
+                       RISCV.InstPretty,
+                       RISCV.RV32_I,
+                       RISCV.RV32_M,
+                       RISCV.RV32_A,
+                       RISCV.RV32_F,
+                       RISCV.RV32_D,
+                       RISCV.RV32_Zifencei,
+                       RISCV.RV32_Zicsr,
+                       RISCV.RV32_Xcheri,
+                       RISCV.RV64_I,
+                       RISCV.RV64_M,
+                       RISCV.RV64_A,
+                       RISCV.RV64_F,
+                       RISCV.RV64_D,
+                       RISCV.RV_C,
+                       QuickCheckVEngine.RVFI_DII,
+                       QuickCheckVEngine.RVFI_DII.RVFI,
+                       QuickCheckVEngine.RVFI_DII.DII,
+                       QuickCheckVEngine.Template,
+                       QuickCheckVEngine.Templates.Utils,
+                       QuickCheckVEngine.Templates.Utils.General,
+                       QuickCheckVEngine.Templates.Utils.FP,
+                       QuickCheckVEngine.Templates.Utils.CHERI,
+                       QuickCheckVEngine.Templates.GenArithmetic,
+                       QuickCheckVEngine.Templates.GenControlFlow,
+                       QuickCheckVEngine.Templates.GenMemory,
+                       QuickCheckVEngine.Templates.GenMulDiv,
+                       QuickCheckVEngine.Templates.GenAtomics,
+                       QuickCheckVEngine.Templates.GenFP,
+                       QuickCheckVEngine.Templates.GenCSRs,
+                       QuickCheckVEngine.Templates.GenCHERI,
+                       QuickCheckVEngine.Templates.GenAll,
+                       QuickCheckVEngine.Templates.RandomTest
+  other-extensions:    FlexibleInstances, MultiParamTypeClasses,
+                       FunctionalDependencies, OverloadedStrings,
+                       ScopedTypeVariables
+  build-depends:       base >=4.9, split >=0.2, regex-posix >=0.95,
+                       binary >=0.8, bitwise >=1.0, network >=2.8,
+                       bytestring >=0.10, filemanip >=0.3,QuickCheck >=2.12
   default-language:    Haskell2010
