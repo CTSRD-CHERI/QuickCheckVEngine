@@ -318,7 +318,7 @@ main = withSocketsDo $ do
               putStrLn "All Verification:"
               doCheck (genTemplate $ genAll archDesc) (nTests flags)
               putStrLn "Random Template:"
-              doCheck (genTemplate $ repeatTemplateTillEnd (randomTest archDesc)) (nTests flags)
+              doCheck (genTemplate $ randomTest archDesc) (nTests flags)
             Just sock -> do
               doCheck (liftM toTestCase $ listOf $ liftM (\x -> TS False x) $ listOf $ genInstrServer sock) (nTests flags)
   --

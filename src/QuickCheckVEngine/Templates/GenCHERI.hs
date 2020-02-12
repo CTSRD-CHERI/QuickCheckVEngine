@@ -76,4 +76,7 @@ genRandomCHERITest arch = do
     else return test
 
 randomCHERITest :: ArchDesc -> Template
-randomCHERITest arch = Random $ genRandomCHERITest arch
+randomCHERITest arch = Random $ do
+   temp <- genRandomCHERITest arch
+   return $ if has_f arch || has_d arch then NoShrink (fp_prologue arch) <> temp
+                                        else temp
