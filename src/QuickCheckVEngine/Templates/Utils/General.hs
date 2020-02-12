@@ -57,11 +57,7 @@ module QuickCheckVEngine.Templates.Utils.General (
   -- ** Basic memory helpers
 , memOffset
 , loadOp
-, loadOp32
-, loadOp64
 , storeOp
-, storeOp32
-, storeOp64
 , writeData
   -- ** Advanced memory helpers
 , legalLoad
@@ -165,34 +161,34 @@ memOffset :: Gen Integer
 memOffset = oneof $ map return [0, 1, 64, 65]
 
 -- | 'loadOp' provides a 'Template' for a memory load operation
+--   The 'ArchDesc' argument determines which load instructions can be selected
+--   The 'RISV.ArchDesc' module provides a 'archDesc_null' value with all its
+--   fields set to 'False' which can be used to easily select a subset ignoring
+--   the current architecture description
+--   For example, to select only 'flw' instruction
+--
+--   > loadOp archDesc_null{ has_f = True, has_xlen_32 = True }
 loadOp :: ArchDesc -> Integer -> Integer -> Template
-loadOp arch rs1 rd =
-  if has_xlen_64 arch
-     then Random $ oneof (map return [loadOp32 rs1 rd, loadOp64 rs1 rd])
-     else loadOp32 rs1 rd
-
--- | 'loadOp32' provides a 'Template' for a RV32I memory load operation
-loadOp32 :: Integer -> Integer -> Template
-loadOp32 rs1 rd = uniformTemplate $ rv32_i_load rs1 rd 0
-
--- | 'loadOp64' provides a 'Template' for a rv64 memory load operation
-loadOp64 :: Integer -> Integer -> Template
-loadOp64 rs1 rd = uniformTemplate $ rv64_i_load rs1 rd 0
+loadOp arch rs1 rd = Random $ oneof $ map (return . uniformTemplate) $
+     [ rv32_i_load rs1 rd 0 | has_i arch && has_xlen_32 arch ]
+  ++ [ rv64_i_load rs1 rd 0 | has_i arch && has_xlen_64 arch ]
+  ++ [ rv32_f_load rs1 rd 0 | has_f arch && has_xlen_32 arch ]
+  ++ [ rv32_d_load rs1 rd 0 | has_d arch && has_xlen_32 arch ]
 
 -- | 'storeOp' provides a 'Template' for a memory store operation
+--   The 'ArchDesc' argument determines which store instructions can be selected
+--   The 'RISV.ArchDesc' module provides a 'archDesc_null' value with all its
+--   fields set to 'False' which can be used to easily select a subset ignoring
+--   the current architecture description
+--   For example, to select only 'fsw' instruction
+--
+--   > loadOp archDesc_null{ has_f = True, has_xlen_32 = True }
 storeOp :: ArchDesc -> Integer -> Integer -> Template
-storeOp arch rs1 rs2 =
-  if has_xlen_64 arch
-     then Random $ oneof (map return [storeOp32 rs1 rs2, storeOp64 rs1 rs2])
-     else storeOp32 rs1 rs2
-
--- | 'storeOp32' provides a 'Template' for a RV32I memory store operation
-storeOp32 :: Integer -> Integer -> Template
-storeOp32 rs1 rs2 = uniformTemplate $ rv32_i_store rs1 rs2 0
-
--- | 'storeOp64' provides a 'Template' for a RV64I memory store operation
-storeOp64 :: Integer -> Integer -> Template
-storeOp64 rs1 rs2 = uniformTemplate $ rv64_i_store rs1 rs2 0
+storeOp arch rs1 rs2 = Random $ oneof $ map (return . uniformTemplate) $
+     [ rv32_i_store rs1 rs2 0 | has_i arch && has_xlen_32 arch ]
+  ++ [ rv64_i_store rs1 rs2 0 | has_i arch && has_xlen_64 arch ]
+  ++ [ rv32_f_store rs1 rs2 0 | has_f arch && has_xlen_32 arch ]
+  ++ [ rv32_d_store rs1 rs2 0 | has_d arch && has_xlen_32 arch ]
 
 -- | Write provided list of 32-bit 'Integer's in memory starting at the provided
 --   address by deriving a sequence initializing register 1 with that address,

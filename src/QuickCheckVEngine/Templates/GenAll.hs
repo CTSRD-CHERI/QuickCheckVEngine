@@ -36,20 +36,7 @@ module QuickCheckVEngine.Templates.GenAll where
 
 import InstrCodec
 import Test.QuickCheck
-import RISCV.ArchDesc
-import RISCV.RV32_I
-import RISCV.RV32_M
-import RISCV.RV32_A
-import RISCV.RV32_F
-import RISCV.RV32_D
-import RISCV.RV32_Zifencei
-import RISCV.RV32_Zicsr
-import RISCV.RV32_Xcheri
-import RISCV.RV64_I
-import RISCV.RV64_M
-import RISCV.RV64_A
-import RISCV.RV64_F
-import RISCV.RV64_D
+import RISCV
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
@@ -100,5 +87,6 @@ genAll desc = Random $ do
                ] | has_icsr desc]
            ++ [[ (8, uniformTemplate (rv32_xcheri src1 src2 srcScr imm mop dest))
                ] | has_cheri desc]
-  return $ (if has_f desc || has_d desc then NoShrink fp_prologue else mempty)
+  return $ (if has_f desc || has_d desc then NoShrink (fp_prologue desc)
+                                        else mempty)
             <> repeatTemplateTillEnd (Distribution $ concat insts)

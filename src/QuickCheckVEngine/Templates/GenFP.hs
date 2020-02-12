@@ -41,12 +41,7 @@ module QuickCheckVEngine.Templates.GenFP (
 ) where
 
 import InstrCodec
-import RISCV.RV32_I
-import RISCV.RV32_F
-import RISCV.RV64_F
-import RISCV.RV32_D
-import RISCV.RV64_D
-import RISCV.RV32_Zicsr
+import RISCV
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 import Test.QuickCheck
@@ -83,7 +78,11 @@ genFP has_f has_d has_xlen_64 = Random $ do
               ++ [ rv64_f src1 dest rm | has_f && has_xlen_64 ]
               ++ [ rv64_d src1 dest rm | has_d && has_xlen_64 ]
   let epilogue = Single $ encode csrrs 0x003 0 dest
-  return $    NoShrink fp_prologue
-           <> replicateTemplate (size - fp_prologue_length - 1)
+  let arch = archDesc_null { has_xlen_32 = True
+                           , has_xlen_64 = has_xlen_64
+                           , has_f       = has_f
+                           , has_d       = has_d }
+  return $    NoShrink $ fp_prologue arch
+           <> replicateTemplate (size - fp_prologue_length arch - 1)
                                 (uniformTemplate $ concat insts)
            <> NoShrink epilogue

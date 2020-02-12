@@ -33,6 +33,10 @@
 
 module RISCV.RV32_D (
   rv32_d_disass
+, rv32_d_arith
+, rv32_d_macc
+, rv32_d_load
+, rv32_d_store
 , rv32_d
 , fld
 , fsd
@@ -127,32 +131,43 @@ rv32_d_disass = [ fld       --> prettyR           "fld"
                 , fcvt_d_wu --> prettyR_FI_1op_rm "fcvt.d.wu"
                 ]
 
+rv32_d_load :: Integer -> Integer -> Integer -> [Integer]
+rv32_d_load src1 dest imm = [ encode fld imm src1 dest ]
+
+rv32_d_store :: Integer -> Integer -> Integer -> [Integer]
+rv32_d_store src1 src2 imm = [ encode fsd imm src2 src1 ]
+
+rv32_d_macc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_d_macc src1 src2 src3 dest rm = [ encode fmadd_d  src3 src2 src1 rm dest
+                                     , encode fmsub_d  src3 src2 src1 rm dest
+                                     , encode fnmsub_d src3 src2 src1 rm dest
+                                     , encode fnmadd_d src3 src2 src1 rm dest ]
+
+rv32_d_arith :: Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_d_arith src1 src2 dest rm = [ encode fadd_d    src2 src1 rm dest
+                                 , encode fsub_d    src2 src1 rm dest
+                                 , encode fmul_d    src2 src1 rm dest
+                                 , encode fdiv_d    src2 src1 rm dest
+                                 , encode fsqrt_d        src1 rm dest
+                                 , encode fsgnj_d   src2 src1    dest
+                                 , encode fsgnjn_d  src2 src1    dest
+                                 , encode fsgnjx_d  src2 src1    dest
+                                 , encode fmin_d    src2 src1    dest
+                                 , encode fmax_d    src2 src1    dest
+                                 , encode fcvt_s_d       src1 rm dest
+                                 , encode fcvt_d_s       src1 rm dest
+                                 , encode feq_d     src2 src1    dest
+                                 , encode flt_d     src2 src1    dest
+                                 , encode fle_d     src2 src1    dest
+                                 , encode fclass_d       src1    dest
+                                 , encode fcvt_w_d       src1 rm dest
+                                 , encode fcvt_wu_d      src1 rm dest
+                                 , encode fcvt_d_w       src1 rm dest
+                                 , encode fcvt_d_wu      src1 rm dest ]
+
 rv32_d :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer
        -> [Integer]
-rv32_d src1 src2 src3 dest rm imm = [ encode fld        imm      src1    dest
-                                    , encode fsd        imm src2 src1    dest
-                                    , encode fmadd_d   src3 src2 src1 rm dest
-                                    , encode fmsub_d   src3 src2 src1 rm dest
-                                    , encode fnmsub_d  src3 src2 src1 rm dest
-                                    , encode fnmadd_d  src3 src2 src1 rm dest
-                                    , encode fadd_d         src2 src1 rm dest
-                                    , encode fsub_d         src2 src1 rm dest
-                                    , encode fmul_d         src2 src1 rm dest
-                                    , encode fdiv_d         src2 src1 rm dest
-                                    , encode fsqrt_d             src1 rm dest
-                                    , encode fsgnj_d        src2 src1    dest
-                                    , encode fsgnjn_d       src2 src1    dest
-                                    , encode fsgnjx_d       src2 src1    dest
-                                    , encode fmin_d         src2 src1    dest
-                                    , encode fmax_d         src2 src1    dest
-                                    , encode fcvt_s_d            src1 rm dest
-                                    , encode fcvt_d_s            src1 rm dest
-                                    , encode feq_d          src2 src1    dest
-                                    , encode flt_d          src2 src1    dest
-                                    , encode fle_d          src2 src1    dest
-                                    , encode fclass_d            src1    dest
-                                    , encode fcvt_w_d            src1 rm dest
-                                    , encode fcvt_wu_d           src1 rm dest
-                                    , encode fcvt_d_w            src1 rm dest
-                                    , encode fcvt_d_wu           src1 rm dest
-                                    ]
+rv32_d src1 src2 src3 dest rm imm =    (rv32_d_arith src1 src2 dest rm)
+                                    ++ (rv32_d_macc src1 src2 src3 dest rm)
+                                    ++ (rv32_d_load src1 dest imm)
+                                    ++ (rv32_d_store src1 src2 imm)

@@ -31,7 +31,12 @@
 -- SUCH DAMAGE.
 --
 
-module RISCV.ArchDesc (ArchDesc(..), archDesc_rv32i, fromString) where
+module RISCV.ArchDesc (
+  ArchDesc(..)
+, archDesc_rv32i
+, archDesc_null
+, fromString
+) where
 
 import Text.Regex.Posix ((=~))
 import Data.List.Split (splitOneOf)
@@ -52,6 +57,17 @@ data ArchDesc = ArchDesc { has_xlen_32 :: Bool
 archDesc_rv32i = ArchDesc { has_xlen_32 = True
                           , has_xlen_64 = False
                           , has_i       = True
+                          , has_m       = False
+                          , has_a       = False
+                          , has_f       = False
+                          , has_d       = False
+                          , has_icsr    = False
+                          , has_ifencei = False
+                          , has_cheri   = False
+                          }
+archDesc_null  = ArchDesc { has_xlen_32 = False
+                          , has_xlen_64 = False
+                          , has_i       = False
                           , has_m       = False
                           , has_a       = False
                           , has_f       = False

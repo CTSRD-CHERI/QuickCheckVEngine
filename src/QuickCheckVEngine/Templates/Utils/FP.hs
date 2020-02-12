@@ -37,56 +37,53 @@ module QuickCheckVEngine.Templates.Utils.FP (
 ) where
 
 import InstrCodec
-import RISCV.RV32_I
-import RISCV.RV32_F
-import RISCV.RV64_F
-import RISCV.RV32_D
-import RISCV.RV64_D
-import RISCV.RV32_Zicsr
+import RISCV
 import QuickCheckVEngine.Template
 
-prologue_list :: [Integer]
-prologue_list = [ encode lui 2 1
-                , encode csrrs 0x300 1 0 -- mstatus
-                , encode csrrs 0x003 0 0 -- fcsr
-                , encode fmv_w_x 0 0
-                , encode fmv_w_x 0 1
-                , encode fmv_w_x 0 2
-                , encode fmv_w_x 0 3
-                , encode fmv_w_x 0 4
-                --, encode fmv_w_x 0 5
-                --, encode fmv_w_x 0 6
-                --, encode fmv_w_x 0 7
-                --, encode fmv_w_x 0 8
-                --, encode fmv_w_x 0 9
-                --, encode fmv_w_x 0 10
-                --, encode fmv_w_x 0 11
-                --, encode fmv_w_x 0 12
-                --, encode fmv_w_x 0 13
-                --, encode fmv_w_x 0 14
-                --, encode fmv_w_x 0 15
-                --
-                , encode fmv_d_x 0 16
-                , encode fmv_d_x 0 17
-                , encode fmv_d_x 0 18
-                , encode fmv_d_x 0 19
-                , encode fmv_d_x 0 20
-                --, encode fmv_d_x 0 21
-                --, encode fmv_d_x 0 22
-                --, encode fmv_d_x 0 23
-                --, encode fmv_d_x 0 24
-                --, encode fmv_d_x 0 25
-                --, encode fmv_d_x 0 26
-                --, encode fmv_d_x 0 27
-                --, encode fmv_d_x 0 28
-                --, encode fmv_d_x 0 29
-                --, encode fmv_d_x 0 30
-                --, encode fmv_d_x 0 31
-                --, encode fmv_d_x 0 32
-                ]
+prologue_list :: ArchDesc -> [Integer]
+prologue_list arch = [ encode lui 2 1
+                     , encode csrrs 0x300 1 0 -- mstatus
+                     , encode csrrs 0x003 0 0 -- fcsr
+                     ]
+                  ++ (if has_f arch || has_d arch then
+                     [ encode fmv_w_x 0 0
+                     , encode fmv_w_x 0 1
+                     , encode fmv_w_x 0 2
+                     , encode fmv_w_x 0 3
+                     , encode fmv_w_x 0 4
+                     --, encode fmv_w_x 0 5
+                     --, encode fmv_w_x 0 6
+                     --, encode fmv_w_x 0 7
+                     --, encode fmv_w_x 0 8
+                     --, encode fmv_w_x 0 9
+                     --, encode fmv_w_x 0 10
+                     --, encode fmv_w_x 0 11
+                     --, encode fmv_w_x 0 12
+                     --, encode fmv_w_x 0 13
+                     --, encode fmv_w_x 0 14
+                     --, encode fmv_w_x 0 15
+                     , encode op 0 16
+                     , encode op 0 17
+                     , encode op 0 18
+                     , encode op 0 19
+                     , encode op 0 20
+                     --, encode op 0 21
+                     --, encode op 0 22
+                     --, encode op 0 23
+                     --, encode op 0 24
+                     --, encode op 0 25
+                     --, encode op 0 26
+                     --, encode op 0 27
+                     --, encode op 0 28
+                     --, encode op 0 29
+                     --, encode op 0 30
+                     --, encode op 0 31
+                     --, encode op 0 32
+                     ] else [])
+  where op = if has_d arch then fmv_d_x else fmv_w_x
 
-fp_prologue :: Template
-fp_prologue = instSeq prologue_list
+fp_prologue :: ArchDesc -> Template
+fp_prologue = instSeq . prologue_list
 
-fp_prologue_length :: Int
-fp_prologue_length = length prologue_list
+fp_prologue_length :: ArchDesc -> Int
+fp_prologue_length = length . prologue_list
