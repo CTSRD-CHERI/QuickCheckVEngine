@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Alexandre Joannou
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -31,10 +31,17 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.RV32_A
+    Description : RISC-V RV32 atomic extension
+
+    The 'RISCV.RV32_A' module provides the description of the RISC-V RV32 Atomic
+    extension
+-}
+
 module RISCV.RV32_A (
-  rv32_a_disass
-, rv32_a
-, lr_w
+-- * RV32 atomic, instruction definitions
+  lr_w
 , sc_w
 , amoswap_w
 , amoadd_w
@@ -45,14 +52,13 @@ module RISCV.RV32_A (
 , amomax_w
 , amominu_w
 , amomaxu_w
+-- * RV32 atomic, others
+, rv32_a
+, rv32_a_disass
 ) where
 
 import RISCV.Helpers (prettyR_A_1op, prettyR_A)
 import InstrCodec (DecodeBranch, (-->), encode)
-
-----------------------
--- RV32_A instructions
-----------------------
 
 lr_w      = "00010 aq[0] rl[0]    00000 rs1[4:0] 010 rd[4:0] 0101111"
 sc_w      = "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
@@ -66,6 +72,7 @@ amomax_w  = "10100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
 amominu_w = "11000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
 amomaxu_w = "11100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
 
+-- | Dissassembly of RV32 atomic instructions
 rv32_a_disass :: [DecodeBranch String]
 rv32_a_disass = [ lr_w      --> prettyR_A_1op "lr.w"
                 , sc_w      --> prettyR_A     "sc.w"
@@ -77,9 +84,9 @@ rv32_a_disass = [ lr_w      --> prettyR_A_1op "lr.w"
                 , amomin_w  --> prettyR_A     "amomin.w"
                 , amomax_w  --> prettyR_A     "amomax.w"
                 , amominu_w --> prettyR_A     "amominu.w"
-                , amomaxu_w --> prettyR_A     "amomaxu.w"
-                ]
+                , amomaxu_w --> prettyR_A     "amomaxu.w" ]
 
+-- | List of RV32 atomic instructions
 rv32_a :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_a src1 src2 dest aq rl = [ encode lr_w      aq rl src2 src1 dest
                               , encode sc_w      aq rl src2 src1 dest
@@ -91,5 +98,4 @@ rv32_a src1 src2 dest aq rl = [ encode lr_w      aq rl src2 src1 dest
                               , encode amomin_w  aq rl src2 src1 dest
                               , encode amomax_w  aq rl src2 src1 dest
                               , encode amominu_w aq rl src2 src1 dest
-                              , encode amomaxu_w aq rl src2 src1 dest
-                              ]
+                              , encode amomaxu_w aq rl src2 src1 dest ]

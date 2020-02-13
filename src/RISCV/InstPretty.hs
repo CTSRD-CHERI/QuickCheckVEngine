@@ -3,7 +3,7 @@
 --
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2018 Jonathan Woodruff
--- Copyright (c) 2019 Alexandre Joannou
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -37,9 +37,17 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.InstPretty
+    Description : Pretty printing helper for RISC-V instructions
+
+    The 'RISCV.InstPretty' module provides a function for RISC-V instruction
+    pretty-printing
+-}
+
 module RISCV.InstPretty (pretty) where
 
-import InstrCodec (decode)
+import InstrCodec
 
 import RISCV.RV32_I
 import RISCV.RV32_M
@@ -56,51 +64,8 @@ import RISCV.RV64_F
 import RISCV.RV64_D
 --import RISCV.RV64_Xcheri -- TODO
 
------------------------------
--- Instruction pretty printer
------------------------------
 
--- Register pretty printer
-reg :: Integer -> String
-reg i = "r" ++ show i
-
--- Integer pretty printer
-int :: Integer -> String
-int i = show i
-
--- R-type pretty printer
-prettyR instr rs2 rs1 rd =
-  concat [instr, " ", reg rd, ", ", reg rs1, ", ", reg rs2]
-
--- I-type pretty printer
-prettyI instr imm rs1 rd =
-  concat [instr, " ", reg rd, ", ", reg rs1, ", ", int imm]
-
--- Pretty printer for loads
-prettyL instr imm rs1 rd =
-  concat [instr, " ", reg rd, ", ", reg rs1, "[", int imm, "]"]
-
--- S-type pretty printer
-prettyS instr imm rs2 rs1 =
-  concat [instr, " ", reg rs2, ", ", reg rs1, "[", int imm, "]"]
-
--- U-type pretty printer
-prettyU instr imm rd =
-  concat [instr, " ", reg rd, ", ", int imm]
-
--- B-type pretty printer
-prettyB instr imm rs2 rs1 =
-  concat [instr, " ", reg rs1, ", ", reg rs2, ", ", int imm]
-
--- Pretty printer for fence instruction
-prettyF pred succ =
-  concat ["fence ", int pred, ", ", int succ]
-
--- R-type, 2-operand pretty printer
-prettyR_2op instr cs1 cd =
-  concat [instr, " ", reg cd, ", ", reg cs1]
-
--- All instructions pretty printer
+-- | RISC-V instruction pretty printer
 pretty :: Integer -> String
 pretty instr = case decode 32 instr instList of
   Nothing -> "Unknown instruction"

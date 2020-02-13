@@ -4,7 +4,7 @@
 -- Copyright (c) 2018 Jonathan Woodruff
 -- Copyright (c) 2018 Hesham Almatary
 -- Copyright (c) 2018 Matthew Naylor
--- Copyright (c) 2019 Alexandre Joannou
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -38,15 +38,17 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.RV32_Xcheri
+    Description : RISC-V CHERI extension
+
+    The 'RISCV.RV32_Xcheri' module provides the description of the RISC-V CHERI
+    extension
+-}
+
 module RISCV.RV32_Xcheri (
-  rv32_xcheri_disass
-, rv32_xcheri
-, rv32_xcheri_inspection
-, rv32_xcheri_arithmetic
-, rv32_xcheri_misc
-, rv32_xcheri_mem
-, rv32_xcheri_control
-, cgetperm
+-- * RISC-V CHERI, instruction definitions
+  cgetperm
 , cgettype
 , cgetbase
 , cgetlen
@@ -83,14 +85,18 @@ module RISCV.RV32_Xcheri (
 , cstore
 , lq
 , sq
+-- * RISC-V CHERI, others
+, rv32_xcheri_disass
+, rv32_xcheri
+, rv32_xcheri_inspection
+, rv32_xcheri_arithmetic
+, rv32_xcheri_misc
+, rv32_xcheri_mem
+, rv32_xcheri_control
 ) where
 
 import RISCV.Helpers (reg, int, prettyR, prettyI, prettyL, prettyS, prettyR_2op)
 import InstrCodec (DecodeBranch, (-->), encode)
-
----------------------
--- CHERI instructions
----------------------
 
 -- Capability Inspection
 cgetperm                  = "1111111 00000 cs1[4:0] 000 rd[4:0] 1011011"
@@ -143,10 +149,7 @@ cstore                     = "1111100 rs1[4:0] rs2[4:0] 000 mop[4:0] 1011011"
 lq                         = "imm[11:0] rs1[4:0] 010 cd[4:0] 0001111"
 sq                         = "imm[11:5] cs2[4:0] rs1[4:0] 100 imm[4:0] 0100011"
 
------------------------------
--- Instruction pretty printer
------------------------------
-
+-- | Pretty-print a capability load instruction
 prettyCLoad :: Integer -> Integer -> Integer -> String
 prettyCLoad mop rs1 rd =
   concat [instr, " ", reg rd, ", ", reg rs1, "[0]"]
@@ -184,6 +187,7 @@ prettyCLoad mop rs1 rd =
                               0x1f -> "LQcap"   -- TODO only valid in rv64
                               _    -> "INVALID"
 
+-- | Pretty-print a capability store instruction
 prettyCStore :: Integer -> Integer -> Integer -> String
 prettyCStore rs2 rs1 mop =
   concat [instr, " ", reg rs2, ", ", reg rs1, "[0]"]
@@ -209,113 +213,112 @@ prettyCStore rs2 rs1 mop =
                               0x1c -> "SCcap.Q" -- TODO only valid in rv64
                               _ -> "INVALID"
 
--- R-type, 2-operand pretty printer
-pretty_reg_clear instr imm qt =
-  concat [instr, " ", int qt, ", ", int imm]
+-- | Pretty-print a register clear instruction
+pretty_reg_clear instr imm qt = concat [instr, " ", int qt, ", ", int imm]
 
-pretty_2src instr idc pcc =
-  concat [instr, " ", reg pcc, ", ", reg idc]
+-- | Pretty-print a 2 sources instruction
+pretty_2src instr idc pcc = concat [instr, " ", reg pcc, ", ", reg idc]
 
+-- | Pretty-print a special capability read/write instruction
 pretty_cspecialrw instr idx cs1 cd =
   concat [instr, " ", reg cd, ", ", reg cs1, ", ", int idx]
 
+-- | Dissassembly of CHERI instructions
 rv32_xcheri_disass :: [DecodeBranch String]
-rv32_xcheri_disass = [
-     cgetperm            --> prettyR_2op "cgetperm"
-   , cgettype            --> prettyR_2op "cgettype"
-   , cgetbase            --> prettyR_2op "cgetbase"
-   , cgetlen             --> prettyR_2op "cgetlen"
-   , cgettag             --> prettyR_2op "cgettag"
-   , cgetsealed          --> prettyR_2op "cgetsealed"
-   , cgetoffset          --> prettyR_2op "cgetoffset"
-   , cgetaddr            --> prettyR_2op "cgetaddr"
-   , cseal               --> prettyR "cseal"
-   , cunseal             --> prettyR "cunseal"
-   , candperm            --> prettyR "candperm"
-   , csetoffset          --> prettyR "csetoffset"
-   , csetaddr            --> prettyR "csetaddr"
-   , cincoffset          --> prettyR "cincoffset"
-   , csetbounds          --> prettyR "csetbounds"
-   , csetboundsexact     --> prettyR "csetboundsexact"
-   , cbuildcap           --> prettyR "cbuildcap"
-   , ccopytype           --> prettyR "ccopytype"
-   , ccseal              --> prettyR "ccseal"
-   , ccleartag           --> prettyR_2op "ccleartag"
-   , cincoffsetimmediate --> prettyI "cincoffsetimmediate"
-   , csetboundsimmediate --> prettyI "csetboundsimmediate"
-   , ctoptr              --> prettyR "ctoptr"
-   , cfromptr            --> prettyR "cfromptr"
-   , cspecialrw          --> pretty_cspecialrw "cspecialrw"
-   , cmove               --> prettyR_2op "cmove"
-   , cjalr               --> prettyR_2op "cjalr"
-   , ccall               --> pretty_2src "ccall"
-   , ctestsubset         --> prettyR "ctestsubset"
-   , clear               --> pretty_reg_clear "clear"
-   , fpclear             --> pretty_reg_clear "fpclear"
-   , cload               --> prettyCLoad
-   , cstore              --> prettyCStore
-   , cgetflags           --> prettyR_2op "cgetflags"
-   , csetflags           --> prettyR "csetflags"
-   , sq                  --> prettyS "sq"
-   , lq                  --> prettyL "lq"
-  ]
+rv32_xcheri_disass = [ cgetperm            --> prettyR_2op "cgetperm"
+                     , cgettype            --> prettyR_2op "cgettype"
+                     , cgetbase            --> prettyR_2op "cgetbase"
+                     , cgetlen             --> prettyR_2op "cgetlen"
+                     , cgettag             --> prettyR_2op "cgettag"
+                     , cgetsealed          --> prettyR_2op "cgetsealed"
+                     , cgetoffset          --> prettyR_2op "cgetoffset"
+                     , cgetaddr            --> prettyR_2op "cgetaddr"
+                     , cseal               --> prettyR "cseal"
+                     , cunseal             --> prettyR "cunseal"
+                     , candperm            --> prettyR "candperm"
+                     , csetoffset          --> prettyR "csetoffset"
+                     , csetaddr            --> prettyR "csetaddr"
+                     , cincoffset          --> prettyR "cincoffset"
+                     , csetbounds          --> prettyR "csetbounds"
+                     , csetboundsexact     --> prettyR "csetboundsexact"
+                     , cbuildcap           --> prettyR "cbuildcap"
+                     , ccopytype           --> prettyR "ccopytype"
+                     , ccseal              --> prettyR "ccseal"
+                     , ccleartag           --> prettyR_2op "ccleartag"
+                     , cincoffsetimmediate --> prettyI "cincoffsetimmediate"
+                     , csetboundsimmediate --> prettyI "csetboundsimmediate"
+                     , ctoptr              --> prettyR "ctoptr"
+                     , cfromptr            --> prettyR "cfromptr"
+                     , cspecialrw          --> pretty_cspecialrw "cspecialrw"
+                     , cmove               --> prettyR_2op "cmove"
+                     , cjalr               --> prettyR_2op "cjalr"
+                     , ccall               --> pretty_2src "ccall"
+                     , ctestsubset         --> prettyR "ctestsubset"
+                     , clear               --> pretty_reg_clear "clear"
+                     , fpclear             --> pretty_reg_clear "fpclear"
+                     , cload               --> prettyCLoad
+                     , cstore              --> prettyCStore
+                     , cgetflags           --> prettyR_2op "cgetflags"
+                     , csetflags           --> prettyR "csetflags"
+                     , sq                  --> prettyS "sq"
+                     , lq                  --> prettyL "lq" ]
 
+-- | List of cheri inspection instructions
 rv32_xcheri_inspection :: Integer -> Integer -> [Integer]
-rv32_xcheri_inspection src dest = [
-    encode cgetperm src dest
- ,  encode cgettype src dest
- ,  encode cgetbase src dest
- ,  encode cgetlen src dest
- ,  encode cgettag src dest
- ,  encode cgetsealed src dest
- ,  encode cgetoffset src dest
- ,  encode cgetaddr src dest
- ,  encode cgetflags src dest
-  ]
+rv32_xcheri_inspection src dest = [ encode cgetperm src dest
+                                  ,  encode cgettype src dest
+                                  ,  encode cgetbase src dest
+                                  ,  encode cgetlen src dest
+                                  ,  encode cgettag src dest
+                                  ,  encode cgetsealed src dest
+                                  ,  encode cgetoffset src dest
+                                  ,  encode cgetaddr src dest
+                                  ,  encode cgetflags src dest ]
 
+-- | List of cheri arithmetic instructions
 rv32_xcheri_arithmetic :: Integer -> Integer -> Integer -> Integer -> [Integer]
-rv32_xcheri_arithmetic src1 src2 imm dest = [
-    encode csetoffset src1 src2 dest
- ,  encode csetaddr   src1 src2 dest
- ,  encode cincoffset src1 src2 dest
- ,  encode csetbounds src1 src2 dest
- ,  encode csetboundsexact src1 src2 dest
- ,  encode csetboundsimmediate imm src1 dest
- ,  encode cincoffsetimmediate imm src1 dest
- ,  encode ctoptr     src1 src2 dest
- ,  encode cfromptr   src1 src2 dest
- ,  encode ctestsubset src1 src2 dest
-  ]
+rv32_xcheri_arithmetic src1 src2 imm dest =
+  [ encode csetoffset src1 src2 dest
+  ,  encode csetaddr   src1 src2 dest
+  ,  encode cincoffset src1 src2 dest
+  ,  encode csetbounds src1 src2 dest
+  ,  encode csetboundsexact src1 src2 dest
+  ,  encode csetboundsimmediate imm src1 dest
+  ,  encode cincoffsetimmediate imm src1 dest
+  ,  encode ctoptr     src1 src2 dest
+  ,  encode cfromptr   src1 src2 dest
+  ,  encode ctestsubset src1 src2 dest ]
 
+-- | List of cheri miscellaneous instructions
 rv32_xcheri_misc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
-rv32_xcheri_misc src1 src2 srcScr imm dest = [
-    encode cseal      src1 src2 dest
- ,  encode cunseal    src1 src2 dest
- ,  encode candperm   src1 src2 dest
- ,  encode cbuildcap  src1 src2 dest
- ,  encode csetflags  src1 src2 dest
- ,  encode ccopytype  src1 src2 dest
- ,  encode ccseal     src1 src2 dest
- ,  encode ccleartag  src1 dest
- ,  encode cspecialrw srcScr src1 dest
-  ]
+rv32_xcheri_misc src1 src2 srcScr imm dest =
+  [ encode cseal      src1 src2 dest
+  , encode cunseal    src1 src2 dest
+  , encode candperm   src1 src2 dest
+  , encode cbuildcap  src1 src2 dest
+  , encode csetflags  src1 src2 dest
+  , encode ccopytype  src1 src2 dest
+  , encode ccseal     src1 src2 dest
+  , encode ccleartag  src1 dest
+  , encode cspecialrw srcScr src1 dest ]
 
+-- | List of cheri control instructions
 rv32_xcheri_control :: Integer -> Integer -> Integer -> [Integer]
-rv32_xcheri_control src1 src2 dest = [
-    encode cjalr src1 dest
- ,  encode ccall src1 src2
-  ]
+rv32_xcheri_control src1 src2 dest = [ encode cjalr src1 dest
+                                     , encode ccall src1 src2 ]
 
+-- | List of cheri memory instructions
 rv32_xcheri_mem :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
-rv32_xcheri_mem srcAddr srcData imm mop dest = [
-    encode cload mop srcAddr dest
- ,  encode cstore srcData srcAddr mop
--- ,  encode ld imm srcAddr dest
--- ,  encode sd imm srcAddr srcAddr
--- ,  encode lq imm srcAddr dest
--- ,  encode sq imm srcData srcAddr
+rv32_xcheri_mem srcAddr srcData imm mop dest =
+  [ encode cload mop srcAddr dest
+  , encode cstore srcData srcAddr mop
+  -- , encode ld imm srcAddr dest
+  -- , encode sd imm srcAddr srcAddr
+  -- , encode lq imm srcAddr dest
+  -- , encode sq imm srcData srcAddr
   ]
 
+-- | List of cheri instructions
 rv32_xcheri :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_xcheri src1 src2 srcScr imm mop dest =
      rv32_xcheri_inspection src1 dest

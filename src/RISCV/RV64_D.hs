@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Alexandre Joannou
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -31,23 +31,29 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.RV64_D
+    Description : RISC-V RV64 double-precision floating-point extension
+
+    The 'RISCV.RV64_D' module provides the description of the RISC-V RV64
+    double-precision floating-point extension
+-}
+
 module RISCV.RV64_D (
-  rv64_d_disass
-, rv64_d
-, fcvt_l_d
+-- * RV64 double-precision floating-point, instruction definitions
+  fcvt_l_d
 , fcvt_lu_d
 , fmv_x_d
 , fcvt_d_l
 , fcvt_d_lu
 , fmv_d_x
+-- * RV64 double-precision floating-point, others
+, rv64_d_disass
+, rv64_d
 ) where
 
 import RISCV.Helpers (prettyR_FI_1op_rm, prettyR_IF_1op_rm, prettyR_FI_1op, prettyR_IF_1op)
 import InstrCodec (DecodeBranch, (-->), encode)
-
-----------------------
--- RV64_F instructions
-----------------------
 
 fcvt_l_d  = "1100001    00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
 fcvt_lu_d = "1100001    00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
@@ -56,6 +62,7 @@ fcvt_d_l  = "1101001    00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
 fcvt_d_lu = "1101001    00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
 fmv_d_x   = "1111001    00000 rs1[4:0]     000 rd[4:0] 1010011"
 
+-- | Dissassembly of RV64 double-precision floating-point instructions
 rv64_d_disass :: [DecodeBranch String]
 rv64_d_disass = [ fcvt_l_d  --> prettyR_FI_1op_rm "fcvt.l.d"
                 , fcvt_lu_d --> prettyR_IF_1op_rm "fcvt.lu.d"
@@ -65,6 +72,7 @@ rv64_d_disass = [ fcvt_l_d  --> prettyR_FI_1op_rm "fcvt.l.d"
                 , fmv_d_x   --> prettyR_FI_1op    "fmv.d.x"
                 ]
 
+-- | List of RV64 double-precision floating-point instructions
 rv64_d :: Integer -> Integer -> Integer -> [Integer]
 rv64_d src1 dest rm = [ encode fcvt_l_d  src1 rm dest
                       , encode fcvt_lu_d src1 rm dest

@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 -- Copyright (c) 2018 Matthew Naylor
--- Copyright (c) 2019 Alexandre Joannou
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -36,22 +36,30 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.RV32_Zifencei
+    Description : RISC-V instruction-fetch fence
+
+    The 'RISCV.RV32_Zifencei' module provides the description of the RISC-V
+    instruction-fetch fence extension
+-}
+
 module RISCV.RV32_Zifencei (
-  rv32_zifencei_disass
+-- * RISC-V instruction-fetch fence, instruction definitions
+  fence_i
+-- * RISC-V instruction-fetch fence, others
+, rv32_zifencei_disass
 , rv32_zifencei
-, fence_i
 ) where
 
 import InstrCodec (DecodeBranch, (-->), encode)
 
----------------------------
--- RV Zifencei instructions
----------------------------
-
 fence_i = "0000 0000 0000 00000 001 00000 0001111"
 
+-- | Dissassembly of RISC-V instruction-fetch fence instructions
 rv32_zifencei_disass :: [DecodeBranch String]
 rv32_zifencei_disass = [fence_i --> "fence.i"]
 
+-- | List of RISC-V instruction-fetch fence instructions
 rv32_zifencei :: [Integer]
 rv32_zifencei = [encode fence_i]

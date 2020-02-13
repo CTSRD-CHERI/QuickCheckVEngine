@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Alexandre Joannou
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -31,10 +31,17 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.RV64_A
+    Description : RISC-V RV64 atomic extension
+
+    The 'RISCV.RV64_A' module provides the description of the RISC-V RV64 Atomic
+    extension
+-}
+
 module RISCV.RV64_A (
-  rv64_a_disass
-, rv64_a
-, lr_d
+-- * RV64 atomic, instruction definitions
+  lr_d
 , sc_d
 , amoswap_d
 , amoadd_d
@@ -45,14 +52,13 @@ module RISCV.RV64_A (
 , amomax_d
 , amominu_d
 , amomaxu_d
+-- * RV64 atomic, others
+, rv64_a_disass
+, rv64_a
 ) where
 
 import RISCV.Helpers (prettyR_A_1op, prettyR_A)
 import InstrCodec (DecodeBranch, (-->), encode)
-
-----------------------
--- RV64_A instructions
-----------------------
 
 lr_d      = "00010 aq[0] rl[0]    00000 rs1[4:0] 011 rd[4:0] 0101111"
 sc_d      = "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 011 rd[4:0] 0101111"
@@ -66,6 +72,7 @@ amomax_d  = "10100 aq[0] rl[0] rs2[4:0] rs1[4:0] 011 rd[4:0] 0101111"
 amominu_d = "11000 aq[0] rl[0] rs2[4:0] rs1[4:0] 011 rd[4:0] 0101111"
 amomaxu_d = "11100 aq[0] rl[0] rs2[4:0] rs1[4:0] 011 rd[4:0] 0101111"
 
+-- | Dissassembly of RV64 atomic instructions
 rv64_a_disass :: [DecodeBranch String]
 rv64_a_disass = [ lr_d      --> prettyR_A_1op "lr.d"
                 , sc_d      --> prettyR_A     "sc.d"
@@ -77,9 +84,9 @@ rv64_a_disass = [ lr_d      --> prettyR_A_1op "lr.d"
                 , amomin_d  --> prettyR_A     "amomin.d"
                 , amomax_d  --> prettyR_A     "amomax.d"
                 , amominu_d --> prettyR_A     "amominu.d"
-                , amomaxu_d --> prettyR_A     "amomaxu.d"
-                ]
+                , amomaxu_d --> prettyR_A     "amomaxu.d" ]
 
+-- | List of RV64 atomic instructions
 rv64_a :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
 rv64_a src1 src2 dest aq rl = [ encode lr_d      aq rl src2 src1 dest
                               , encode sc_d      aq rl src2 src1 dest
@@ -91,5 +98,4 @@ rv64_a src1 src2 dest aq rl = [ encode lr_d      aq rl src2 src1 dest
                               , encode amomin_d  aq rl src2 src1 dest
                               , encode amomax_d  aq rl src2 src1 dest
                               , encode amominu_d aq rl src2 src1 dest
-                              , encode amomaxu_d aq rl src2 src1 dest
-                              ]
+                              , encode amomaxu_d aq rl src2 src1 dest ]

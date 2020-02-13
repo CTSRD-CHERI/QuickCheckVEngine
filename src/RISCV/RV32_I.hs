@@ -3,7 +3,7 @@
 --
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2019 Peter Rugg
--- Copyright (c) 2019 Alexandre Joannou
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -37,16 +37,17 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.RV32_I
+    Description : RISC-V RV32 base integer instruction set
+
+    The 'RISCV.RV32_I' module provides the description of the RISC-V RV32
+    base integer instruction set
+-}
+
 module RISCV.RV32_I (
-  rv32_i_disass
-, rv32_i
-, rv32_i_arith
-, rv32_i_ctrl
-, rv32_i_load
-, rv32_i_store
-, rv32_i_fence
-, rv32_i_mem
-, add
+-- * RV32 base integer instruction set, instruction definitions
+  add
 , slt
 , sltu
 , and
@@ -88,15 +89,21 @@ module RISCV.RV32_I (
 , mret
 , ecall
 , ebreak
+-- * RV32 base integer instruction set, others
+, rv32_i_disass
+, rv32_i
+, rv32_i_arith
+, rv32_i_ctrl
+, rv32_i_load
+, rv32_i_store
+, rv32_i_fence
+, rv32_i_mem
 ) where
 
-import RISCV.Helpers (prettyR, prettyI, prettyU, prettyB, prettyF, prettyS, prettyL)
+import RISCV.Helpers (prettyR, prettyI, prettyU, prettyB, prettyF, prettyS
+                     , prettyL)
 import InstrCodec (DecodeBranch, (-->), encode)
 import Prelude hiding (and, or)
-
-----------------------
--- RV32_I instructions
-----------------------
 
 add    = "0000000 rs2[4:0] rs1[4:0] 000 rd[4:0] 0110011"
 slt    = "0000000 rs2[4:0] rs1[4:0] 010 rd[4:0] 0110011"
@@ -143,6 +150,7 @@ uret   = "0000 0000 0010 00000 000 00000 1110011"
 ecall  = "000000000000 00000 000 00000 1110011"
 ebreak = "000000000001 00000 000 00000 1110011"
 
+-- | Dissassembly of RV32 base integer instructions
 rv32_i_disass :: [DecodeBranch String]
 rv32_i_disass = [ add    --> prettyR "add"
                 , slt    --> prettyR "slt"
@@ -187,9 +195,9 @@ rv32_i_disass = [ add    --> prettyR "add"
                 , sret   --> "sret"
                 , uret   --> "uret"
                 , ecall  --> "ecall"
-                , ebreak --> "ebreak"
-                ]
+                , ebreak --> "ebreak" ]
 
+-- | List of RV32 base integer arithmetic instructions
 rv32_i_arith :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_i_arith src1 src2 dest imm longImm = [ encode add  src1 src2 dest
                                           , encode slt  src1 src2 dest
@@ -210,9 +218,9 @@ rv32_i_arith src1 src2 dest imm longImm = [ encode add  src1 src2 dest
                                           , encode slli  imm src1 dest
                                           , encode srli  imm src1 dest
                                           , encode srai  imm src1 dest
-                                          , encode lui   longImm  dest
-                                          ]
+                                          , encode lui   longImm  dest ]
 
+-- | List of RV32 base integer control instructions
 rv32_i_ctrl :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_i_ctrl src1 src2 dest imm longImm = [ encode auipc longImm dest
                                          , encode jal   longImm dest
@@ -220,41 +228,47 @@ rv32_i_ctrl src1 src2 dest imm longImm = [ encode auipc longImm dest
                                          , encode beq   imm src1 src2
                                          , encode bne   imm src1 src2
                                          , encode bge   imm src1 src2
-                                         , encode bgeu  imm src1 src2
-                                         ]
+                                         , encode bgeu  imm src1 src2 ]
 
+-- | List of RV32 base integer exception-related instructions
 rv32_i_exc :: [Integer]
-rv32_i_exc = [encode ecall,
-              encode mret,
-              encode sret,
-              encode uret,
-              encode ebreak,
-              encode resrvd]
+rv32_i_exc = [ encode ecall
+             , encode mret
+             , encode sret
+             , encode uret
+             , encode ebreak
+             , encode resrvd ]
 
+-- | List of RV32 base integer load instructions
 rv32_i_load :: Integer -> Integer -> Integer -> [Integer]
 rv32_i_load src dest imm = [ encode lb  imm src dest
                            , encode lbu imm src dest
                            , encode lh  imm src dest
                            , encode lhu imm src dest
-                           , encode lw  imm src dest
-                           ]
+                           , encode lw  imm src dest ]
 
+-- | List of RV32 base integer store instructions
 rv32_i_store :: Integer -> Integer -> Integer -> [Integer]
 rv32_i_store srcAddr srcData imm = [ encode sb imm srcData srcAddr
                                    , encode sh imm srcData srcAddr
-                                   , encode sw imm srcData srcAddr
-                                   ]
+                                   , encode sw imm srcData srcAddr ]
 
+-- | List of RV32 base integer fence instructions
 rv32_i_fence :: Integer -> Integer -> [Integer]
 rv32_i_fence fenceOp1 fenceOp2 = [encode fence fenceOp1 fenceOp2]
 
-rv32_i_mem :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> [Integer] --TODO alignment
+-- | List of RV32 base integer memory instructions
+rv32_i_mem :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer
+           -> [Integer] --TODO alignment
 rv32_i_mem srcAddr srcData dest imm fenceOp1 fenceOp2 =
      (rv32_i_load srcAddr dest imm)
   ++ (rv32_i_store srcAddr srcData imm)
   ++ (rv32_i_fence fenceOp1 fenceOp2)
 
-rv32_i :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
+-- | List of RV32 base integer instructions
+rv32_i :: Integer -> Integer -> Integer -> Integer
+       -> Integer -> Integer -> Integer
+       -> [Integer]
 rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2 =
      (rv32_i_arith srcAddr srcData dest imm longImm)
   ++ rv32_i_exc

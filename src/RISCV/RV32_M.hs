@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Alexandre Joannou
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -31,10 +31,17 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.RV32_M
+    Description : RISC-V RV32 multiply/divide extension
+
+    The 'RISCV.RV32_M' module provides the description of the RISC-V RV32
+    multiply/divide extension
+-}
+
 module RISCV.RV32_M (
-  rv32_m_disass
-, rv32_m
-, mul
+-- * RV32 multiply/divide, instruction definitions
+  mul
 , mulh
 , mulhsu
 , mulhu
@@ -42,16 +49,15 @@ module RISCV.RV32_M (
 , divu
 , rem
 , remu
+-- * RV32 multiply/divide, others
+, rv32_m_disass
+, rv32_m
 ) where
 
 import Prelude hiding (rem, div)
 
 import RISCV.Helpers (prettyR)
 import InstrCodec (DecodeBranch, (-->), encode)
-
-----------------------
--- RV32_M instructions
-----------------------
 
 mul    = "0000001 rs2[4:0] rs1[4:0] 000 rd[4:0] 0110011"
 mulh   = "0000001 rs2[4:0] rs1[4:0] 001 rd[4:0] 0110011"
@@ -62,6 +68,7 @@ divu   = "0000001 rs2[4:0] rs1[4:0] 101 rd[4:0] 0110011"
 rem    = "0000001 rs2[4:0] rs1[4:0] 110 rd[4:0] 0110011"
 remu   = "0000001 rs2[4:0] rs1[4:0] 111 rd[4:0] 0110011"
 
+-- | Dissassembly of RV32 multiply/divide instructions
 rv32_m_disass :: [DecodeBranch String]
 rv32_m_disass = [ mul    --> prettyR "mul"
                 , mulh   --> prettyR "mulh"
@@ -70,9 +77,9 @@ rv32_m_disass = [ mul    --> prettyR "mul"
                 , div    --> prettyR "div"
                 , divu   --> prettyR "divu"
                 , rem    --> prettyR "rem"
-                , remu   --> prettyR "remu"
-                ]
+                , remu   --> prettyR "remu" ]
 
+-- | List of RV32 multiply/divide instructions
 rv32_m :: Integer -> Integer -> Integer -> [Integer]
 rv32_m src1 src2 dest = [ encode mul    src2 src1 dest
                         , encode mulh   src2 src1 dest
@@ -81,5 +88,4 @@ rv32_m src1 src2 dest = [ encode mul    src2 src1 dest
                         , encode div    src2 src1 dest
                         , encode divu   src2 src1 dest
                         , encode rem    src2 src1 dest
-                        , encode remu   src2 src1 dest
-                        ]
+                        , encode remu   src2 src1 dest ]

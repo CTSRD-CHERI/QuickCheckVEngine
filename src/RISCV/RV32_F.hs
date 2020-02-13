@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Alexandre Joannou
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -31,14 +31,17 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.RV32_F
+    Description : RISC-V RV32 floating-point extension
+
+    The 'RISCV.RV32_F' module provides the description of the RISC-V RV32
+    floating-point extension
+-}
+
 module RISCV.RV32_F (
-  rv32_f_disass
-, rv32_f_arith
-, rv32_f_macc
-, rv32_f_load
-, rv32_f_store
-, rv32_f
-, flw
+-- * RV32 floating-point, instruction definitions
+  flw
 , fsw
 , fmadd_s
 , fmsub_s
@@ -64,6 +67,13 @@ module RISCV.RV32_F (
 , fcvt_s_w
 , fcvt_s_wu
 , fmv_w_x
+-- * RV32 floating-point, others
+, rv32_f_disass
+, rv32_f_arith
+, rv32_f_macc
+, rv32_f_load
+, rv32_f_store
+, rv32_f
 ) where
 
 import RISCV.Helpers (prettyR, prettyS, prettyR4_rm, prettyR_rm,
@@ -71,10 +81,6 @@ import RISCV.Helpers (prettyR, prettyS, prettyR4_rm, prettyR_rm,
                       prettyR_FF_1op_rm, prettyR_FI_1op_rm, prettyR_IF_1op_rm,
                       prettyS_F)
 import InstrCodec (DecodeBranch, (-->), encode)
-
-----------------------
--- RV32_F instructions
-----------------------
 
 flw       = "imm[11:0]            rs1[4:0]     010  rd[4:0] 0000111"
 fsw       = "imm[11:5]   rs2[4:0] rs1[4:0]     010 imm[4:0] 0100111"
@@ -103,6 +109,7 @@ fcvt_s_w  = "1101000        00000 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
 fcvt_s_wu = "1101000        00001 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
 fmv_w_x   = "1111000        00000 rs1[4:0]     000  rd[4:0] 1010011"
 
+-- | Dissassembly of RV32 floating-point instructions
 rv32_f_disass :: [DecodeBranch String]
 rv32_f_disass = [ flw       --> prettyR           "flw"
                 , fsw       --> prettyS_F         "fsw"
@@ -132,18 +139,22 @@ rv32_f_disass = [ flw       --> prettyR           "flw"
                 , fmv_w_x   --> prettyR_FI_1op    "fmv.w.x"
                 ]
 
+-- | List of RV32 floating-point load instructions
 rv32_f_load :: Integer -> Integer -> Integer -> [Integer]
 rv32_f_load src1 dest imm = [ encode flw imm src1 dest ]
 
+-- | List of RV32 floating-point store instructions
 rv32_f_store :: Integer -> Integer -> Integer -> [Integer]
 rv32_f_store src1 src2 imm = [ encode fsw imm src2 src1 ]
 
+-- | List of RV32 floating-point multiply-accumulate instructions
 rv32_f_macc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_f_macc src1 src2 src3 dest rm = [ encode fmadd_s  src3 src2 src1 rm dest
                                      , encode fmsub_s  src3 src2 src1 rm dest
                                      , encode fnmsub_s src3 src2 src1 rm dest
                                      , encode fnmadd_s src3 src2 src1 rm dest ]
 
+-- | List of RV32 floating-point arithmetic instructions
 rv32_f_arith :: Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_f_arith src1 src2 dest rm = [ encode fadd_s    src2 src1 rm dest
                                  , encode fsub_s    src2 src1 rm dest
@@ -166,6 +177,7 @@ rv32_f_arith src1 src2 dest rm = [ encode fadd_s    src2 src1 rm dest
                                  , encode fcvt_s_wu      src1 rm dest
                                  , encode fmv_w_x        src1    dest ]
 
+-- | List of RV32 floating-point arithmetic instructions
 rv32_f :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer
        -> [Integer]
 rv32_f src1 src2 src3 dest rm imm =    (rv32_f_arith src1 src2 dest rm)

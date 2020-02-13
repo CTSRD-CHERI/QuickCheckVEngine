@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Alexandre Joannou
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -31,27 +31,34 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.RV64_F
+    Description : RISC-V RV64 floating-point extension
+
+    The 'RISCV.RV64_F' module provides the description of the RISC-V RV64
+    floating-point extension
+-}
+
 module RISCV.RV64_F (
-  rv64_f_disass
-, rv64_f
-, fcvt_l_s
+-- * RV64 floating-point, instruction definitions
+  fcvt_l_s
 , fcvt_lu_s
 , fcvt_s_l
 , fcvt_s_lu
+-- * RV64 floating-point, others
+, rv64_f_disass
+, rv64_f
 ) where
 
 import RISCV.Helpers (prettyR_IF_1op_rm, prettyR_FI_1op_rm)
 import InstrCodec (DecodeBranch, (-->), encode)
-
-----------------------
--- RV64_F instructions
-----------------------
 
 fcvt_l_s  = "1100000 00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
 fcvt_lu_s = "1100000 00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
 fcvt_s_l  = "1101000 00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
 fcvt_s_lu = "1101000 00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
 
+-- | Dissassembly of RV64 floating-point instructions
 rv64_f_disass :: [DecodeBranch String]
 rv64_f_disass = [ fcvt_l_s  --> prettyR_IF_1op_rm "fcvt.l.s"
                 , fcvt_lu_s --> prettyR_IF_1op_rm "fcvt.lu.s"
@@ -59,6 +66,7 @@ rv64_f_disass = [ fcvt_l_s  --> prettyR_IF_1op_rm "fcvt.l.s"
                 , fcvt_s_lu --> prettyR_FI_1op_rm "fcvt.s.lu"
                 ]
 
+-- | List of RV64 floating-point arithmetic instructions
 rv64_f :: Integer -> Integer -> Integer -> [Integer]
 rv64_f src1 dest rm = [ encode fcvt_l_s  src1 rm dest
                       , encode fcvt_lu_s src1 rm dest

@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Alexandre Joannou
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -31,14 +31,17 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.RV32_D
+    Description : RISC-V RV32 double-precision floating-point extension
+
+    The 'RISCV.RV32_D' module provides the description of the RISC-V RV32
+    double-precision floating-point extension
+-}
+
 module RISCV.RV32_D (
-  rv32_d_disass
-, rv32_d_arith
-, rv32_d_macc
-, rv32_d_load
-, rv32_d_store
-, rv32_d
-, fld
+-- * RV32 double-precision floating-point, instruction definitions
+  fld
 , fsd
 , fmadd_d
 , fmsub_d
@@ -64,16 +67,19 @@ module RISCV.RV32_D (
 , fcvt_wu_d
 , fcvt_d_w
 , fcvt_d_wu
+-- * RV32 double-precision floating-point, others
+, rv32_d_disass
+, rv32_d_arith
+, rv32_d_macc
+, rv32_d_load
+, rv32_d_store
+, rv32_d
 ) where
 
 import RISCV.Helpers (prettyR, prettyS, prettyR4_rm, prettyR_rm,
                       prettyR_IF_1op, prettyR_FF_1op_rm, prettyR_FI_1op_rm,
                       prettyR_IF_1op_rm, prettyS_F)
 import InstrCodec (DecodeBranch, (-->), encode)
-
-----------------------
--- RV32_D instructions
-----------------------
 
 fld       = "imm[11:0]            rs1[4:0]     011  rd[4:0] 0000111"
 fsd       = "imm[11:5]   rs2[4:0] rs1[4:0]     011 imm[4:0] 0100111"
@@ -102,6 +108,7 @@ fcvt_wu_d = "1100001        00001 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
 fcvt_d_w  = "1101001        00000 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
 fcvt_d_wu = "1101001        00001 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
 
+-- | Dissassembly of RV32 double-precision floating-point instructions
 rv32_d_disass :: [DecodeBranch String]
 rv32_d_disass = [ fld       --> prettyR           "fld"
                 , fsd       --> prettyS_F         "fsd"
@@ -128,21 +135,25 @@ rv32_d_disass = [ fld       --> prettyR           "fld"
                 , fcvt_w_d  --> prettyR_IF_1op_rm "fcvt.w.d"
                 , fcvt_wu_d --> prettyR_IF_1op_rm "fcvt.wu.d"
                 , fcvt_d_w  --> prettyR_FI_1op_rm "fcvt.d.w"
-                , fcvt_d_wu --> prettyR_FI_1op_rm "fcvt.d.wu"
-                ]
+                , fcvt_d_wu --> prettyR_FI_1op_rm "fcvt.d.wu" ]
 
+-- | List of RV32 double-precision floating-point load instructions
 rv32_d_load :: Integer -> Integer -> Integer -> [Integer]
 rv32_d_load src1 dest imm = [ encode fld imm src1 dest ]
 
+-- | List of RV32 double-precision floating-point store instructions
 rv32_d_store :: Integer -> Integer -> Integer -> [Integer]
 rv32_d_store src1 src2 imm = [ encode fsd imm src2 src1 ]
 
+-- | List of RV32 double-precision floating-point multiply-accumulate
+--   instructions
 rv32_d_macc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_d_macc src1 src2 src3 dest rm = [ encode fmadd_d  src3 src2 src1 rm dest
                                      , encode fmsub_d  src3 src2 src1 rm dest
                                      , encode fnmsub_d src3 src2 src1 rm dest
                                      , encode fnmadd_d src3 src2 src1 rm dest ]
 
+-- | List of RV32 double-precision floating-point arithmetic instructions
 rv32_d_arith :: Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_d_arith src1 src2 dest rm = [ encode fadd_d    src2 src1 rm dest
                                  , encode fsub_d    src2 src1 rm dest
@@ -165,6 +176,7 @@ rv32_d_arith src1 src2 dest rm = [ encode fadd_d    src2 src1 rm dest
                                  , encode fcvt_d_w       src1 rm dest
                                  , encode fcvt_d_wu      src1 rm dest ]
 
+-- | List of RV32 double-precision floating-point instructions
 rv32_d :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer
        -> [Integer]
 rv32_d src1 src2 src3 dest rm imm =    (rv32_d_arith src1 src2 dest rm)

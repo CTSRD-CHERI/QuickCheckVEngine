@@ -31,7 +31,16 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.RV_C
+    Description : RISC-V compressed instructions extension
+
+    The 'RISCV.RV_C' module provides the description of the RISC-V compressed
+    instructions extension
+-}
+
 module RISCV.RV_C (
+-- * RISC-V compressed instructions, instruction definitions
   c_illegal
 , c_addi4spn
 , c_fld
@@ -85,15 +94,12 @@ module RISCV.RV_C (
 , c_swsp
 , c_fswsp
 , c_sdsp
+-- * RISC-V compressed instructions, others
 , rv_c_disass
 , rv_c
 ) where
 
 import InstrCodec (DecodeBranch, (-->), encode)
-
-----------------------
--- RV_C instructions
-----------------------
 
 c_illegal  = "000                                    00000000  000 00"
 c_addi4spn = "000 nzuimm[5:4] nzuimm[9:6] nzuimm[2] nzuimm[3]  rd' 00"
@@ -151,8 +157,10 @@ c_swsp     = "110      uimm[5:2] uimm[7:6]            rs2[4:0] 10"
 c_fswsp    = "111      uimm[5:2] uimm[7:6]            rs2[4:0] 10"
 c_sdsp     = "111      uimm[5:3] uimm[8:6]            rs2[4:0] 10"
 
+-- | TODO Dissassembly of RISC-V compressed instructions
 rv_c_disass :: [DecodeBranch String]
 rv_c_disass = []
 
+-- | TODO List of RISC-V compressed instructions
 rv_c :: [Integer]
 rv_c = []

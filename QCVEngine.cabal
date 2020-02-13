@@ -9,8 +9,8 @@ executable QCVEngine
   main-is:             QuickCheckVEngine/Main.hs
   other-modules:       InstrCodec,
                        RISCV,
-                       RISCV.ArchDesc,
                        RISCV.Helpers,
+                       RISCV.ArchDesc,
                        RISCV.InstPretty,
                        RISCV.RV32_I,
                        RISCV.RV32_M,
@@ -26,6 +26,7 @@ executable QCVEngine
                        RISCV.RV64_F,
                        RISCV.RV64_D,
                        RISCV.RV_C,
+                       RISCV.RV_CSRs,
                        QuickCheckVEngine.RVFI_DII,
                        QuickCheckVEngine.RVFI_DII.RVFI,
                        QuickCheckVEngine.RVFI_DII.DII,

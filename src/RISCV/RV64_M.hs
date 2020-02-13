@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Alexandre Joannou
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -31,22 +31,28 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.RV64_M
+    Description : RISC-V RV64 multiply/divide extension
+
+    The 'RISCV.RV64_M' module provides the description of the RISC-V RV64
+    multiply/divide extension
+-}
+
 module RISCV.RV64_M (
-  rv64_m_disass
-, rv64_m
-, mulw
+-- * RV64 multiply/divide, instruction definitions
+  mulw
 , divw
 , divuw
 , remw
 , remuw
+-- * RV64 multiply/divide, others
+, rv64_m_disass
+, rv64_m
 ) where
 
 import RISCV.Helpers (prettyR)
 import InstrCodec (DecodeBranch, (-->), encode)
-
-----------------------
--- RV64_M instructions
-----------------------
 
 mulw  = "0000001 rs2[4:0] rs1[4:0] 000 rd[4:0] 0111011"
 divw  = "0000001 rs2[4:0] rs1[4:0] 100 rd[4:0] 0111011"
@@ -54,6 +60,7 @@ divuw = "0000001 rs2[4:0] rs1[4:0] 101 rd[4:0] 0111011"
 remw  = "0000001 rs2[4:0] rs1[4:0] 110 rd[4:0] 0111011"
 remuw = "0000001 rs2[4:0] rs1[4:0] 111 rd[4:0] 0111011"
 
+-- | Dissassembly of RV64 multiply/divide instructions
 rv64_m_disass :: [DecodeBranch String]
 rv64_m_disass = [ mulw  --> prettyR "mulw"
                 , divw  --> prettyR "divw"
@@ -62,6 +69,7 @@ rv64_m_disass = [ mulw  --> prettyR "mulw"
                 , remuw --> prettyR "remuw"
                 ]
 
+-- | List of RV64 multiply/divide instructions
 rv64_m :: Integer -> Integer -> Integer -> [Integer]
 rv64_m src1 src2 dest = [ encode mulw  src2 src1 dest
                         , encode divw  src2 src1 dest

@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Alexandre Joannou
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -31,17 +31,29 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : RISCV.ArchDesc
+    Description : RISC-V architectural configuration
+
+    The 'RISCV.ArchDesc' module provides helpers to represent a RISC-V
+    architectural configuration as a set of 'Bool' options
+-}
+
 module RISCV.ArchDesc (
   ArchDesc(..)
-, archDesc_rv32i
 , archDesc_null
+, archDesc_rv32i
 , fromString
 ) where
 
 import Text.Regex.Posix ((=~))
+import Data.List
 import Data.List.Split (splitOneOf)
 import Data.Char (toLower)
 
+-- | The 'ArchDesc' type is a record type with 'Bool' fields indicating the
+--   presence of a RISC-V extension. It can be used to select a subset of
+--   instructions to generate when used in functions to generate 'Template's.
 data ArchDesc = ArchDesc { has_xlen_32 :: Bool
                          , has_xlen_64 :: Bool
                          , has_i       :: Bool
@@ -51,20 +63,26 @@ data ArchDesc = ArchDesc { has_xlen_32 :: Bool
                          , has_d       :: Bool
                          , has_icsr    :: Bool
                          , has_ifencei :: Bool
-                         , has_cheri   :: Bool
-                         } deriving (Show)
+                         , has_cheri   :: Bool }
 
-archDesc_rv32i = ArchDesc { has_xlen_32 = True
-                          , has_xlen_64 = False
-                          , has_i       = True
-                          , has_m       = False
-                          , has_a       = False
-                          , has_f       = False
-                          , has_d       = False
-                          , has_icsr    = False
-                          , has_ifencei = False
-                          , has_cheri   = False
-                          }
+-- | The 'Show' instance for 'ArchDesc' renders an approximation of a RISC-V
+--   archstring
+instance Show ArchDesc where
+  show a = "rv" ++ intercalate "_" [ x | x <- [ ext has_xlen_32 "32"
+                                              , ext has_xlen_64 "64" ]
+                                       , not $ null x ]
+                ++ ext has_i "i"
+                ++ ext has_m "m"
+                ++ ext has_a "a"
+                ++ ext has_f "f"
+                ++ ext has_d "d"
+                ++ intercalate "_" [ x | x <- [ ext has_icsr "Zicsr"
+                                              , ext has_ifencei "Zifencei"
+                                              , ext has_cheri "Xcheri" ]
+                                       , not $ null x ]
+            where ext pred str = if pred a then str else ""
+
+-- | 'archDesc_null' is an 'ArchDesc' with all its fields set to 'False'
 archDesc_null  = ArchDesc { has_xlen_32 = False
                           , has_xlen_64 = False
                           , has_i       = False
@@ -77,6 +95,22 @@ archDesc_null  = ArchDesc { has_xlen_32 = False
                           , has_cheri   = False
                           }
 
+-- | 'archDesc_rv32i' is an 'ArchDesc' with its 'has_xlen_32' and 'has_i' fields
+--   set to 'True' and all others set to 'False'
+archDesc_rv32i = ArchDesc { has_xlen_32 = True
+                          , has_xlen_64 = False
+                          , has_i       = True
+                          , has_m       = False
+                          , has_a       = False
+                          , has_f       = False
+                          , has_d       = False
+                          , has_icsr    = False
+                          , has_ifencei = False
+                          , has_cheri   = False
+                          }
+
+-- | 'fromString' expects a valid RISC-V archstring and turns it into an
+--   'ArchDesc'
 fromString :: String -> ArchDesc
 fromString str = ArchDesc { has_xlen_32 = True
                           , has_xlen_64 = rv64
