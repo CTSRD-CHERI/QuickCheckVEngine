@@ -35,6 +35,14 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : QuickCheckVEngine.Template
+    Description : Helpers to define RISC-V tests
+
+    The 'QuickCheckVEngine.Template' module provides helpers to express RISC-V
+    tests
+-}
+
 module QuickCheckVEngine.Template (
   Template(..)
 , instSeq

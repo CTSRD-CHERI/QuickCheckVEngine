@@ -37,6 +37,15 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : QuickCheckVEngine.RVFI_DII.RVFI
+    Description : RISC-V Formal Interface
+
+    The 'QuickCheckVEngine.RVFI_DII.RVFI' module defines the RISC-V RVFI
+    interface as introduced
+    <https://github.com/SymbioticEDA/riscv-formal/blob/master/docs/rvfi.md here>
+-}
+
 module QuickCheckVEngine.RVFI_DII.RVFI (
   RVFI_Packet
 , rvfiIsHalt
@@ -55,8 +64,6 @@ import Data.Semigroup -- Should no longer be required with modern ghc
 import RISCV
 import Text.Printf
 
--- * Type synonyms
-
 -- | Type synonym for a RISCV register index
 type RV_RegIdx = Word8
 
@@ -69,8 +76,6 @@ type RV_WordXLEN_ByteMask = Word8
 -- * Definition of the RISC-V Formal Interface
 
 -- | The 'RVFI_Packet' type captures (a subset of) the RISC-V Formal Interface
---   as defined at
---   https://github.com/SymbioticEDA/riscv-formal/blob/master/docs/rvfi.md
 data RVFI_Packet = RVFI_Packet {
 -- Metadata
   rvfi_valid :: Word8
@@ -180,8 +185,6 @@ instance Show RVFI_Packet where
                   (rvfi_mem_wmask tok)   -- MWM
                   (rvfi_insn tok) (pretty (toInteger (rvfi_insn tok))) -- Inst
 
--- * 'RVFI_Packet' queries
-
 -- | Return 'True' for halt 'RVFI_Packet's
 rvfiIsHalt :: RVFI_Packet -> Bool
 rvfiIsHalt x = rvfi_halt x /= 0
@@ -189,8 +192,6 @@ rvfiIsHalt x = rvfi_halt x /= 0
 -- | Return 'True' for trap 'RVFI_Packet's
 rvfiIsTrap :: RVFI_Packet -> Bool
 rvfiIsTrap x = rvfi_trap x /= 0
-
--- * 'RVFI_Packet' checks and displays
 
 -- | Compare 'RVFI_Packet's
 rvfiCheck :: Bool -> RVFI_Packet -> RVFI_Packet -> Bool

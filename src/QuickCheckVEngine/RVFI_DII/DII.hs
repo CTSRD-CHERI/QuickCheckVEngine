@@ -37,10 +37,18 @@
 -- SUCH DAMAGE.
 --
 
+{-|
+    Module      : QuickCheckVEngine.RVFI_DII.DII
+    Description : Direct Instruction Injection interface
+
+    The 'QuickCheckVEngine.RVFI_DII.DII' module defines the RISC-V DII (direct
+    instruction injection) interface
+-}
+
 module QuickCheckVEngine.RVFI_DII.DII (
-  DII_Packet     -- * The 'DII_Packet' type used to send a DII command
-, diiInstruction -- * Construct a instruction 'DII_Packet'
-, diiEnd         -- * Construct an end 'DII_Packet'
+  DII_Packet
+, diiInstruction
+, diiEnd
 ) where
 
 import Data.Word
@@ -51,8 +59,6 @@ import RISCV
 import Text.Printf
 import Data.List.Split
 import QuickCheckVEngine.Template
-
--- * Local types and command Helpers
 
 -- | Type synonym for a DII command
 type DII_Cmd = Word8
@@ -68,13 +74,15 @@ dii_cmd_instruction = 1
 dii_cmd_end :: DII_Cmd
 dii_cmd_end = 0
 
--- * Definition of the DII interface
-
 -- | The 'DII_Packet' type captures the DII interface as defined in
 --   https://github.com/CTSRD-CHERI/TestRIG/blob/master/RVFI-DII.md
-data DII_Packet = DII_Packet { dii_cmd  :: DII_Cmd
+data DII_Packet = DII_Packet { -- | the command (instruction/end packet)
+                               dii_cmd  :: DII_Cmd
+                               -- | the timestamp
                              , dii_time :: DII_Time
+                               -- | the instruction
                              , dii_insn :: DII_Instruction }
+
 -- | A 'DII_Packet' is serialized to a 32-bit word with 8 bits of padding at
 --   the front
 instance Binary DII_Packet where
@@ -103,8 +111,6 @@ instance Num DII_Packet where
   abs    = error "abs is not defined on DII_Packet"
   signum = error "signum is not defined on DII_Packet"
   negate = error "negate is not defined on DII_Packet"
-
--- * Helper functions to define 'DII_Packet's
 
 -- | Construct a instruction 'DII_Packet'
 diiInstruction :: Integer -> DII_Packet

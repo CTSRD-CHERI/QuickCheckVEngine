@@ -39,6 +39,11 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-|
+    Module      : QuickCheckVEngine.RVFI_DII
+    Description : The RVFI-DII interface
+-}
+
 module QuickCheckVEngine.RVFI_DII (
   module QuickCheckVEngine.RVFI_DII.RVFI
 , module QuickCheckVEngine.RVFI_DII.DII
