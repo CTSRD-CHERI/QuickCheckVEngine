@@ -52,7 +52,7 @@ genAll desc = Random $ do
   fOp2    <- bits 4
   aq      <- bits 1
   rl      <- bits 1
-  rm      <- bits 3
+  rm      <- roundingMode
   mop     <- bits 5
   uimm    <- bits 5
   offset  <- memOffset
