@@ -61,6 +61,7 @@ data ArchDesc = ArchDesc { has_xlen_32 :: Bool
                          , has_a       :: Bool
                          , has_f       :: Bool
                          , has_d       :: Bool
+                         , has_n       :: Bool
                          , has_icsr    :: Bool
                          , has_ifencei :: Bool
                          , has_cheri   :: Bool }
@@ -76,6 +77,7 @@ instance Show ArchDesc where
                 ++ ext has_a "a"
                 ++ ext has_f "f"
                 ++ ext has_d "d"
+                ++ ext has_n "n"
                 ++ intercalate "_" [ x | x <- [ ext has_icsr "Zicsr"
                                               , ext has_ifencei "Zifencei"
                                               , ext has_cheri "Xcheri" ]
@@ -90,6 +92,7 @@ archDesc_null  = ArchDesc { has_xlen_32 = False
                           , has_a       = False
                           , has_f       = False
                           , has_d       = False
+                          , has_n       = False
                           , has_icsr    = False
                           , has_ifencei = False
                           , has_cheri   = False
@@ -104,6 +107,7 @@ archDesc_rv32i = ArchDesc { has_xlen_32 = True
                           , has_a       = False
                           , has_f       = False
                           , has_d       = False
+                          , has_n       = False
                           , has_icsr    = False
                           , has_ifencei = False
                           , has_cheri   = False
@@ -119,6 +123,7 @@ fromString str = ArchDesc { has_xlen_32 = True
                           , has_a       = a
                           , has_f       = f
                           , has_d       = d
+                          , has_n       = n
                           , has_icsr    = icsr
                           , has_ifencei = ifencei
                           , has_cheri   = cheri
@@ -126,11 +131,12 @@ fromString str = ArchDesc { has_xlen_32 = True
   where rawSplit = splitOneOf "_zx" (map toLower str)
         archStrings = filter (\x -> not $ null x) rawSplit
         rv64 = (head archStrings) =~ "rv64"
-        i = ((head archStrings) =~ "i") || ((head archStrings) =~ "g")
-        m = ((head archStrings) =~ "m") || ((head archStrings) =~ "g")
-        a = ((head archStrings) =~ "a") || ((head archStrings) =~ "g")
-        f = ((head archStrings) =~ "f") || ((head archStrings) =~ "g")
-        d = ((head archStrings) =~ "d") || ((head archStrings) =~ "g")
-        icsr = elem "icsr" archStrings || ((head archStrings) =~ "g")
-        ifencei = elem "ifencei" archStrings || ((head archStrings) =~ "g")
+        i = (head archStrings =~ "i") || (head archStrings =~ "g")
+        m = (head archStrings =~ "m") || (head archStrings =~ "g")
+        a = (head archStrings =~ "a") || (head archStrings =~ "g")
+        f = (head archStrings =~ "f") || (head archStrings =~ "g")
+        d = (head archStrings =~ "d") || (head archStrings =~ "g")
+        icsr = elem "icsr" archStrings || (head archStrings =~ "g")
+        ifencei = elem "ifencei" archStrings || (head archStrings =~ "g")
+        n = head archStrings =~ "n"
         cheri = elem "cheri" archStrings
