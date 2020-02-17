@@ -55,10 +55,6 @@ import Data.Word
 import Data.Binary
 import Data.Binary.Put
 import Data.Binary.Get
-import RISCV
-import Text.Printf
-import Data.List.Split
-import QuickCheckVEngine.Template
 
 -- | Type synonym for a DII command
 type DII_Cmd = Word8
@@ -97,11 +93,6 @@ instance Binary DII_Packet where
            return $ DII_Packet { dii_cmd  = cmd
                                , dii_time = time
                                , dii_insn = insn }
-instance Show DII_Packet where
-  show inst_tok = printf ".4byte 0x%08x # %s"
-                         (dii_insn inst_tok)
-                         (pretty $ toInteger $ dii_insn inst_tok)
-  showList inst_toks = showString (unlines (fmap show inst_toks))
 instance Num DII_Packet where
   fromInteger i = DII_Packet { dii_cmd  = dii_cmd_instruction
                              , dii_time = 1

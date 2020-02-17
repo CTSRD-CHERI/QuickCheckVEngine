@@ -63,6 +63,7 @@ import System.IO.Unsafe
 import Data.Maybe ( isJust, isNothing, fromMaybe )
 import Data.List
 import Data.List.Split
+import Data.Time.Clock
 import System.Exit
 import System.IO
 import QuickCheckVEngine.RVFI_DII
@@ -190,32 +191,35 @@ main = withSocketsDo $ do
   instrSoc <- mapM (open "instruction-generator-port") addrInstr
   --
   alive <- newIORef True -- Cleared when either implementation times out, since they will may not be able to respond to future queries
+  let checkSingle tc verbose doShrink onFail = do
+        quickCheckWithResult (Args Nothing 1 1 2048 True (if doShrink then 1000 else 0))
+                             (prop socA socB alive onFail archDesc (timeoutDelay flags) verbose (return tc))
+  let saveOnFail tc = do
+        writeFile "last_failure.S" ("# last failing test case:\n" ++ show tc)
+        putStrLn "Replaying shrunk failed test case:"
+        checkSingle tc True False (const $ return ())
+        case (saveDir flags) of
+          Nothing -> do
+            putStrLn "Save this trace (give file name or leave empty to ignore)?"
+            fileName <- getLine
+            when (not $ null fileName) $ do
+              putStrLn "One-line description?"
+              comment <- getLine
+              writeFile (fileName ++ ".S")
+                        ("# " ++ comment ++ "\n" ++ show tc)
+          Just dir -> do
+            t <- getCurrentTime
+            let tstamp = [if x == ' ' then '_' else x | x <- (show t)]
+            writeFile (dir ++ "/failure-" ++ tstamp ++ ".S")
+                      ("# Automatically generated failing test case" ++ "\n" ++ show tc)
   let checkResult = if (optVerbose flags)
                     then verboseCheckWithResult
                     else quickCheckWithResult
-  let checkSingle trace verbose doShrink = do
-        quickCheckWithResult (Args Nothing 1 1 2048 True (if doShrink then 1000 else 0)) (prop (return trace) socA socB verbose archDesc (timeoutDelay flags) alive)
   let checkGen gen remainingTests = do
-        result <- checkResult (Args Nothing remainingTests 1 2048 True 1000) (prop gen socA socB (optVerbose flags) archDesc (timeoutDelay flags) alive)
-        case result of
-          Failure {} -> do
-            writeFile "last_failure.S" ("# last failing test case:\n" ++ (unlines (failingTestCase result)))
-            putStrLn "Replaying shrunk failed test case:"
-            checkSingle (readDIITrace (lines(head(failingTestCase result)))) True False
-            case (saveDir flags) of
-              Nothing -> do
-                putStrLn "Save this trace (give file name or leave empty to ignore)?"
-                fileName <- getLine
-                when (not $ null fileName) $ do
-                  putStrLn "One-line description?"
-                  comment <- getLine
-                  writeFile (fileName ++ ".S") ("# " ++ comment
-                                                ++ "\n" ++ (unlines (failingTestCase result)))
-                return 1
-              Just dir -> do
-                writeFile (dir ++ "/failure" ++ (show (remainingTests - (numTests result))) ++ ".S") ("# Automatically generated failing test case" ++ "\n" ++ (unlines (failingTestCase result)))
-                checkGen gen (remainingTests - (numTests result))
-          other -> return 0
+        res <- checkResult (Args Nothing remainingTests 1 2048 True 1000)
+                           (prop socA socB alive saveOnFail archDesc (timeoutDelay flags) (optVerbose flags) gen)
+        case res of Failure {} -> return 1
+                    _          -> return 0
   let checkFile (memoryInitFile :: Maybe FilePath) (fileName :: FilePath) = do
         putStrLn $ "Reading trace from " ++ fileName
         trace <- readDIITraceFile fileName
@@ -223,25 +227,14 @@ main = withSocketsDo $ do
           Just memInit -> do putStrLn $ "Reading memory initialisation from file " ++ memInit
                              readDIIDataFile memInit
           Nothing -> return mempty
-        result <- checkSingle (initTrace <> trace) (optVerbose flags) True
-        case result of
-          Failure {} -> do
-            writeFile "last_failure.S" ("# last failing test case:\n" ++ (unlines (failingTestCase result)))
-            putStrLn "Replaying shrunk failed test case:"
-            checkSingle (readDIITrace (lines(head(failingTestCase result)))) True False
-            putStrLn "Save this trace (give file name or leave empty to ignore)?"
-            fileName <- getLine
-            when (not $ null fileName) $ do
-                putStrLn "One-line description?"
-                comment <- getLine
-                writeFile (fileName ++ ".S") ("# " ++ comment
-                                            ++ "\n" ++ (unlines (failingTestCase result)))
-          other -> putStrLn "Not a Failure."
+        res <- checkSingle (initTrace <> trace) (optVerbose flags) True saveOnFail
+        case res of Failure {} -> putStrLn "Failure."
+                    _          -> putStrLn "No Failure."
         return ()
   --
-  success <- newIORef 0
-  let doCheck a b = do result <- checkGen a b
-                       modifyIORef success ((+) result)
+  failuresRef <- newIORef 0
+  let doCheck a b = do res <- checkGen a b
+                       modifyIORef failuresRef ((+) res)
   case (instTraceFile flags) of
     Just fileName -> do
       checkFile (memoryInitFile flags) fileName
@@ -325,8 +318,8 @@ main = withSocketsDo $ do
   close socA
   close socB
   --
-  exitCode <- readIORef success
-  if exitCode == 0 then exitSuccess else exitWith $ ExitFailure exitCode
+  failures <- readIORef failuresRef
+  if failures == 0 then exitSuccess else exitWith $ ExitFailure failures
   --
   where
     resolve host port = do
@@ -340,9 +333,13 @@ main = withSocketsDo $ do
         return sock
 
 --------------------------------------------------------------------------------
-prop :: Gen TestCase -> Socket -> Socket -> Bool -> ArchDesc -> Int -> IORef Bool -> Property
-prop gen socA socB doLog arch timeoutDelay alive = forAllShrink gen shrink mkProp
-  where mkProp testCase = monadicIO $ run $ do
+prop :: Socket -> Socket -> IORef Bool -> (TestCase -> IO ())
+     -> ArchDesc -> Int -> Bool -> Gen TestCase
+     -> Property
+prop socA socB alive onFail arch timeoutDelay doLog gen =
+  forAllShrink gen shrink mkProp
+  where mkProp testCase = whenFail (onFail testCase) (doProp testCase)
+        doProp testCase = monadicIO $ run $ do
           let instTrace = map diiInstruction $ fromTestCase testCase
           let instTraceTerminated = instTrace ++ [diiEnd]
           currentlyAlive <- readIORef alive

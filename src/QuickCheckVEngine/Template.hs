@@ -65,6 +65,8 @@ module QuickCheckVEngine.Template (
 import Test.QuickCheck
 import Data.List
 import Data.Semigroup -- Should no longer be required with modern ghc
+import RISCV
+import Text.Printf
 
 -- | 'Template' type to describe sequences of instructions (represented as
 --   'Integer's) to be used as tests
@@ -119,6 +121,8 @@ repeatTemplateTillEnd template = Random $ do
 
 -- | 'TestCase' type for generated 'Template'
 newtype TestCase = TC [TestStrand]
+instance Show TestCase where
+  show (TC tss) = intercalate "\n" (map show tss)
 instance Semigroup TestCase where
   TC x <> TC y = TC (x ++ y)
 instance Monoid TestCase where
@@ -132,7 +136,12 @@ instance Arbitrary TestCase where
 -- | 'TestStrand' type representing a shrinkable part of a 'TestCase'
 data TestStrand = TS { testStrandShrink :: Bool
                      , testStrandInsts  :: [Integer] }
-                  deriving Show
+instance Show TestStrand where
+  show (TS { testStrandShrink = shrink
+           , testStrandInsts  = insts }) = showInsts -- TODO: showShrink ++ "\n" ++ showInsts
+    where showShrink = if shrink then ".shrink" else ".noshrink"
+          showInsts  = intercalate "\n" (map showInst insts)
+          showInst inst = printf ".4byte 0x%08x # %s" inst (pretty inst)
 instance Arbitrary TestStrand where
   arbitrary = do TC strands <- genTemplate Empty
                  return $ head strands

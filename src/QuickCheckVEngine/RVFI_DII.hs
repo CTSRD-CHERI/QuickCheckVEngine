@@ -64,10 +64,6 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 import InstrCodec
 
--- | Show instance for 'TestCase' now that 'diiInstruction' is in scope
-instance Show TestCase where
-  show testCase = show $ map diiInstruction (fromTestCase testCase)
-
 -- | Turns a '[String]' representation of a DII trace into a 'TestCase'
 readDIITrace :: [String] -> TestCase
 readDIITrace inStr =
