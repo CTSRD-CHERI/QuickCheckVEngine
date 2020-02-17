@@ -129,10 +129,14 @@ instance Monoid TestCase where
   mempty = TC []
 instance Arbitrary TestCase where
   arbitrary = TC <$> arbitrary
-  shrink (TC ss) = [ TC $ ys ++ [z'] ++ zs | (ys, z:zs) <- splits ss
-                                           , z' <- shrink z ]
+  shrink (TC ss) = [ TC $    filter tsNotNull ys
+                          ++ if tsNotNull z' then [z'] else []
+                          ++ filter tsNotNull zs
+                   | (ys, z:zs) <- splits ss
+                   , z'  <- shrink z ]
     where splits [] = []
           splits (x:xs) = ([], x:xs) : [(x:ys, zs) | (ys, zs) <- splits xs]
+          tsNotNull ts = (not . null) $ testStrandInsts ts
 -- | 'TestStrand' type representing a shrinkable part of a 'TestCase'
 data TestStrand = TS { testStrandShrink :: Bool
                      , testStrandInsts  :: [Integer] }
