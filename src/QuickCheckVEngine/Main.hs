@@ -80,7 +80,7 @@ import QuickCheckVEngine.Templates.GenMemory
 import QuickCheckVEngine.Templates.GenCSRs
 import QuickCheckVEngine.Templates.RandomTest
 import QuickCheckVEngine.Templates.GenControlFlow
-import QuickCheckVEngine.Templates.GenMulDiv
+import QuickCheckVEngine.Templates.GenCompressed
 import QuickCheckVEngine.Templates.GenAtomics
 import QuickCheckVEngine.Templates.GenFP
 import QuickCheckVEngine.Templates.GenCHERI
@@ -275,6 +275,9 @@ main = withSocketsDo $ do
                    doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_a) (nTests flags)
                    putStrLn "rv64 A Memory Verification:"
                    doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_i_a_memory) (nTests flags)
+              when (has_c archDesc) $
+                do putStrLn "rv C extension Verification:"
+                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv_c) (nTests flags)
               when (has_f archDesc) $
                 do putStrLn "rv32 F extension Verification:"
                    doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_f) (nTests flags)

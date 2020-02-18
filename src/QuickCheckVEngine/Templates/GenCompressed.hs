@@ -1,20 +1,13 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2018 Jonathan Woodruff
--- Copyright (c) 2018 Matthew Naylor
--- Copyright (c) 2019 Peter Rugg
--- Copyright (c) 2019, 2020 Alexandre Joannou
+-- Copyright (c) 2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
 -- Cambridge Computer Laboratory (Department of Computer Science and
 -- Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
 -- DARPA SSITH research programme.
---
--- This software was partly developed by the University of Cambridge
--- Computer Laboratory as part of the Partially-Ordered Event-Triggered
--- Systems (POETS) project, funded by EPSRC grant EP/N031768/1.
 --
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions
@@ -38,14 +31,33 @@
 -- SUCH DAMAGE.
 --
 
-module QuickCheckVEngine.Templates.Utils (
-  module QuickCheckVEngine.Templates.Utils.General
-, module QuickCheckVEngine.Templates.Utils.CHERI
-, module QuickCheckVEngine.Templates.Utils.FP
-, module QuickCheckVEngine.Templates.Utils.Compressed
+module QuickCheckVEngine.Templates.GenCompressed (
+  gen_rv_c
 ) where
 
-import QuickCheckVEngine.Templates.Utils.General
-import QuickCheckVEngine.Templates.Utils.CHERI
-import QuickCheckVEngine.Templates.Utils.FP
-import QuickCheckVEngine.Templates.Utils.Compressed
+import RISCV.RV_C
+import QuickCheckVEngine.Template
+import QuickCheckVEngine.Templates.Utils
+
+gen_rv_c :: Template
+gen_rv_c = Random $ do
+  imm       <- genCompressed_imm
+  uimm      <- genCompressed_uimm
+  nzimm     <- genCompressed_nzimm
+  nzuimm    <- genCompressed_nzuimm
+  rs1'      <- genCompressed_rs1'
+  rs1'_rd'  <- genCompressed_rs1'_rd'
+  rs1_nz    <- genCompressed_rs1_nz
+  rs1_rd_nz <- genCompressed_rs1_rd_nz
+  rs2       <- genCompressed_rs2
+  rs2'      <- genCompressed_rs2'
+  rs2_nz    <- genCompressed_rs2_nz
+  rd        <- genCompressed_rd
+  rd'       <- genCompressed_rd'
+  rd_nz     <- genCompressed_rd_nz
+  rd_nz_n2  <- genCompressed_rd_nz_n2
+  let insts = rv_c imm uimm nzimm nzuimm
+                   rs1' rs1'_rd' rs1_nz rs1_rd_nz
+                   rs2 rs2' rs2_nz
+                   rd rd' rd_nz rd_nz_n2
+  return $ Distribution [ (9, uniformTemplate insts), (1, prepReg32 rd) ]

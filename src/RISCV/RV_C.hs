@@ -48,7 +48,7 @@ module RISCV.RV_C (
 , c_lw
 , c_flw
 , c_ld
-, c_res_a
+--, c_res_a
 , c_fsd
 , c_fsq
 , c_sw
@@ -72,8 +72,8 @@ module RISCV.RV_C (
 , c_and
 , c_subw
 , c_addw
-, c_res_b
-, c_res_c
+--, c_res_b
+--, c_res_c
 , c_j
 , c_beqz
 , c_bnez
@@ -101,19 +101,19 @@ module RISCV.RV_C (
 
 import InstrCodec (DecodeBranch, (-->), encode)
 
-c_illegal  = "000                                    00000000  000 00"
-c_addi4spn = "000 nzuimm[5:4] nzuimm[9:6] nzuimm[2] nzuimm[3]  rd' 00"
-c_fld      = "001   uimm[5:3]            rs1'       uimm[7:6]  rd' 00"
-c_flq      = "001   uimm[5:4]    uimm[8] rs1'       uimm[7:6]  rd' 00"
-c_lw       = "010   uimm[5:3]            rs1' uimm[2] uimm[6]  rd' 00"
-c_flw      = "011   uimm[5:3]            rs1' uimm[2] uimm[6]  rd' 00"
-c_ld       = "011   uimm[5:3]            rs1' uimm[2] uimm[6]  rd' 00"
-c_res_a    = "100                       _                          00"
-c_fsd      = "101   uimm[5:3]            rs1'       uimm[7:6] rs2' 00"
-c_fsq      = "101   uimm[5:4]    uimm[8] rs1'       uimm[7:6] rs2' 00"
-c_sw       = "110   uimm[5:3]            rs1' uimm[2] uimm[6] rs2' 00"
-c_fsw      = "111   uimm[5:3]            rs1' uimm[2] uimm[6] rs2' 00"
-c_sd       = "111   uimm[5:3]            rs1'       uimm[7:6] rs2' 00"
+c_illegal  = "000                                          00000000      000 00"
+c_addi4spn = "000 nzuimm[5:4] nzuimm[9:6] nzuimm[2]       nzuimm[3] rd'[2:0] 00"
+c_fld      = "001   uimm[5:3]             rs1'[2:0]       uimm[7:6] rd'[2:0] 00"
+c_flq      = "001   uimm[5:4]     uimm[8] rs1'[2:0]       uimm[7:6] rd'[2:0] 00"
+c_lw       = "010   uimm[5:3]             rs1'[2:0] uimm[2] uimm[6] rd'[2:0] 00"
+c_flw      = "011   uimm[5:3]             rs1'[2:0] uimm[2] uimm[6] rd'[2:0] 00"
+c_ld       = "011   uimm[5:3]             rs1'[2:0] uimm[2] uimm[6] rd'[2:0] 00"
+--c_res_a    = "100                       _                          00"
+c_fsd      = "101   uimm[5:3]            rs1'[2:0]       uimm[7:6] rs2'[2:0] 00"
+c_fsq      = "101   uimm[5:4]   uimm[8]  rs1'[2:0]       uimm[7:6] rs2'[2:0] 00"
+c_sw       = "110   uimm[5:3]            rs1'[2:0] uimm[2] uimm[6] rs2'[2:0] 00"
+c_fsw      = "111   uimm[5:3]            rs1'[2:0] uimm[2] uimm[6] rs2'[2:0] 00"
+c_sd       = "111   uimm[5:3]            rs1'[2:0]       uimm[7:6] rs2'[2:0] 00"
 
 c_nop      = "000 nzimm[5]          00000 nzimm[4:0] 01"
 c_addi     = "000 nzimm[5] rs1_rd_nz[4:0] nzimm[4:0] 01"
@@ -133,8 +133,8 @@ c_or       = "100         0 11 rs1'_rd'[2:0] 10 rs2'[2:0] 01"
 c_and      = "100         0 11 rs1'_rd'[2:0] 11 rs2'[2:0] 01"
 c_subw     = "100         1 11 rs1'_rd'[2:0] 00 rs2'[2:0] 01"
 c_addw     = "100         1 11 rs1'_rd'[2:0] 01 rs2'[2:0] 01"
-c_res_b    = "100         1 11             _ 10         _ 01"
-c_res_c    = "100         1 11             _ 11         _ 01"
+--c_res_b    = "100         1 11             _ 10         _ 01"
+--c_res_c    = "100         1 11             _ 11         _ 01"
 c_j        = "101 imm[11] imm[4] imm[9:8] imm[10] imm[6] imm[7] imm[3:1] imm[5] 01"
 c_beqz     = "110 imm[8] imm[4:3] rs1'[2:0] imm[7:6] imm[2:1] imm[5] 01"
 c_bnez     = "111 imm[8] imm[4:3] rs1'[2:0] imm[7:6] imm[2:1] imm[5] 01"
@@ -162,5 +162,66 @@ rv_c_disass :: [DecodeBranch String]
 rv_c_disass = []
 
 -- | TODO List of RISC-V compressed instructions
-rv_c :: [Integer]
-rv_c = []
+rv_c :: Integer -> Integer -> Integer -> Integer
+     -> Integer -> Integer -> Integer -> Integer
+     -> Integer -> Integer -> Integer
+     -> Integer -> Integer -> Integer -> Integer
+     -> [Integer]
+rv_c imm uimm nzimm nzuimm
+     rs1' rs1'_rd' rs1_nz rs1_rd_nz
+     rs2 rs2' rs2_nz
+     rd rd' rd_nz rd_nz_n2 = [ encode c_illegal
+                             , encode c_addi4spn nzuimm rd'
+                             , encode c_fld      uimm rs1' rd'
+                             , encode c_flq      uimm rs1' rd'
+                             , encode c_lw       uimm rs1' rd'
+                             , encode c_flw      uimm rs1' rd'
+                             , encode c_ld       uimm rs1' rd'
+--                             , encode c_res_a
+                             , encode c_fsd      uimm rs1' rs2'
+                             , encode c_fsq      uimm rs1' rs2'
+                             , encode c_sw       uimm rs1' rs2'
+                             , encode c_fsw      uimm rs1' rs2'
+                             , encode c_sd       uimm rs1' rs2'
+
+                             , encode c_nop      nzimm
+                             , encode c_addi     nzimm rs1_rd_nz
+                             , encode c_jal      imm
+                             , encode c_addiw    imm rs1_rd_nz
+                             , encode c_li       imm rd_nz
+                             , encode c_addi16sp nzimm
+                             , encode c_lui      nzimm rd_nz_n2
+                             , encode c_srli64   rs1'_rd'
+                             , encode c_srli     nzuimm rs1'_rd'
+                             , encode c_srai64   rs1'_rd'
+                             , encode c_srai     nzuimm rs1'_rd'
+                             , encode c_andi     imm rs1'_rd'
+                             , encode c_sub      rs1'_rd' rs2'
+                             , encode c_xor      rs1'_rd' rs2'
+                             , encode c_or       rs1'_rd' rs2'
+                             , encode c_and      rs1'_rd' rs2'
+                             , encode c_subw     rs1'_rd' rs2'
+                             , encode c_addw     rs1'_rd' rs2'
+--                             , encode c_res_b
+--                             , encode c_res_c
+                             , encode c_j        imm
+                             , encode c_beqz     imm rs1'
+                             , encode c_bnez     imm rs1'
+
+                             , encode c_slli64   rs1_rd_nz
+                             , encode c_slli     nzuimm rs1_rd_nz
+                             , encode c_fldsp    uimm rd
+                             , encode c_lqsp     uimm rd_nz
+                             , encode c_lwsp     uimm rd_nz
+                             , encode c_flwsp    uimm rd
+                             , encode c_ldsp     uimm rd_nz
+                             , encode c_jr       rs1_nz
+                             , encode c_mv       rd_nz rs2_nz
+                             , encode c_ebreak
+                             , encode c_jalr     rs1_nz
+                             , encode c_add      rs1_rd_nz rs2_nz
+                             , encode c_fsdsp    uimm rs2
+                             , encode c_sqsp     uimm rs2
+                             , encode c_swsp     uimm rs2
+                             , encode c_fswsp    uimm rs2
+                             , encode c_sdsp     uimm rs2 ]

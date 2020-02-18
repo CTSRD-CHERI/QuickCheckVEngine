@@ -1,20 +1,13 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2018 Jonathan Woodruff
--- Copyright (c) 2018 Matthew Naylor
--- Copyright (c) 2019 Peter Rugg
--- Copyright (c) 2019, 2020 Alexandre Joannou
+-- Copyright (c) 2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
 -- Cambridge Computer Laboratory (Department of Computer Science and
 -- Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
 -- DARPA SSITH research programme.
---
--- This software was partly developed by the University of Cambridge
--- Computer Laboratory as part of the Partially-Ordered Event-Triggered
--- Systems (POETS) project, funded by EPSRC grant EP/N031768/1.
 --
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions
@@ -38,14 +31,46 @@
 -- SUCH DAMAGE.
 --
 
-module QuickCheckVEngine.Templates.Utils (
-  module QuickCheckVEngine.Templates.Utils.General
-, module QuickCheckVEngine.Templates.Utils.CHERI
-, module QuickCheckVEngine.Templates.Utils.FP
-, module QuickCheckVEngine.Templates.Utils.Compressed
+module QuickCheckVEngine.Templates.Utils.Compressed (
+  genCompressed_imm
+, genCompressed_uimm
+, genCompressed_nzimm
+, genCompressed_nzuimm
+, genCompressed_rs1'
+, genCompressed_rs1'_rd'
+, genCompressed_rs1_nz
+, genCompressed_rs1_rd_nz
+, genCompressed_rs2
+, genCompressed_rs2'
+, genCompressed_rs2_nz
+, genCompressed_rd
+, genCompressed_rd'
+, genCompressed_rd_nz
+, genCompressed_rd_nz_n2
 ) where
 
+import Test.QuickCheck
 import QuickCheckVEngine.Templates.Utils.General
-import QuickCheckVEngine.Templates.Utils.CHERI
-import QuickCheckVEngine.Templates.Utils.FP
-import QuickCheckVEngine.Templates.Utils.Compressed
+
+regs = [0..31]
+regs_nz = [1..31]
+regs_nz_n2 = 1:[3..31]
+-- for regs', map (+8) for actual integer regiter index
+regs' = [0..7]
+regs'_nz = [1..7]
+
+genCompressed_imm       = bits 6
+genCompressed_uimm      = bits 8
+genCompressed_nzimm     = bits 18
+genCompressed_nzuimm    = bits 6
+genCompressed_rs1'      = bits 3
+genCompressed_rs1'_rd'  = oneof $ map return regs'
+genCompressed_rs1_nz    = oneof $ map return regs_nz
+genCompressed_rs1_rd_nz = oneof $ map return regs_nz
+genCompressed_rs2       = oneof $ map return regs
+genCompressed_rs2'      = oneof $ map return regs'
+genCompressed_rs2_nz    = oneof $ map return regs_nz
+genCompressed_rd        = oneof $ map return regs
+genCompressed_rd'       = oneof $ map return regs'
+genCompressed_rd_nz     = oneof $ map return regs_nz
+genCompressed_rd_nz_n2  = oneof $ map return regs_nz_n2
