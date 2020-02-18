@@ -80,6 +80,7 @@ import QuickCheckVEngine.Templates.GenMemory
 import QuickCheckVEngine.Templates.GenCSRs
 import QuickCheckVEngine.Templates.RandomTest
 import QuickCheckVEngine.Templates.GenControlFlow
+import QuickCheckVEngine.Templates.GenMulDiv
 import QuickCheckVEngine.Templates.GenCompressed
 import QuickCheckVEngine.Templates.GenAtomics
 import QuickCheckVEngine.Templates.GenFP
