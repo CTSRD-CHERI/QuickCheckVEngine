@@ -1,10 +1,11 @@
 # QuickCheckVEngine
 
 **QCVEngine** is a very basic QuickCheck-based random instruction generator
-for RISC-V (currently supports RV32I and CHERI RISC-V extensions).
+for RISC-V (currently supports most 32-bit and 64-bit RISC-V standard extentions as well as CHERI RISC-V extensions).
 The main feature of the generator is a small library that makes it easy
 to define instruction encoders and decoders.
-Why not have a look at the [RV32I generator](src/RVxxI.hs)?
+
+Find out all of the extensions that are supported by looking at the file names in [this folder](https://github.com/CTSRD-CHERI/QuickCheckVEngine/tree/master/src/RISCV).
 
 ## Getting started
 
