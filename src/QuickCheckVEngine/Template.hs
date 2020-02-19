@@ -64,9 +64,13 @@ module QuickCheckVEngine.Template (
 
 import Test.QuickCheck
 import Data.List
+import Data.Maybe
 import Data.Semigroup -- Should no longer be required with modern ghc
 import RISCV
 import Text.Printf
+import Text.Parsec hiding (Empty)
+import Text.Parsec.Token
+import Text.Parsec.Language
 
 -- | 'Template' type to describe sequences of instructions (represented as
 --   'Integer's) to be used as tests
@@ -123,6 +127,10 @@ repeatTemplateTillEnd template = Random $ do
 newtype TestCase = TC [TestStrand]
 instance Show TestCase where
   show (TC tss) = intercalate "\n" (map show tss)
+instance Read TestCase where
+  readsPrec _ str = case parse (partial parseTestCase) "Read" str of
+                      Left  e -> error $ show e ++ ", in:\n" ++ str ++ "\n"
+                      Right x -> [x]
 instance Semigroup TestCase where
   TC x <> TC y = TC (x ++ y)
 instance Monoid TestCase where
@@ -142,7 +150,7 @@ data TestStrand = TS { testStrandShrink :: Bool
                      , testStrandInsts  :: [Integer] }
 instance Show TestStrand where
   show (TS { testStrandShrink = shrink
-           , testStrandInsts  = insts }) = showInsts -- TODO: showShrink ++ "\n" ++ showInsts
+           , testStrandInsts  = insts }) = showShrink ++ "\n" ++ showInsts
     where showShrink = if shrink then ".shrink" else ".noshrink"
           showInsts  = intercalate "\n" (map showInst insts)
           showInst inst = printf ".4byte 0x%08x # %s" inst (pretty inst)
@@ -161,6 +169,22 @@ instance ToTestCase [TestStrand] where
 -- | ... from a list of instructions represented as a list of 'Integer'
 instance ToTestCase [Integer] where
   toTestCase insts = TC [TS True insts]
+
+-- Parse a TestCase
+tp = makeTokenParser $ emptyDef { commentLine   = "#"
+                                , reservedNames = [ ".shrink", ".noshrink"
+                                                  , ".4byte" ] }
+partial p = (,) <$> p <*> getInput
+parseTestCase = do
+  whiteSpace tp
+  TC <$> do tss <- many1 parseTestStrand
+            eof
+            return tss
+parseTestStrand = do
+  mshrink <- optionMaybe $     (reserved tp ".noshrink" >> return False)
+                           <|> (reserved tp   ".shrink" >> return  True)
+  insts   <- many1 $ reserved tp ".4byte" >> natural tp
+  return $ TS (fromMaybe True mshrink) insts
 
 -- | Create a list of instructions represented as a list of 'Integer' from the
 --   given 'TestCase'

@@ -47,8 +47,6 @@
 module QuickCheckVEngine.RVFI_DII (
   module QuickCheckVEngine.RVFI_DII.RVFI
 , module QuickCheckVEngine.RVFI_DII.DII
-, readDIITrace
-, readDIITraceFile
 , readDIIDataFile
 ) where
 
@@ -63,22 +61,6 @@ import RISCV
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 import InstrCodec
-
--- | Turns a '[String]' representation of a DII trace into a 'TestCase'
-readDIITrace :: [String] -> TestCase
-readDIITrace inStr =
-  let lns = map (head . (splitOn "#")) inStr            -- Remove comments
-      trimmed = filter (not . null) lns                 -- Remove empty lines
-      encInsts = map ((drop 2) .(!! 1) . words) trimmed -- Take only encoded instruction
-      insts :: [Integer] = map (fst . head . readHex) encInsts
-  in toTestCase insts
-
--- | Turns file representation of a DII trace into a 'TestCase'
-readDIITraceFile :: FilePath -> IO TestCase
-readDIITraceFile inFile = do
-  handle <- openFile inFile ReadMode
-  contents <- hGetContents handle
-  return $ readDIITrace (lines contents)
 
 -- | Turns a '[String]' representation of some data into a DII trace 'TestCase'
 --   that initializes memory with that data

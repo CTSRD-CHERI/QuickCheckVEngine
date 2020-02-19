@@ -171,7 +171,6 @@ commandOpts argv =
   where header = "Usage: QCVEngine [OPTION...] files..."
 
 --------------------------------------------------------------------------------
-
 main :: IO ()
 main = withSocketsDo $ do
   -- parse command line arguments
@@ -223,7 +222,7 @@ main = withSocketsDo $ do
                     _          -> return 0
   let checkFile (memoryInitFile :: Maybe FilePath) (fileName :: FilePath) = do
         putStrLn $ "Reading trace from " ++ fileName
-        trace <- readDIITraceFile fileName
+        trace <- read <$> readFile fileName
         initTrace <- case (memoryInitFile) of
           Just memInit -> do putStrLn $ "Reading memory initialisation from file " ++ memInit
                              readDIIDataFile memInit
