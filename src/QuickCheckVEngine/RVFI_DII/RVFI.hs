@@ -51,7 +51,7 @@ module QuickCheckVEngine.RVFI_DII.RVFI (
 , rvfiIsHalt
 , rvfiIsTrap
 , rvfiCheck
-, rvfiShowCheck
+, rvfiCheckAndShow
 ) where
 
 import Data.Word
@@ -176,7 +176,7 @@ instance Show RVFI_Packet where
   show tok
     | rvfiIsHalt tok = "halt token"
     | otherwise = printf "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, MA: 0x%016x, MWD: 0x%016x, MWM: 0b%08b, I: 0x%016x (%s)"
-                  (show $ rvfi_trap tok) -- Trap
+                  (show $ rvfi_trap tok /= 0) -- Trap
                   (rvfi_pc_wdata tok)    -- PCWD
                   (rvfi_rd_addr tok)     -- RD
                   (rvfi_rd_wdata tok)    -- RWD
@@ -213,7 +213,7 @@ rvfiCheck is64 x y
 -- | Compare 2 'RVFI_Packet's and produce a 'String' output displaying the
 --   the content of the packet once only for equal inputs or the content of
 --   each input 'RVFI_Packet' if inputs are not succeeding the 'rvfiCheck'
-rvfiShowCheck :: Bool -> RVFI_Packet -> RVFI_Packet -> String
-rvfiShowCheck is64 x y
-  | rvfiCheck is64 x y = "     " ++ show x
-  | otherwise          = " A < " ++ show x ++ "\n B > " ++ show y
+rvfiCheckAndShow :: Bool -> RVFI_Packet -> RVFI_Packet -> (Bool, String)
+rvfiCheckAndShow is64 x y
+  | rvfiCheck is64 x y = (True,  "     " ++ show x)
+  | otherwise          = (False, " A < " ++ show x ++ "\n B > " ++ show y)

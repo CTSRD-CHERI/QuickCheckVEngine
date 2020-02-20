@@ -92,43 +92,64 @@ genInstrServer sckt = do
 
 -- | The core QuickCheck property sending the 'TestCase' to the tested RISC-V
 --   implementations as 'DII_Packet's and checking the returned 'RVFI_Packet's
---   for equivalence
+--   for equivalence. It receives among other things a callback function
+--   'TestCase -> IO ()' to be performed on failure that takes in the reduced
+--   'TestCase' which caused the failure
 prop :: Socket -> Socket -> IORef Bool -> (TestCase -> IO ())
      -> ArchDesc -> Int -> Bool -> Gen TestCase
      -> Property
-prop socA socB alive onFail arch timeoutDelay doLog gen =
+prop scktA scktB alive onFail arch delay doLog gen =
   forAllShrink gen shrink mkProp
   where mkProp testCase = whenFail (onFail testCase) (doProp testCase)
         doProp testCase = monadicIO $ run $ do
           let instTrace = map diiInstruction $ fromTestCase testCase
-          let instTraceTerminated = instTrace ++ [diiEnd]
+          let insts = instTrace ++ [diiEnd]
           currentlyAlive <- readIORef alive
           if currentlyAlive then do
-            result <- try $ do
-              -- Send to implementations
-              sendDIITrace socA instTraceTerminated
-              when doLog $ putStrLn "Done sending instructions to implementation A"
-              sendDIITrace socB instTraceTerminated
-              when doLog $ putStrLn "Done sending instructions to implementation B"
-              -- Receive from implementations
-              m_modTrace <- timeout timeoutDelay $ recvRVFITrace socA doLog
-              m_impTrace <- timeout timeoutDelay $ recvRVFITrace socB doLog
-              --
-              let diffStrings = zipWith (rvfiShowCheck $ has_xlen_64 arch) (fromMaybe (error "broken modtrace") m_modTrace) (fromMaybe (error "broken imptrace") m_impTrace)
-              when doLog $ mapM_ putStrLn diffStrings
-              return (m_modTrace, m_impTrace)
-            case result of
-              Right (Just modTrace, Just impTrace) ->
-                return $ property $ and (zipWith (rvfiCheck (has_xlen_64 arch)) modTrace impTrace)
-              Right (a, b) -> do
-                writeIORef alive False
-                when (isNothing a) $ putStrLn "Error: implementation A timeout. Forcing all future tests to report 'SUCCESS'"
-                when (isNothing b) $ putStrLn "Error: implementation B timeout. Forcing all future tests to report 'SUCCESS'"
-                return $ property False
-              Left (SomeException e) -> do
-                writeIORef alive False
-                putStrLn "Error: exception on IO with implementations. Forcing all future tests to report 'SUCCESS'"
-                return $ property False
-          else do
-            when doLog $ putStrLn "Warning: reporting success since implementations not running"
-            return $ property True -- We don't want to shrink once one of the implementations has died, so always return that the property is true
+            m_traces <- doRVFIDII scktA scktB alive delay doLog insts
+            case m_traces of
+              Just (traceA, traceB) -> do
+                let diff = zipWith (rvfiCheckAndShow $ has_xlen_64 arch)
+                                   traceA traceB
+                when doLog $ mapM_ (putStrLn . snd) diff
+                return $ property $ and (map fst diff)
+              _ -> return $ property False
+          -- We don't want to shrink once one of the implementations has died,
+          -- so always return that the property is true
+          else do when doLog $ putStrLn "Warning: reporting success since implementations not running"
+                  return $ property True
+
+-- | Send a sequence of instructions ('[DII_Packet]') to the implementations
+--   running behind the two provided 'Sockets's and recieve their respective
+--   RVFI traces ('[RVFI_Packet]'). If all went well, return
+--   'Just (traceA, traceB)', otherwise 'Nothing' and sets the provided
+--   'IORef Bool' for alive to 'False' indicating that further interaction with
+--   the implementations is futile
+doRVFIDII :: Socket -> Socket -> IORef Bool -> Int -> Bool -> [DII_Packet]
+          -> IO (Maybe ([RVFI_Packet], [RVFI_Packet]))
+doRVFIDII scktA scktB alive delay doLog insts = do
+  currentlyAlive <- readIORef alive
+  if currentlyAlive then do
+    result <- try $ do
+      -- Send to implementations
+      sendDIITrace scktA insts
+      when doLog $ putStrLn "Done sending instructions to implementation A"
+      sendDIITrace scktB insts
+      when doLog $ putStrLn "Done sending instructions to implementation B"
+      -- Receive from implementations
+      m_traceA <- timeout delay $ recvRVFITrace scktA doLog
+      m_traceB <- timeout delay $ recvRVFITrace scktB doLog
+      --
+      return (m_traceA, m_traceB)
+    case result of
+      Right (Just traceA, Just traceB) -> return $ Just (traceA, traceB)
+      Right (a, b) -> do
+        writeIORef alive False
+        when (isNothing a) $ putStrLn "Error: implementation A timeout. Forcing all future tests to report 'SUCCESS'"
+        when (isNothing b) $ putStrLn "Error: implementation B timeout. Forcing all future tests to report 'SUCCESS'"
+        return Nothing
+      Left (SomeException e) -> do
+        writeIORef alive False
+        putStrLn "Error: exception on IO with implementations. Forcing all future tests to report 'SUCCESS'"
+        return Nothing
+  else return Nothing
