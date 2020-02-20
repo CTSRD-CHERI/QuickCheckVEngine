@@ -27,6 +27,7 @@ executable QCVEngine
                        RISCV.RV64_D,
                        RISCV.RV_C,
                        RISCV.RV_CSRs,
+                       QuickCheckVEngine.MainHelpers,
                        QuickCheckVEngine.RVFI_DII,
                        QuickCheckVEngine.RVFI_DII.RVFI,
                        QuickCheckVEngine.RVFI_DII.DII,

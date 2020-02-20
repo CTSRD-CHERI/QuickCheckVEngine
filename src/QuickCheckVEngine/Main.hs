@@ -37,42 +37,25 @@
 -- SUCH DAMAGE.
 --
 
-{-# LANGUAGE OverloadedStrings #-}
+--{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Main (main) where
 
-import qualified Control.Exception as E
--- import qualified Data.ByteString.Char8 as C
-import qualified Data.ByteString.Lazy as BS
-import Network.Socket hiding (recv)
-import Network.Socket.ByteString.Lazy --(recv, sendAll)
-import Data.Int
-import Data.Binary
-import Data.Char
-import Data.IORef
-import Text.Printf
-import Text.Regex.Posix
-import Control.Monad
-import Test.QuickCheck
-import Test.QuickCheck.Monadic
+import System.Exit
 import System.Environment
 import System.FilePath.Find
 import System.Console.GetOpt
-import System.IO.Unsafe
-import Data.Maybe ( isJust, isNothing, fromMaybe )
-import Data.List
-import Data.List.Split
+import Data.IORef
 import Data.Time.Clock
-import System.Exit
-import System.IO
-import QuickCheckVEngine.RVFI_DII
-import RISCV
-import QuickCheckVEngine.Template
-import System.Timeout
-import System.Exit
-import Control.Exception
+import Control.Monad
+import Network.Socket
+import Test.QuickCheck
 
+import RISCV
+import QuickCheckVEngine.MainHelpers
+import QuickCheckVEngine.RVFI_DII
+import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 import QuickCheckVEngine.Templates.GenAll
 import QuickCheckVEngine.Templates.GenArithmetic
@@ -184,9 +167,9 @@ main = withSocketsDo $ do
   socA <- open "implementation-A" addrA
   socB <- open "implementation-B" addrB
   sendDIIPacket socA diiEnd
-  _ <- receiveExecutionTrace False socA
+  _ <- recvRVFITrace socA False
   sendDIIPacket socB diiEnd
-  _ <- receiveExecutionTrace False socB
+  _ <- recvRVFITrace socB False
   addrInstr <- mapM (resolve "127.0.0.1") (instrPort flags)
   instrSoc <- mapM (open "instruction-generator-port") addrInstr
   --
@@ -225,7 +208,7 @@ main = withSocketsDo $ do
         trace <- read <$> readFile fileName
         initTrace <- case (memoryInitFile) of
           Just memInit -> do putStrLn $ "Reading memory initialisation from file " ++ memInit
-                             readDIIDataFile memInit
+                             readDataFile memInit
           Nothing -> return mempty
         res <- checkSingle (initTrace <> trace) (optVerbose flags) True saveOnFail
         case res of Failure {} -> putStrLn "Failure."
@@ -335,88 +318,3 @@ main = withSocketsDo $ do
         connect sock (addrAddress addr)
         return sock
 
---------------------------------------------------------------------------------
-prop :: Socket -> Socket -> IORef Bool -> (TestCase -> IO ())
-     -> ArchDesc -> Int -> Bool -> Gen TestCase
-     -> Property
-prop socA socB alive onFail arch timeoutDelay doLog gen =
-  forAllShrink gen shrink mkProp
-  where mkProp testCase = whenFail (onFail testCase) (doProp testCase)
-        doProp testCase = monadicIO $ run $ do
-          let instTrace = map diiInstruction $ fromTestCase testCase
-          let instTraceTerminated = instTrace ++ [diiEnd]
-          currentlyAlive <- readIORef alive
-          if currentlyAlive then do
-            result <- try $ do
-              -- Send to implementations
-              sendDIITrace socA instTraceTerminated
-              when doLog $ putStrLn "Done sending instructions to implementation A"
-              sendDIITrace socB instTraceTerminated
-              when doLog $ putStrLn "Done sending instructions to implementation B"
-              -- Receive from implementations
-              m_modTrace <- timeout timeoutDelay $ receiveExecutionTrace doLog socA
-              m_impTrace <- timeout timeoutDelay $ receiveExecutionTrace doLog socB
-              --
-              let diffStrings = zipWith (rvfiShowCheck $ has_xlen_64 arch) (fromMaybe (error "broken modtrace") m_modTrace) (fromMaybe (error "broken imptrace") m_impTrace)
-              when doLog $ mapM_ putStrLn diffStrings
-              return (m_modTrace, m_impTrace)
-            case result of
-              Right (Just modTrace, Just impTrace) ->
-                return $ property $ Data.List.and (zipWith (rvfiCheck (has_xlen_64 arch)) modTrace impTrace)
-              Right (a, b) -> do
-                writeIORef alive False
-                when (isNothing a) $ putStrLn "Error: implementation A timeout. Forcing all future tests to report 'SUCCESS'"
-                when (isNothing b) $ putStrLn "Error: implementation B timeout. Forcing all future tests to report 'SUCCESS'"
-                return $ property False
-              Left (SomeException e) -> do
-                writeIORef alive False
-                putStrLn "Error: exception on IO with implementations. Forcing all future tests to report 'SUCCESS'"
-                return $ property False
-          else do
-            when doLog $ putStrLn "Warning: reporting success since implementations not running"
-            return $ property True -- We don't want to shrink once one of the implementations has died, so always return that the property is true
-
---------------------------------------------------------------------------------
-
--- Send an instruction trace
-sendDIITrace :: Socket -> [DII_Packet] -> IO ()
-sendDIITrace sock instTrace =
-  mapM_ (sendDIIPacket sock) instTrace
-
--- Send a single instruction
-sendDIIPacket :: Socket -> DII_Packet -> IO ()
-sendDIIPacket sock inst = do
-  sendAll sock (BS.reverse (encode inst))
-  return ()
-
--- Receive a fixed number of bytes
-receiveBlocking :: Int64 -> Socket -> IO(BS.ByteString)
-receiveBlocking n sock = if toInteger(n) == 0 then return empty else do
-  received  <- recv sock n
-  remainder <- receiveBlocking (n - BS.length(received)) sock
-  return $ BS.append received remainder
-
--- Receive an execution trace
-receiveExecutionTrace :: Bool -> Socket -> IO ([RVFI_Packet])
-receiveExecutionTrace doLog sock = do
-  msg <- receiveBlocking 88 sock
-  let traceEntry = (decode (BS.reverse msg)) :: RVFI_Packet
-  --when doLog $ putStrLn ("\t"++(show traceEntry))
-  if rvfiIsHalt traceEntry
-    then return [traceEntry]
-    else do
-      remainderOfTrace <- receiveExecutionTrace doLog sock
-      return (traceEntry:remainderOfTrace)
-
---------------------------------------------------------------------------------
-
-genInstrServer :: Socket -> Gen Integer
-genInstrServer sock = do
-  seed :: Int32 <- arbitraryBoundedRandom
-  -- This should be safe so long as the server returns the same instruction when
-  -- given the same seed.
-  let msg = unsafePerformIO (
-        do
-          sendAll sock (encode seed)
-          recv sock 4)
-  return (toInteger (decode (BS.reverse msg) :: Int32))

@@ -37,45 +37,62 @@
 -- SUCH DAMAGE.
 --
 
-{-# LANGUAGE ScopedTypeVariables #-}
-
 {-|
     Module      : QuickCheckVEngine.RVFI_DII
     Description : The RVFI-DII interface
+
+    This module re-exports the 'QuickCheckVEngine.RVFI_DII.RVFI' and
+    'QuickCheckVEngine.RVFI_DII.DII' modules, and provides functions to send and
+    receive 'DII_Packet's and 'RVFI_Packet's over a 'Socket'.
 -}
 
 module QuickCheckVEngine.RVFI_DII (
   module QuickCheckVEngine.RVFI_DII.RVFI
 , module QuickCheckVEngine.RVFI_DII.DII
-, readDIIDataFile
+, sendDIIPacket
+, sendDIITrace
+, recvRVFIPacket
+, recvRVFITrace
 ) where
 
 import QuickCheckVEngine.RVFI_DII.RVFI
 import QuickCheckVEngine.RVFI_DII.DII
 
-import Data.List.Split
-import System.IO
-import Numeric
-import Test.QuickCheck
-import RISCV
-import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
-import InstrCodec
+import Data.Int
+import Data.Binary
+import Control.Monad
+import Network.Socket
+import Network.Socket.ByteString.Lazy
+import qualified Data.ByteString.Lazy as BS
 
--- | Turns a '[String]' representation of some data into a DII trace 'TestCase'
---   that initializes memory with that data
-readDIIData :: [String] -> Gen TestCase
-readDIIData ss = genTemplateUnsized $  (writeData addr ws)
-                                    <> (li32 1 0x80000000)
-                                    <> (Single $ encode jalr 0 1 0)
-  where (addr:ws) = map (fst . head . readHex . head . words) ss
+-- | Send a single 'DII_Packet'
+sendDIIPacket :: Socket -> DII_Packet -> IO ()
+sendDIIPacket sckt inst = sendAll sckt $ BS.reverse (encode inst)
 
--- | Turns a File representation of some data into a DII trace 'TestCase' that
---   initializes memory with that data
-readDIIDataFile :: FilePath -> IO TestCase
-readDIIDataFile inFile = do
-  handle <- openFile inFile ReadMode
-  contents <- hGetContents handle
-  testCase <- generate $ readDIIData (lines contents)
-  putStrLn $ show (testCaseInstCount testCase)
-  return testCase
+-- | Send an instruction trace (a '[DII_Packet]')
+sendDIITrace :: Socket -> [DII_Packet] -> IO ()
+sendDIITrace sckt trace = mapM_ (sendDIIPacket sckt) trace
+
+-- | Receive a single 'RVFI_Packet'
+recvRVFIPacket :: Socket -> IO RVFI_Packet
+recvRVFIPacket sckt = do msg <- recvBlking sckt 88
+                         return $ decode (BS.reverse msg)
+
+-- | Receive an execution trace (a '[RVFI_Packet]')
+recvRVFITrace :: Socket -> Bool -> IO [RVFI_Packet]
+recvRVFITrace sckt doLog = do rvfiPkt <- recvRVFIPacket sckt
+                              when doLog $ putStrLn $ "\t" ++ show rvfiPkt
+                              if rvfiIsHalt rvfiPkt
+                                 then return [rvfiPkt]
+                                 else do morePkts <- recvRVFITrace sckt doLog
+                                         return (rvfiPkt:morePkts)
+
+-- Internal helpers (not exported):
+--------------------------------------------------------------------------------
+
+-- | Receive a fixed number of bytes
+recvBlking :: Socket -> Int64 -> IO BS.ByteString
+recvBlking sckt 0 = return BS.empty
+recvBlking sckt n = do received  <- recv sckt n
+                       remainder <- recvBlking sckt (n - BS.length received)
+                       return $ BS.append received remainder
