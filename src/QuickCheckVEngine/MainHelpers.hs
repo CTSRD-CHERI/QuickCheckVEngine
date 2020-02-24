@@ -42,6 +42,7 @@
 module QuickCheckVEngine.MainHelpers (
   readDataFile
 , genInstrServer
+, doRVFIDII
 , prop
 ) where
 
@@ -138,7 +139,9 @@ doRVFIDII scktA scktB alive delay doLog insts = do
       when doLog $ putStrLn "Done sending instructions to implementation B"
       -- Receive from implementations
       m_traceA <- timeout delay $ recvRVFITrace scktA doLog
+      when doLog $ putStrLn "Done receiving reports from implementation A"
       m_traceB <- timeout delay $ recvRVFITrace scktB doLog
+      when doLog $ putStrLn "Done receiving reports from implementation B"
       --
       return (m_traceA, m_traceB)
     case result of
@@ -152,4 +155,4 @@ doRVFIDII scktA scktB alive delay doLog insts = do
         writeIORef alive False
         putStrLn "Error: exception on IO with implementations. Forcing all future tests to report 'SUCCESS'"
         return Nothing
-  else return Nothing
+  else error "doRVFIDII should not be called when both implementations are not alive"

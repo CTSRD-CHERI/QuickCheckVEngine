@@ -51,8 +51,8 @@ module QuickCheckVEngine.Template (
 , replicateTemplate
 , repeatTemplate
 , repeatTemplateTillEnd
-, TestCase
-, TestStrand(..)
+, TestCase(..) -- TODO no longer export internals
+, TestStrand(..) -- TODO no longer export internals
 , toTestCase
 , fromTestCase
 , testCaseInstCount

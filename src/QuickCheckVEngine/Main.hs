@@ -46,12 +46,14 @@ import System.Environment
 import System.FilePath.Find
 import System.Console.GetOpt
 import Data.IORef
+import Data.Maybe
 import Data.Time.Clock
 import Control.Monad
 import Network.Socket
 import Test.QuickCheck
 
-import RISCV
+import RISCV hiding (or)
+import InstrCodec
 import QuickCheckVEngine.MainHelpers
 import QuickCheckVEngine.RVFI_DII
 import QuickCheckVEngine.Template
@@ -176,10 +178,19 @@ main = withSocketsDo $ do
   let checkSingle tc verbose doShrink onFail = do
         quickCheckWithResult (Args Nothing 1 1 2048 True (if doShrink then 1000 else 0))
                              (prop socA socB alive onFail archDesc (timeoutDelay flags) verbose (return tc))
-  let saveOnFail tc = do
-        writeFile "last_failure.S" ("# last failing test case:\n" ++ show tc)
+  let check_mcause_on_trap tc traceA traceB =
+        if or (map rvfiIsTrap traceA) || or (map rvfiIsTrap traceB)
+           then tc <> TC [TS False [encode csrrs 0x342 0 1]]
+           else tc
+  let saveOnFail tc tcTrans = do
+        let insts = (map diiInstruction $ fromTestCase tc) ++ [diiEnd]
+        m_traces <- doRVFIDII socA socB alive (timeoutDelay flags) False insts
+        let (traceA, traceB) = fromMaybe (error "unexpected doRVFIDII failure")
+                                         m_traces
+        let tcNew = tcTrans tc traceA traceB
+        writeFile "last_failure.S" ("# last failing test case:\n" ++ show tcNew)
         putStrLn "Replaying shrunk failed test case:"
-        checkSingle tc True False (const $ return ())
+        checkSingle tcNew True False (const $ return ())
         case (saveDir flags) of
           Nothing -> do
             putStrLn "Save this trace (give file name or leave empty to ignore)?"
@@ -188,18 +199,19 @@ main = withSocketsDo $ do
               putStrLn "One-line description?"
               comment <- getLine
               writeFile (fileName ++ ".S")
-                        ("# " ++ comment ++ "\n" ++ show tc)
+                        ("# " ++ comment ++ "\n" ++ show tcNew)
           Just dir -> do
             t <- getCurrentTime
             let tstamp = [if x == ' ' then '_' else x | x <- (show t)]
             writeFile (dir ++ "/failure-" ++ tstamp ++ ".S")
-                      ("# Automatically generated failing test case" ++ "\n" ++ show tc)
+                      ("# Automatically generated failing test case" ++ "\n" ++ show tcNew)
+  let checkTrapAndSave tc = saveOnFail tc check_mcause_on_trap
   let checkResult = if (optVerbose flags)
                     then verboseCheckWithResult
                     else quickCheckWithResult
   let checkGen gen remainingTests = do
         res <- checkResult (Args Nothing remainingTests 1 2048 True 1000)
-                           (prop socA socB alive saveOnFail archDesc (timeoutDelay flags) (optVerbose flags) gen)
+                           (prop socA socB alive checkTrapAndSave archDesc (timeoutDelay flags) (optVerbose flags) gen)
         case res of Failure {} -> return 1
                     _          -> return 0
   let checkFile (memoryInitFile :: Maybe FilePath) (fileName :: FilePath) = do
@@ -209,7 +221,7 @@ main = withSocketsDo $ do
           Just memInit -> do putStrLn $ "Reading memory initialisation from file " ++ memInit
                              readDataFile memInit
           Nothing -> return mempty
-        res <- checkSingle (initTrace <> trace) (optVerbose flags) True saveOnFail
+        res <- checkSingle (initTrace <> trace) (optVerbose flags) True checkTrapAndSave
         case res of Failure {} -> putStrLn "Failure."
                     _          -> putStrLn "No Failure."
         return ()
