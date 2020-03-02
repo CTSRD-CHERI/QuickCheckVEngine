@@ -81,6 +81,8 @@ module RISCV.RV32_Xcheri (
 , ctestsubset
 , clear
 , fpclear
+, croundrepresentablelength
+, crepresentablealignmentmask
 , cload
 , cstore
 , lq
@@ -142,6 +144,10 @@ ctestsubset               = "0100000 cs2[4:0] cs1[4:0] 000 rd[4:0] 1011011"
 -- Register Clearing
 clear                     = "1111111 01101 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
 fpclear                   = "1111111 10000 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
+
+-- Adjusting to Compressed Capability Precision
+croundrepresentablelength   = "1111111 01000 rs1[4:0] 000 rd[4:0] 1011011"
+crepresentablealignmentmask = "1111111 01001 rs1[4:0] 000 rd[4:0] 1011011"
 
 -- Memory -- Needs further refinement
 cload                      = "1111101 mop[4:0] cb[4:0] 000 cd[4:0] 1011011"
@@ -256,6 +262,8 @@ rv32_xcheri_disass = [ cgetperm            --> prettyR_2op "cgetperm"
                      , ctestsubset         --> prettyR "ctestsubset"
                      , clear               --> pretty_reg_clear "clear"
                      , fpclear             --> pretty_reg_clear "fpclear"
+                     , croundrepresentablelength   --> prettyR_2op "croundrepresentablelength"
+                     , crepresentablealignmentmask --> prettyR_2op "crepresentablealignmentmask"
                      , cload               --> prettyCLoad
                      , cstore              --> prettyCStore
                      , cgetflags           --> prettyR_2op "cgetflags"
