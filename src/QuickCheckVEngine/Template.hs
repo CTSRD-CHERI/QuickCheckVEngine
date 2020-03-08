@@ -204,15 +204,18 @@ genTemplate template = getSize >>= genTemplateSized template
 genTemplateSized :: Template -> Int -> Gen TestCase
 genTemplateSized template size = do
   TC xs <- genHelper template
-  let (_, test) = mapAccumL (\acc (TS shrink insts) ->
+  let (_, mbss) = mapAccumL (\acc (TS shrink insts) ->
                      let remaining = max 0 (size - acc)
                          nbInsts = length insts
                          newAcc = acc + nbInsts
-                     in (newAcc, if (nbInsts <= remaining)
-                                   then TS shrink insts
-                                   else TS shrink (take remaining insts))
+                     in (newAcc, if (remaining == 0)
+                                   then Nothing
+                                   else Just $
+                                     if (nbInsts <= remaining)
+                                       then TS shrink insts
+                                       else TS shrink (take remaining insts))
                   ) 0 xs
-  return $ TC test
+  return $ TC (catMaybes mbss)
 
 -- | Turn a 'Template' into a single QuickCheck 'Gen [Integer]' generator
 --   of list of instructions, in an explicitly unsized manner
