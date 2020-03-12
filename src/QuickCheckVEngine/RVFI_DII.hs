@@ -93,6 +93,6 @@ recvRVFITrace sckt doLog = do rvfiPkt <- recvRVFIPacket sckt
 -- | Receive a fixed number of bytes
 recvBlking :: Socket -> Int64 -> IO BS.ByteString
 recvBlking sckt 0 = return BS.empty
-recvBlking sckt n = do received  <- recv sckt n
+recvBlking sckt n = do received  <- Network.Socket.ByteString.Lazy.recv sckt n
                        remainder <- recvBlking sckt (n - BS.length received)
                        return $ BS.append received remainder

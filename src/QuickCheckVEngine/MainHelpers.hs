@@ -89,7 +89,7 @@ genInstrServer sckt = do
   -- This should be safe so long as the server returns the same instruction when
   -- given the same seed.
   return $ unsafePerformIO $ do sendAll sckt (encode seed)
-                                (decode . BS.reverse) <$> recv sckt 4
+                                (decode . BS.reverse) <$> Network.Socket.ByteString.Lazy.recv sckt 4
 
 -- | The core QuickCheck property sending the 'TestCase' to the tested RISC-V
 --   implementations as 'DII_Packet's and checking the returned 'RVFI_Packet's
