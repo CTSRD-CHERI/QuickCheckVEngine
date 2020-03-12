@@ -170,8 +170,8 @@ memOffset = oneof $ map return [0, 1, 64, 65]
 --   > loadOp archDesc_null{ has_f = True, has_xlen_32 = True }
 loadOp :: ArchDesc -> Integer -> Integer -> Template
 loadOp arch rs1 rd = Random $ oneof $ map (return . uniformTemplate) $
-     [ rv32_i_load rs1 rd 0 | has_i arch && has_xlen_32 arch ]
-  ++ [ rv64_i_load rs1 rd 0 | has_i arch && has_xlen_64 arch ]
+     [ rv32_i_load rs1 rd 0 | has_xlen_32 arch ]
+  ++ [ rv64_i_load rs1 rd 0 | has_xlen_64 arch ]
   ++ [ rv32_f_load rs1 rd 0 | has_f arch && has_xlen_32 arch ]
   ++ [ rv32_d_load rs1 rd 0 | has_d arch && has_xlen_32 arch ]
 
@@ -185,8 +185,8 @@ loadOp arch rs1 rd = Random $ oneof $ map (return . uniformTemplate) $
 --   > loadOp archDesc_null{ has_f = True, has_xlen_32 = True }
 storeOp :: ArchDesc -> Integer -> Integer -> Template
 storeOp arch rs1 rs2 = Random $ oneof $ map (return . uniformTemplate) $
-     [ rv32_i_store rs1 rs2 0 | has_i arch && has_xlen_32 arch ]
-  ++ [ rv64_i_store rs1 rs2 0 | has_i arch && has_xlen_64 arch ]
+     [ rv32_i_store rs1 rs2 0 | has_xlen_32 arch ]
+  ++ [ rv64_i_store rs1 rs2 0 | has_xlen_64 arch ]
   ++ [ rv32_f_store rs1 rs2 0 | has_f arch && has_xlen_32 arch ]
   ++ [ rv32_d_store rs1 rs2 0 | has_d arch && has_xlen_32 arch ]
 

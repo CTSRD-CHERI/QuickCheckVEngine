@@ -61,10 +61,10 @@ genAll desc = Random $ do
                , (8, uniformTemplate (rv32_i_ctrl src1 src2 dest imm longImm))
                , (8, uniformTemplate (rv32_i_mem src1 src2 dest offset fOp1 fOp2))
                , (32, Single $ encode lui 0x80008 dest)
-               ] | has_i desc]
+               ]]
            ++ [[ (8, uniformTemplate (rv64_i_arith src1 src2 dest imm))
                , (8, uniformTemplate (rv64_i_mem src1 src2 dest offset))
-               ] | has_i desc && has_xlen_64 desc]
+               ] | has_xlen_64 desc]
            ++ [[ (8, uniformTemplate (rv32_m src1 src2 imm))
                ] | has_m desc]
            ++ [[ (8, uniformTemplate (rv64_m src1 src2 imm))
