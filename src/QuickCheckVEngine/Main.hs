@@ -247,11 +247,15 @@ main = withSocketsDo $ do
                    doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_i_memory) (nTests flags)
                    putStrLn "rv32 I Control Flow Verification:"
                    doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_i_controlflow) (nTests flags)
+                   putStrLn "rv32 I Cache Verification:"
+                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_i_cache) (nTests flags)
               when (has_i archDesc && has_xlen_64 archDesc) $
                 do putStrLn "rv64 I Arithmetic Verification:"
                    doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_i_arithmetic) (nTests flags)
                    putStrLn "rv64 I Memory Verification:"
                    doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_i_memory) (nTests flags)
+                   putStrLn "rv64 I Cache Verification:"
+                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_i_cache) (nTests flags)
                    -- Note: no rv64 specific control flow instructions
               when (has_m archDesc) $
                 do putStrLn "rv32 M extension Verification:"
