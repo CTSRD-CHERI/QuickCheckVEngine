@@ -74,6 +74,7 @@ module RISCV.RV32_Xcheri (
 , ccseal
 , ctoptr
 , cfromptr
+, csub
 , cmove
 , cspecialrw
 , cjalr
@@ -131,6 +132,7 @@ ccseal                    = "0011111 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 -- Capability Pointer Arithmetic
 ctoptr                    = "0010010 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 cfromptr                  = "0010011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csub                      = "0010100 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 cmove                     = "1111111 01010 cs1[4:0] 000 cd[4:0] 1011011"
 cspecialrw                = "0000001 cSP[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 
@@ -255,6 +257,7 @@ rv32_xcheri_disass = [ cgetperm            --> prettyR_2op "cgetperm"
                      , csetboundsimmediate --> prettyI "csetboundsimmediate"
                      , ctoptr              --> prettyR "ctoptr"
                      , cfromptr            --> prettyR "cfromptr"
+                     , csub                --> prettyR "csub"
                      , cspecialrw          --> pretty_cspecialrw "cspecialrw"
                      , cmove               --> prettyR_2op "cmove"
                      , cjalr               --> prettyR_2op "cjalr"
@@ -295,6 +298,7 @@ rv32_xcheri_arithmetic src1 src2 imm dest =
   ,  encode cincoffsetimmediate imm src1 dest
   ,  encode ctoptr     src1 src2 dest
   ,  encode cfromptr   src1 src2 dest
+  ,  encode csub       src1 src2 dest
   ,  encode ctestsubset src1 src2 dest ]
 
 -- | List of cheri miscellaneous instructions
