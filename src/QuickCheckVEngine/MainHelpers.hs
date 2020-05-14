@@ -117,7 +117,7 @@ prop scktA scktB alive onFail arch delay doLog gen =
               _ -> return $ property False
           -- We don't want to shrink once one of the implementations has died,
           -- so always return that the property is true
-          else do when doLog $ putStrLn "Warning: reporting success since implementations not running"
+          else do putStrLn "Warning: reporting success since implementations not running"
                   return $ property True
 
 -- | Send a sequence of instructions ('[DII_Packet]') to the implementations
