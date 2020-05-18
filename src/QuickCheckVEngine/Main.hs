@@ -86,6 +86,7 @@ data Options = Options
     , instrPort      :: Maybe String
     , saveDir        :: Maybe FilePath
     , timeoutDelay   :: Int
+    , optShrink      :: Bool
     } deriving Show
 
 defaultOptions = Options
@@ -102,6 +103,7 @@ defaultOptions = Options
     , instrPort      = Nothing
     , saveDir        = Nothing
     , timeoutDelay   = 6000000000 -- 60 seconds
+    , optShrink      = True
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -145,6 +147,9 @@ options =
   , Option ['T']     ["timeout"]
       (ReqArg (\ f opts -> opts { timeoutDelay = read f }) "TIMEOUT")
         "Timeout after TIMEOUT microseconds of A or B not responding"
+  , Option ['S']     ["disable-shrink"]
+      (NoArg (\ opts -> opts { optShrink = False }))
+        "Disable shrinking of failed tests"
   ]
 
 commandOpts :: [String] -> IO (Options, [String])
@@ -210,7 +215,7 @@ main = withSocketsDo $ do
                     then verboseCheckWithResult
                     else quickCheckWithResult
   let checkGen gen remainingTests = do
-        res <- checkResult (Args Nothing remainingTests 1 2048 True 1000)
+        res <- checkResult (Args Nothing remainingTests 1 2048 True (if optShrink flags then 1000 else 0))
                            (prop socA socB alive checkTrapAndSave archDesc (timeoutDelay flags) (optVerbose flags) gen)
         case res of Failure {} -> return 1
                     _          -> return 0
@@ -221,7 +226,7 @@ main = withSocketsDo $ do
           Just memInit -> do putStrLn $ "Reading memory initialisation from file " ++ memInit
                              readDataFile memInit
           Nothing -> return mempty
-        res <- checkSingle (initTrace <> trace) (optVerbose flags) True checkTrapAndSave
+        res <- checkSingle (initTrace <> trace) (optVerbose flags) (optShrink flags) checkTrapAndSave
         case res of Failure {} -> putStrLn "Failure."
                     _          -> putStrLn "No Failure."
         return ()
