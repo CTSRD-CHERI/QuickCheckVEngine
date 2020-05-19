@@ -58,6 +58,7 @@ genRandomCHERITest arch = do
   fenceOp2  <- (bits 4)
   csrAddr   <- frequency [(1, return 0xbc0), (1, return 0x342), (1, bits 12)]
   srcScr    <- elements [28, 29, 30, 31]
+  srcCsr    <- elements [0x141, 0x143, 0x341, 0x343]
   thisNested <- resize (remaining `Prelude.div` 2) (genRandomCHERITest arch)
   let test =  Distribution [ (if remaining > 10 then 5 else 0, legalLoad arch)
                            , (if remaining > 10 then 5 else 0, legalStore arch)
@@ -66,6 +67,7 @@ genRandomCHERITest arch = do
                            , (10, uniformTemplate $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) -- TODO add csr
                            , (10, uniformTemplate $ rv32_xcheri srcAddr srcData srcScr imm mop dest)
                            , (10, Single $ encode cspecialrw srcScr srcAddr dest)
+                           , (10, uniformTemplate $ rv32_zicsr srcData dest srcCsr mop)
                            , (10, switchEncodingMode)
                            , (10, cspecialRWChain)
                            , (20, randomCCall srcAddr srcData tmpReg tmpReg2)
