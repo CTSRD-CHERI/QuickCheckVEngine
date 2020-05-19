@@ -73,7 +73,7 @@ import QuickCheckVEngine.Templates.GenCHERI
 -- command line arguments
 --------------------------------------------------------------------------------
 data Options = Options
-    { optVerbose     :: Bool
+    { optVerbosity   :: Int
     , nTests         :: Int
     , impAPort       :: String
     , impAIP         :: String
@@ -87,10 +87,11 @@ data Options = Options
     , saveDir        :: Maybe FilePath
     , timeoutDelay   :: Int
     , optShrink      :: Bool
+    , optSave        :: Bool
     } deriving Show
 
 defaultOptions = Options
-    { optVerbose     = False
+    { optVerbosity   = 1
     , nTests         = 100
     , impAPort       = "5000"
     , impAIP         = "127.0.0.1"
@@ -104,13 +105,14 @@ defaultOptions = Options
     , saveDir        = Nothing
     , timeoutDelay   = 6000000000 -- 60 seconds
     , optShrink      = True
+    , optSave        = True
     }
 
 options :: [OptDescr (Options -> Options)]
 options =
   [ Option ['v']     ["verbose"]
-      (NoArg (\ opts -> opts { optVerbose = True }))
-        "Turn on verbose output"
+      (ReqArg (\ f opts -> opts { optVerbosity = read f }) "VERB")
+        "Set verbosity level"
   , Option ['n']     ["number-of-tests"]
       (ReqArg (\ f opts -> opts { nTests = read f }) "NUMTESTS")
         "Specify NUMTESTS the number of tests to run"
@@ -150,6 +152,9 @@ options =
   , Option ['S']     ["disable-shrink"]
       (NoArg (\ opts -> opts { optShrink = False }))
         "Disable shrinking of failed tests"
+  , Option []        ["no-save"]
+      (NoArg (\ opts -> opts { optSave = False }))
+        "Don't offer to save failed counter-examples"
   ]
 
 commandOpts :: [String] -> IO (Options, [String])
@@ -165,7 +170,7 @@ main = withSocketsDo $ do
   -- parse command line arguments
   rawArgs <- getArgs
   (flags, leftover) <- commandOpts rawArgs
-  when (optVerbose flags) $ print flags
+  when (optVerbosity flags > 1) $ print flags
   let archDesc = arch flags
   -- initialize model and implementation sockets
   addrA <- resolve (impAIP flags) (impAPort flags)
@@ -180,9 +185,9 @@ main = withSocketsDo $ do
   instrSoc <- mapM (open "instruction-generator-port") addrInstr
   --
   alive <- newIORef True -- Cleared when either implementation times out, since they will may not be able to respond to future queries
-  let checkSingle tc verbose doShrink onFail = do
-        quickCheckWithResult (Args Nothing 1 1 2048 True (if doShrink then 1000 else 0))
-                             (prop socA socB alive onFail archDesc (timeoutDelay flags) verbose (return tc))
+  let checkSingle tc verbosity doShrink onFail = do
+        quickCheckWithResult (Args Nothing 1 1 2048 (verbosity > 0) (if doShrink then 1000 else 0))
+                             (prop socA socB alive onFail archDesc (timeoutDelay flags) (verbosity > 1) (return tc))
   let check_mcause_on_trap tc traceA traceB =
         if or (map rvfiIsTrap traceA) || or (map rvfiIsTrap traceB)
            then tc <> TC [TS False [encode csrrs 0x342 0 1]]
@@ -194,29 +199,32 @@ main = withSocketsDo $ do
                                          m_traces
         let tcNew = tcTrans tc traceA traceB
         writeFile "last_failure.S" ("# last failing test case:\n" ++ show tcNew)
-        putStrLn "Replaying shrunk failed test case:"
-        checkSingle tcNew True False (const $ return ())
-        case (saveDir flags) of
-          Nothing -> do
-            putStrLn "Save this trace (give file name or leave empty to ignore)?"
-            fileName <- getLine
-            when (not $ null fileName) $ do
-              putStrLn "One-line description?"
-              comment <- getLine
-              writeFile (fileName ++ ".S")
-                        ("# " ++ comment ++ "\n" ++ show tcNew)
-          Just dir -> do
-            t <- getCurrentTime
-            let tstamp = [if x == ' ' then '_' else x | x <- (show t)]
-            writeFile (dir ++ "/failure-" ++ tstamp ++ ".S")
-                      ("# Automatically generated failing test case" ++ "\n" ++ show tcNew)
+        when (optVerbosity flags > 0) $
+          do putStrLn "Replaying shrunk failed test case:"
+             checkSingle tcNew 2 False (const $ return ())
+             return ()
+        when (optSave flags) $
+          do case (saveDir flags) of
+               Nothing -> do
+                 putStrLn "Save this trace (give file name or leave empty to ignore)?"
+                 fileName <- getLine
+                 when (not $ null fileName) $ do
+                   putStrLn "One-line description?"
+                   comment <- getLine
+                   writeFile (fileName ++ ".S")
+                             ("# " ++ comment ++ "\n" ++ show tcNew)
+               Just dir -> do
+                 t <- getCurrentTime
+                 let tstamp = [if x == ' ' then '_' else x | x <- (show t)]
+                 writeFile (dir ++ "/failure-" ++ tstamp ++ ".S")
+                           ("# Automatically generated failing test case" ++ "\n" ++ show tcNew)
   let checkTrapAndSave tc = saveOnFail tc check_mcause_on_trap
-  let checkResult = if (optVerbose flags)
+  let checkResult = if (optVerbosity flags > 1)
                     then verboseCheckWithResult
                     else quickCheckWithResult
   let checkGen gen remainingTests = do
-        res <- checkResult (Args Nothing remainingTests 1 2048 True (if optShrink flags then 1000 else 0))
-                           (prop socA socB alive checkTrapAndSave archDesc (timeoutDelay flags) (optVerbose flags) gen)
+        res <- checkResult (Args Nothing remainingTests 1 2048 (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
+                           (prop socA socB alive checkTrapAndSave archDesc (timeoutDelay flags) (optVerbosity flags > 1) gen)
         case res of Failure {} -> return 1
                     _          -> return 0
   let checkFile (memoryInitFile :: Maybe FilePath) (fileName :: FilePath) = do
@@ -226,7 +234,7 @@ main = withSocketsDo $ do
           Just memInit -> do putStrLn $ "Reading memory initialisation from file " ++ memInit
                              readDataFile memInit
           Nothing -> return mempty
-        res <- checkSingle (initTrace <> trace) (optVerbose flags) (optShrink flags) checkTrapAndSave
+        res <- checkSingle (initTrace <> trace) (optVerbosity flags) (optShrink flags) checkTrapAndSave
         case res of Failure {} -> putStrLn "Failure."
                     _          -> putStrLn "No Failure."
         return ()
