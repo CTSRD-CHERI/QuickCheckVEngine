@@ -158,7 +158,7 @@ instance Arbitrary TestStrand where
   arbitrary = do TC strands <- genTemplate Empty
                  return $ head strands
   shrink (TS False x) = []
-  shrink (TS True  x) = map (TS True) (shrinkList (const []) x)
+  shrink (TS True  x) = map (TS True) (shrinkList rv_shrink x)
 
 -- | Create a simple 'TestCase' ...
 class ToTestCase x where

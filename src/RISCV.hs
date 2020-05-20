@@ -59,6 +59,7 @@ module RISCV (
 , module RISCV.RV64_D
 , module RISCV.RV_C
 , module RISCV.RV_CSRs
+, module RISCV.Shrinks
 ) where
 
 import RISCV.ArchDesc
@@ -78,3 +79,4 @@ import RISCV.RV64_F
 import RISCV.RV64_D
 import RISCV.RV_C
 import RISCV.RV_CSRs
+import RISCV.Shrinks
