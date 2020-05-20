@@ -229,7 +229,22 @@ pretty_2src instr idc pcc = concat [instr, " ", reg pcc, ", ", reg idc]
 
 -- | Pretty-print a special capability read/write instruction
 pretty_cspecialrw instr idx cs1 cd =
-  concat [instr, " ", reg cd, ", ", reg cs1, ", ", int idx]
+  concat [instr, " ", reg cd, ", ", name_scr idx, ", ", reg cs1]
+  where name_scr 0 = "pcc"
+        name_scr 1 = "ddc"
+        name_scr 4 = "utcc"
+        name_scr 5 = "utdc"
+        name_scr 6 = "uscratchc"
+        name_scr 7 = "uepcc"
+        name_scr 12 = "stcc"
+        name_scr 13 = "stdc"
+        name_scr 14 = "sscratchc"
+        name_scr 15 = "sepcc"
+        name_scr 28 = "mtcc"
+        name_scr 29 = "mtdc"
+        name_scr 30 = "mscratchc"
+        name_scr 31 = "mepcc"
+        name_scr idx = int idx
 
 -- | Dissassembly of CHERI instructions
 rv32_xcheri_disass :: [DecodeBranch String]
