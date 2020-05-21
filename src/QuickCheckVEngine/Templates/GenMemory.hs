@@ -43,6 +43,8 @@ module QuickCheckVEngine.Templates.GenMemory (
 , gen_rv64_i_zifencei_memory
 , gen_rv64_i_a_zifencei_memory
 , gen_rv64_i_cache
+, gen_rv32_Xcheri_cache
+, gen_rv64_Xcheri_cache
 ) where
 
 import InstrCodec
@@ -50,6 +52,8 @@ import Test.QuickCheck
 import RISCV.RV32_I
 import RISCV.RV32_A
 import RISCV.RV32_Zifencei
+import RISCV.RV64_I
+import RISCV.RV32_Xcheri
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
@@ -59,37 +63,43 @@ data GenConf = GenConf { has_a        :: Bool
                        }
 
 gen_rv32_i_memory :: Template
-gen_rv32_i_memory = gen_memory False False False
+gen_rv32_i_memory = gen_memory False False False False
 
 gen_rv32_i_a_memory :: Template
-gen_rv32_i_a_memory = gen_memory True False False
+gen_rv32_i_a_memory = gen_memory True False False False
 
 gen_rv32_i_zifencei_memory :: Template
-gen_rv32_i_zifencei_memory = gen_memory False True False
+gen_rv32_i_zifencei_memory = gen_memory False True False False
 
 gen_rv32_i_a_zifencei_memory :: Template
-gen_rv32_i_a_zifencei_memory = gen_memory True True False
+gen_rv32_i_a_zifencei_memory = gen_memory True True False False
 
 gen_rv32_i_cache :: Template
-gen_rv32_i_cache = gen_cache True True False
+gen_rv32_i_cache = gen_cache False True False False
 
 gen_rv64_i_memory :: Template
-gen_rv64_i_memory = gen_memory False False True
+gen_rv64_i_memory = gen_memory False False True False
 
 gen_rv64_i_a_memory :: Template
-gen_rv64_i_a_memory = gen_memory True False True
+gen_rv64_i_a_memory = gen_memory True False True False
 
 gen_rv64_i_zifencei_memory :: Template
-gen_rv64_i_zifencei_memory = gen_memory False True True
+gen_rv64_i_zifencei_memory = gen_memory False True True False
 
 gen_rv64_i_a_zifencei_memory :: Template
-gen_rv64_i_a_zifencei_memory = gen_memory True True True
+gen_rv64_i_a_zifencei_memory = gen_memory True True True False
 
 gen_rv64_i_cache :: Template
-gen_rv64_i_cache = gen_cache True True True
+gen_rv64_i_cache = gen_cache False True True False
 
-gen_memory :: Bool -> Bool -> Bool -> Template
-gen_memory has_a has_zifencei has_xlen_64 = Random $
+gen_rv32_Xcheri_cache :: Template
+gen_rv32_Xcheri_cache = gen_cache False True False True
+
+gen_rv64_Xcheri_cache :: Template
+gen_rv64_Xcheri_cache = gen_cache False False True True
+
+gen_memory :: Bool -> Bool -> Bool -> Bool -> Template
+gen_memory has_a has_zifencei has_xlen_64 has_caplen = Random $
   do imm      <- bits 12
      src1     <- src
      src2     <- src
@@ -99,26 +109,21 @@ gen_memory has_a has_zifencei has_xlen_64 = Random $
      aq       <- bits 1
      rl       <- bits 1
      offset   <- geomBits 11 0
-     let insts = [ (8,  Single $ encode addi  offset src1 dest)
+     let insts = [[(8,  Single $ encode addi  offset src1 dest)
                  , (8,  Single $ encode ori   offset src1 dest)
                  , (16, instSeq [ encode lui   0x40004 dest
                                 , encode slli 1 dest dest ])
                  , (8, uniformTemplate $ rv32_i_load  src1 dest offset)
                  , (8, uniformTemplate $ rv32_i_store src1 src2 offset)
-                 , (2, uniformTemplate $ rv32_i_fence fenceOp1 fenceOp2)
-                 ]
-                 ++ if has_a
-                      then [(2, uniformTemplate $ rv32_a src1 src2 dest aq rl)]
-                      else []
-                 ++ if has_zifencei
-                      then [(2,  Single $ encode fence_i)]
-                      else []
-                 ++ if has_xlen_64
-                      then [] else [] -- TODO
-     return $ Distribution insts
+                 , (2, uniformTemplate $ rv32_i_fence fenceOp1 fenceOp2)]]
+                 ++ [[(2, uniformTemplate $ rv32_a src1 src2 dest aq rl)] | has_a]
+                 ++ [[(2,  Single $ encode fence_i)] | has_zifencei]
+                 ++ [[(8, uniformTemplate $ rv64_i_load  src1 dest offset)
+                    , (8, uniformTemplate $ rv64_i_store src1 src2 offset)] | has_xlen_64]
+     return $ Distribution $ concat insts
 
-gen_cache :: Bool -> Bool -> Bool -> Template
-gen_cache has_a has_zifencei has_xlen_64 = Random $
+gen_cache :: Bool -> Bool -> Bool -> Bool -> Template
+gen_cache has_a has_zifencei has_xlen_64 has_caplen = Random $
   do size     <- getSize
      src1     <- elements [1, 2, 3]
      src2     <- elements [1, 2, 3]
@@ -140,26 +145,29 @@ gen_cache has_a has_zifencei has_xlen_64 = Random $
                          , encode addi offsetb 2 2
                          , encode lui upperIc 3
                          , encode slli 1 3 3
-                         , encode addi offsetc 3 3
-                 ]
-     let insts = [ (8, Random $ do src <- elements [1, 2, 3]
-                                   return $ uniformTemplate $ rv32_i_load  src 13 0)
-                 , (8, Random $ do src1 <- elements [1, 2, 3]
+                         , encode addi offsetc 3 3]
+     let insts = [[ (8, Random $ do src <- elements [1, 2, 3]
+                                    return $ uniformTemplate $ rv32_i_load  src 13 0)
+                  , (8, Random $ do src1 <- elements [1, 2, 3]
+                                    src2 <- elements [1, 2, 3]
+                                    return $ uniformTemplate $ rv32_i_store src1 src2 0)
+                  , (2, Random $ do fenceOp1 <- bits 4
+                                    fenceOp2 <- bits 4
+                                    return $ uniformTemplate $ rv32_i_fence fenceOp1 fenceOp2)]]
+              ++ [[(2, uniformTemplate $ rv32_a src1 src2 dest aq rl)] | has_a]
+              ++ [[(2, Single $ encode fence_i)] | has_zifencei]
+              ++ [[(2, Random $ do src <- elements [1, 2, 3]
+                                   return $ uniformTemplate $ rv64_i_load  src 13 0)
+                  ,(2, Random $ do src1 <- elements [1, 2, 3]
                                    src2 <- elements [1, 2, 3]
-                                   return $ uniformTemplate $ rv32_i_store src1 src2 0)
-                 , (2, Random $ do fenceOp1 <- bits 4
-                                   fenceOp2 <- bits 4
-                                   return $ uniformTemplate $ rv32_i_fence fenceOp1 fenceOp2)
-                 ]
-                 ++ if has_a
-                      then [(2, uniformTemplate $ rv32_a src1 src2 dest aq rl)]
-                      else []
-                 ++ if has_zifencei
-                      then [(2,  Single $ encode fence_i)]
-                      else []
-                 ++ if has_xlen_64
-                      then [] else [] -- TODO
+                                   return $ uniformTemplate $ rv64_i_store src1 src2 0)] | has_xlen_64]
+              ++ [[(2, Random $ do srcAddr <- elements [1, 2, 3]
+                                   return $ instSeq [ encode lq 0 srcAddr 13,
+                                                      encode cgettag 13 13])
+                  ,(2, Random $ do srcData <- elements [1, 2, 3, 4, 5]
+                                   srcAddr <- elements [1, 2, 3]
+                                   return $ Single $ encode sq 0 srcData srcAddr)] | has_caplen]
      let prologue = instSeq prologue_list
      return $ prologue
               <> replicateTemplate (size - length prologue_list - 1)
-                                   (Distribution insts)
+                                   (Distribution $ concat insts)

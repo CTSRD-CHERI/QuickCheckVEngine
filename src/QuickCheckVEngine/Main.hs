@@ -319,6 +319,8 @@ main = withSocketsDo $ do
                    doCheck (genTemplate $ repeatTemplateTillEnd genCHERImisc) (nTests flags)
                    putStrLn "Xcheri extension Capability Control Flow Verification:"
                    doCheck (genTemplate $ repeatTemplateTillEnd genCHERIcontrol) (nTests flags)
+                   putStrLn "Xcheri extensions Cache Verification:"
+                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_Xcheri_cache) (nTests flags)
                    putStrLn "Xcheri extension Random Template:"
                    doCheck (genTemplate $ randomCHERITest archDesc) (nTests flags)
 
@@ -345,4 +347,3 @@ main = withSocketsDo $ do
         sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
         connect sock (addrAddress addr)
         return sock
-
