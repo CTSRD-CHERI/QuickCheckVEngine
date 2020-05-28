@@ -131,12 +131,12 @@ gen_cache has_a has_zifencei has_xlen_64 has_caplen = Random $
 
      aq       <- bits 1
      rl       <- bits 1
-     offseta  <- elements [8, 16, 24, 32, 48]
-     offsetb  <- elements [8, 16, 24, 32, 48]
-     offsetc  <- elements [8, 16, 24, 32, 48]
-     upperIa  <- elements [0x40003, 0x40044, 0x40065, 0x40086, 0x400a7, 0x400b8]
-     upperIb  <- elements [0x40003, 0x40044, 0x40065, 0x40086, 0x400a7, 0x400b8]
-     upperIc  <- elements [0x40003, 0x40044, 0x40065, 0x40086, 0x400a7, 0x400b8]
+     offseta  <- elements [1, 4, 16, 64, 65]
+     offsetb  <- elements [1, 4, 16, 64, 65]
+     offsetc  <- elements [1, 4, 16, 64, 65]
+     upperIa  <- elements [0x40000, 0x40100, 0x40200, 0x40300, 0x40400, 0x40500]
+     upperIb  <- elements [0x40000, 0x40100, 0x40200, 0x40300, 0x40400, 0x40500]
+     upperIc  <- elements [0x40000, 0x40100, 0x40200, 0x40300, 0x40400, 0x40500]
      let prologue_list = [ encode lui upperIa 1
                          , encode slli 1 1 1
                          , encode addi offseta 1 1
