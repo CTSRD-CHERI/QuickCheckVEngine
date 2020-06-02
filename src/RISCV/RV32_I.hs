@@ -87,6 +87,8 @@ module RISCV.RV32_I (
 , fence
 , resrvd
 , mret
+, sret
+, uret
 , ecall
 , ebreak
 -- * RV32 base integer instruction set, others

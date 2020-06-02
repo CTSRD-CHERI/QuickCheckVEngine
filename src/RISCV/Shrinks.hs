@@ -56,7 +56,77 @@ import InstrCodec
 rv_shrink instr = case decode 32 instr shrinkList of
   Nothing -> []
   Just i -> i
-  where shrinkList = rv32_xcheri_shrink
+  where shrinkList = rv32_xcheri_shrink ++ rv32_shrink
+
+shrink_arith :: Integer -> Integer -> Integer -> [Integer]
+shrink_arith rs2 rs1 rd = [encode addi 0 0 rd, encode addi 1 0 rd, encode addi 0xfff 0 rd, encode addi 0 rs1 rd, encode addi 0 rs2 rd]
+
+shrink_addi :: Integer -> Integer -> Integer -> [Integer]
+shrink_addi imm rs rd = if imm == 0 then [] else [encode addi 0 rs rd]
+
+shrink_imm :: Integer -> Integer -> Integer -> [Integer]
+shrink_imm imm rs rd = [encode addi 0 0 rd, encode addi 1 0 rd, encode addi imm rs rd, encode addi imm 0 rd, encode addi 0 rs rd]
+
+shrink_uimm :: Integer -> Integer -> [Integer]
+shrink_uimm uimm rd = [encode addi 0 0 rd, encode addi 0xfff 0 rd]
+
+shrink_branch :: Integer -> Integer -> Integer -> [Integer]
+shrink_branch imm rs2 rs1 = [encode sltu rs2 rs1 1, encode sltu rs1 rs2 1, encode slt rs2 rs1 1, encode slt rs1 rs2 1, encode jal imm 0]
+
+shrink_load :: Integer -> Integer -> Integer -> [Integer]
+shrink_load imm rs rd = [encode ecall, encode addi 0 0 rd]
+
+shrink_store :: Integer -> Integer -> Integer -> [Integer]
+shrink_store imm rs2 rs1 = [encode ecall]
+
+shrink_illegal :: [Integer]
+shrink_illegal = [encode ecall]
+
+rv32_shrink :: [DecodeBranch [Integer]]
+rv32_shrink = [ add    --> shrink_arith
+              , slt    --> shrink_arith
+              , sltu   --> shrink_arith
+              , RISCV.RV32_I.and --> shrink_arith
+              , RISCV.RV32_I.or  --> shrink_arith
+              , xor    --> shrink_arith
+              , sll    --> shrink_arith
+              , srl    --> shrink_arith
+              , sub    --> shrink_arith
+              , sra    --> shrink_arith
+              , addi   --> shrink_addi
+              , slti   --> shrink_imm
+              , sltiu  --> shrink_imm
+              , andi   --> shrink_imm
+              , ori    --> shrink_imm
+              , xori   --> shrink_imm
+              , slli   --> shrink_imm
+              , srli   --> shrink_imm
+              , srai   --> shrink_imm
+              , lui    --> shrink_uimm
+              , auipc  --> shrink_uimm
+--            , jal    --> noshrink
+--            , jalr   --> noshrink
+              , beq    --> shrink_branch
+              , bne    --> shrink_branch
+              , blt    --> shrink_branch
+              , bltu   --> shrink_branch
+              , bge    --> shrink_branch
+              , bgeu   --> shrink_branch
+              , lb     --> shrink_load
+              , lbu    --> shrink_load
+              , lh     --> shrink_load
+              , lhu    --> shrink_load
+              , lw     --> shrink_load
+              , sb     --> shrink_store
+              , sh     --> shrink_store
+              , sw     --> shrink_store
+--            , fence  --> noshrink
+              , resrvd --> shrink_illegal
+              , mret   --> shrink_illegal
+              , sret   --> shrink_illegal
+              , uret   --> shrink_illegal
+--            , ecall  --> noshrink
+              , ebreak --> shrink_illegal ]
 
 shrink_cgetperm :: Integer -> Integer -> [Integer]
 shrink_cgetperm cs rd = [encode addi 0 0 rd, encode addi 0x7ff 0 rd]
