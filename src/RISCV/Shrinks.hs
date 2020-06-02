@@ -240,7 +240,7 @@ shrink_cap cs cd = [encode ecall,
                    ]
 
 shrink_capcap :: Integer -> Integer -> Integer -> [Integer]
-shrink_capcap cs1 cs2 cd = (shrink_cap cs1 cd) ++ (shrink_cap cs2 cd)
+shrink_capcap cs2 cs1 cd = (shrink_cap cs2 cd) ++ (shrink_cap cs1 cd)
 
 shrink_capint :: Integer -> Integer -> Integer -> [Integer]
 shrink_capint rs cs cd = shrink_cap cs cd
@@ -252,7 +252,9 @@ shrink_cmove :: Integer -> Integer -> [Integer]
 shrink_cmove cs cd = [encode cgetaddr cs cd]
 
 shrink_ccall :: Integer -> Integer -> [Integer]
-shrink_ccall cs1 cs2 = shrink_capcap cs1 cs2 31
+shrink_ccall cs2 cs1 = shrink_capcap cs2 cs1 31
+
+shrink_ctestsubset cs2 cs1 rd = [encode addi 0 0 1 rd, encode addi 1 0 1 rd] ++ shrink_capcap cs2 cs1 rd
 
 rv32_xcheri_shrink :: [DecodeBranch [Integer]]
 rv32_xcheri_shrink = [ cgetperm            --> shrink_cgetperm
@@ -285,7 +287,7 @@ rv32_xcheri_shrink = [ cgetperm            --> shrink_cgetperm
                      , cmove               --> shrink_cmove
 --                     , cjalr               --> noshrink
                      , ccall               --> shrink_ccall
---                     , ctestsubset         --> noshrink
+                     , ctestsubset         --> shrink_ctestsubset
 --                     , clear               --> noshrink
 --                     , fpclear             --> noshrink
 --                     , croundrepresentablelength   --> noshrink
