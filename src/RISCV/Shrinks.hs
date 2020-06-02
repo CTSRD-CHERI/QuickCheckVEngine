@@ -256,6 +256,8 @@ shrink_ccall cs2 cs1 = shrink_capcap cs2 cs1 31
 
 shrink_ctestsubset cs2 cs1 rd = [encode addi 0 0 1 rd, encode addi 1 0 1 rd] ++ shrink_capcap cs2 cs1 rd
 
+shrink_cfromptr rs cs cd = [encode csetoffset rs cs cd] ++ shrink_capint rs cs cd
+
 rv32_xcheri_shrink :: [DecodeBranch [Integer]]
 rv32_xcheri_shrink = [ cgetperm            --> shrink_cgetperm
                      , cgettype            --> shrink_cgettype
@@ -281,7 +283,7 @@ rv32_xcheri_shrink = [ cgetperm            --> shrink_cgetperm
                      , cincoffsetimmediate --> shrink_capimm
                      , csetboundsimmediate --> shrink_capimm
                      , ctoptr              --> shrink_capcap
-                     , cfromptr            --> shrink_capint
+                     , cfromptr            --> shrink_cfromptr
                      , csub                --> shrink_capcap
 --                     , cspecialrw          --> noshrink
                      , cmove               --> shrink_cmove
