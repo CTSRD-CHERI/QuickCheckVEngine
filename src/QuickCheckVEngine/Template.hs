@@ -135,13 +135,36 @@ instance Semigroup TestCase where
   TC x <> TC y = TC (x ++ y)
 instance Monoid TestCase where
   mempty = TC []
+
+flatten [] = []
+flatten ((TS b s):ss) = (map (\x -> (b, x)) s) ++ (flatten ss)
+
+prepend_all x xs = map ((:) x) xs
+
+substitute [] _ _ = []
+substitute ((b,x):xs) new old = (if b && m_rs2 == Just old then [(b,reencode new (fromMaybe 0 m_rs1) (fromMaybe 0 m_rd)):xs] else [])
+                             ++ (if b && m_rs1 == Just old then [(b,reencode (fromMaybe 0 m_rs2) new (fromMaybe 0 m_rd)):xs] else [])
+                             ++ (if (m_rd == Just old) || (m_rd == Just new) then [] else prepend_all (b,x) (substitute xs new old))
+                                where (_, m_rs2, m_rs1, m_rd, reencode) = extract_regs x
+
+shrink_bypass :: [(Bool, Integer)] -> [[(Bool, Integer)]]
+shrink_bypass [] = []
+shrink_bypass ((b,x):xs) = prepend_all (b,x) ((if is_bypass && not (m_rd == m_rs1) then substitute xs (fromMaybe 0 m_rs1) (fromMaybe 0 m_rd) else []) ++ (shrink_bypass xs))
+                           where (is_bypass, _, m_rs1, m_rd, _) = extract_regs x
+
+coalesce [] = []
+coalesce [s] = [s]
+coalesce ((TS b1 x1):(TS b2 x2):ss) = if b1==b2 then coalesce ((TS b1 (x1++x2)):ss) else (TS b1 x1):(coalesce ((TS b2 x2):ss))
+
 instance Arbitrary TestCase where
   arbitrary = TC <$> arbitrary
-  shrink (TC ss) = [ TC $    filter tsNotNull ys
-                          ++ if tsNotNull z' then [z'] else []
-                          ++ filter tsNotNull zs
-                   | (ys, z:zs) <- splits ss
-                   , z'  <- shrink z ]
+  shrink (TC ss) = map (TC . coalesce) $
+                       [    filter tsNotNull ys
+                         ++ if tsNotNull z' then [z'] else []
+                         ++ filter tsNotNull zs
+                       | (ys, z:zs) <- splits ss
+                       , z' <- shrink z ]
+                       ++ map (map (\(b,x) -> TS b [x])) (shrink_bypass (flatten ss))
     where splits [] = []
           splits (x:xs) = ([], x:xs) : [(x:ys, zs) | (ys, zs) <- splits xs]
           tsNotNull ts = (not . null) $ testStrandInsts ts

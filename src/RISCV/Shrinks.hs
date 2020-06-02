@@ -46,7 +46,8 @@
 -}
 
 module RISCV.Shrinks (
-  rv_shrink
+  rv_shrink,
+  extract_regs
 ) where
 
 import RISCV.RV32_Xcheri
@@ -57,6 +58,11 @@ rv_shrink instr = case decode 32 instr shrinkList of
   Nothing -> []
   Just i -> i
   where shrinkList = rv32_xcheri_shrink ++ rv32_shrink
+
+extract_regs instr = case decode 32 instr extractList of
+  Nothing -> (False, Nothing, Nothing, Nothing, (\a b c -> instr))
+  Just i -> i
+  where extractList = rv32_xcheri_extract ++ rv32_extract
 
 shrink_arith :: Integer -> Integer -> Integer -> [Integer]
 shrink_arith rs2 rs1 rd = [encode addi 0 0 rd, encode addi 1 0 rd, encode addi 0xfff 0 rd, encode addi 0 rs1 rd, encode addi 0 rs2 rd]
@@ -128,6 +134,71 @@ rv32_shrink = [ add    --> shrink_arith
 --            , ecall  --> noshrink
               , ebreak --> shrink_illegal ]
 
+type ExtractedRegs = (Bool, Maybe Integer, Maybe Integer, Maybe Integer, Integer -> Integer -> Integer -> Integer)
+
+extract_2op :: String -> Integer -> Integer -> Integer -> ExtractedRegs
+extract_2op instr rs2 rs1 rd = (False, Just rs2, Just rs1, Just rd, \x y z -> encode instr x y z)
+
+extract_imm :: String -> Integer -> Integer -> Integer -> ExtractedRegs
+extract_imm instr imm rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode instr y z)
+
+extract_addi :: Integer -> Integer -> Integer -> ExtractedRegs
+extract_addi imm rs1 rd = if imm == 0 then (True, Nothing, Just rs1, Just rd, \x y z -> encode addi 0 y z)
+                                    else extract_imm addi imm rs1 rd
+
+extract_uimm :: String -> Integer -> Integer -> ExtractedRegs
+extract_uimm instr uimm rd = (False, Nothing, Nothing, Just rd, \x y z -> encode instr uimm z)
+
+extract_nodst :: String -> Integer -> Integer -> Integer -> ExtractedRegs
+extract_nodst instr imm rs2 rs1 = (False, Just rs2, Just rs1, Nothing, \x y z -> encode instr imm x y)
+
+rv32_extract :: [DecodeBranch ExtractedRegs]
+rv32_extract = [ add    --> extract_2op add
+               , slt    --> extract_2op slt
+               , sltu   --> extract_2op sltu
+               , RISCV.RV32_I.and --> extract_2op RISCV.RV32_I.and
+               , RISCV.RV32_I.or  --> extract_2op RISCV.RV32_I.or
+               , xor    --> extract_2op xor
+               , sll    --> extract_2op sll
+               , srl    --> extract_2op srl
+               , sub    --> extract_2op sub
+               , sra    --> extract_2op sra
+               , addi   --> extract_addi
+               , slti   --> extract_imm slti
+               , sltiu  --> extract_imm sltiu
+               , andi   --> extract_imm andi
+               , ori    --> extract_imm ori
+               , xori   --> extract_imm xori
+               , slli   --> extract_imm slli
+               , srli   --> extract_imm srli
+               , srai   --> extract_imm srai
+               , lui    --> extract_uimm lui
+               , auipc  --> extract_uimm auipc
+               , jal    --> extract_uimm jal
+               , jalr   --> extract_imm jalr
+               , beq    --> extract_nodst beq
+               , bne    --> extract_nodst bne
+               , blt    --> extract_nodst blt
+               , bltu   --> extract_nodst bltu
+               , bge    --> extract_nodst bge
+               , bgeu   --> extract_nodst bgeu
+               , lb     --> extract_imm lb
+               , lbu    --> extract_imm lbu
+               , lh     --> extract_imm lh
+               , lhu    --> extract_imm lhu
+               , lw     --> extract_imm lw
+               , sb     --> extract_nodst sb
+               , sh     --> extract_nodst sh
+               , sw     --> extract_nodst sw
+--             , fence  --> noextract
+--             , resrvd --> noextract
+--             , mret   --> noextract
+--             , sret   --> noextract
+--             , uret   --> noextract
+--             , ecall  --> noextract
+--             , ebreak --> noextract
+               ]
+
 shrink_cgetperm :: Integer -> Integer -> [Integer]
 shrink_cgetperm cs rd = [encode addi 0 0 rd, encode addi 0x7ff 0 rd]
 
@@ -183,7 +254,6 @@ shrink_cmove cs cd = [encode cgetaddr cs cd]
 shrink_ccall :: Integer -> Integer -> [Integer]
 shrink_ccall cs1 cs2 = shrink_capcap cs1 cs2 31
 
--- | Shrinking of CHERI instructions
 rv32_xcheri_shrink :: [DecodeBranch [Integer]]
 rv32_xcheri_shrink = [ cgetperm            --> shrink_cgetperm
                      , cgettype            --> shrink_cgettype
@@ -226,3 +296,61 @@ rv32_xcheri_shrink = [ cgetperm            --> shrink_cgetperm
 --                     , sq                  --> noshrink
 --                     , lq                  --> noshrink
                      ]
+
+extract_1op :: String -> Integer -> Integer -> ExtractedRegs
+extract_1op instr rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode instr y z)
+
+extract_cspecialrw :: Integer -> Integer -> Integer -> ExtractedRegs
+extract_cspecialrw idx rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode cspecialrw idx y z)
+
+extract_cmove :: Integer -> Integer -> ExtractedRegs
+extract_cmove rs1 rd = (True, Nothing, Just rs1, Just rd, \x y z -> encode cmove y z)
+
+extract_ccall :: Integer -> Integer -> ExtractedRegs
+extract_ccall rs2 rs1 = (False, Just rs2, Just rs1, Just 31, \x y z -> encode ccall x y)
+
+extract_cstore :: Integer -> Integer -> Integer -> ExtractedRegs
+extract_cstore imm rs2 rs1 = (False, Just rs2, Just rs1, Nothing, \x y z -> encode cstore imm x y)
+
+rv32_xcheri_extract :: [DecodeBranch ExtractedRegs]
+rv32_xcheri_extract = [ cgetperm            --> extract_1op cgetperm
+                      , cgettype            --> extract_1op cgettype
+                      , cgetbase            --> extract_1op cgetbase
+                      , cgetlen             --> extract_1op cgetlen
+                      , cgettag             --> extract_1op cgettag
+                      , cgetsealed          --> extract_1op cgetsealed
+                      , cgetoffset          --> extract_1op cgetoffset
+                      , cgetflags           --> extract_1op cgetflags
+                      , cgetaddr            --> extract_1op cgetaddr
+                      , cseal               --> extract_2op cseal
+                      , cunseal             --> extract_2op cunseal
+                      , candperm            --> extract_2op candperm
+                      , csetoffset          --> extract_2op csetoffset
+                      , csetaddr            --> extract_2op csetaddr
+                      , cincoffset          --> extract_2op cincoffset
+                      , csetbounds          --> extract_2op csetbounds
+                      , csetboundsexact     --> extract_2op csetboundsexact
+                      , cbuildcap           --> extract_2op cbuildcap
+                      , ccopytype           --> extract_2op ccopytype
+                      , ccseal              --> extract_2op ccseal
+                      , ccleartag           --> extract_1op ccleartag
+                      , cincoffsetimmediate --> extract_imm cincoffsetimmediate
+                      , csetboundsimmediate --> extract_imm csetboundsimmediate
+                      , ctoptr              --> extract_2op ctoptr
+                      , cfromptr            --> extract_2op cfromptr
+                      , csub                --> extract_2op csub
+                      , cspecialrw          --> extract_cspecialrw
+                      , cmove               --> extract_cmove
+                      , cjalr               --> extract_imm cjalr
+                      , ccall               --> extract_ccall
+                      , ctestsubset         --> extract_2op ctestsubset
+--                      , clear               --> noextract -- TODO
+--                      , fpclear             --> noextract -- TODO
+                      , croundrepresentablelength   --> extract_1op croundrepresentablelength
+                      , crepresentablealignmentmask --> extract_1op crepresentablealignmentmask
+                      , cload               --> extract_imm cload
+                      , cstore              --> extract_cstore
+                      , csetflags           --> extract_2op csetflags
+                      , sq                  --> extract_nodst sq
+                      , lq                  --> extract_imm lq
+                      ]
