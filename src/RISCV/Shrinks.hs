@@ -140,7 +140,7 @@ extract_2op :: String -> Integer -> Integer -> Integer -> ExtractedRegs
 extract_2op instr rs2 rs1 rd = (False, Just rs2, Just rs1, Just rd, \x y z -> encode instr x y z)
 
 extract_imm :: String -> Integer -> Integer -> Integer -> ExtractedRegs
-extract_imm instr imm rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode instr y z)
+extract_imm instr imm rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode instr imm y z)
 
 extract_addi :: Integer -> Integer -> Integer -> ExtractedRegs
 extract_addi imm rs1 rd = if imm == 0 then (True, Nothing, Just rs1, Just rd, \x y z -> encode addi 0 y z)
