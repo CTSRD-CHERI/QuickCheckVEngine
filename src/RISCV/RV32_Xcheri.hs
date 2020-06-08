@@ -77,8 +77,6 @@ module RISCV.RV32_Xcheri (
 , csub
 , cmove
 , cspecialrw
-, crrl
-, cram
 , cjalr
 , ccall
 , ctestsubset
@@ -137,8 +135,6 @@ cfromptr                  = "0010011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 csub                      = "0010100 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 cmove                     = "1111111 01010 cs1[4:0] 000 cd[4:0] 1011011"
 cspecialrw                = "0000001 cSP[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-crrl                      = "1111111 01000 rs1[4:0] 000 rd[4:0] 1011011"
-cram                      = "1111111 01001 rs1[4:0] 000 rd[4:0] 1011011"
 
 -- Control Flow
 cjalr                     = "1111111 01100 cs1[4:0] 000 cd[4:0] 1011011"
@@ -278,8 +274,6 @@ rv32_xcheri_disass = [ cgetperm            --> prettyR_2op "cgetperm"
                      , cfromptr            --> prettyR "cfromptr"
                      , csub                --> prettyR "csub"
                      , cspecialrw          --> pretty_cspecialrw "cspecialrw"
-                     , crrl                --> prettyR_2op "crrl"
-                     , cram                --> prettyR_2op "cram"
                      , cmove               --> prettyR_2op "cmove"
                      , cjalr               --> prettyR_2op "cjalr"
                      , ccall               --> pretty_2src "ccall"
@@ -306,8 +300,8 @@ rv32_xcheri_inspection src dest = [ encode cgetperm src dest
                                   ,  encode cgetoffset src dest
                                   ,  encode cgetaddr src dest
                                   ,  encode cgetflags src dest
-                                  ,  encode crrl src dest
-                                  ,  encode cram src dest]
+                                  ,  encode croundrepresentablelength src dest
+                                  ,  encode crepresentablealignmentmask src dest]
 
 -- | List of cheri arithmetic instructions
 rv32_xcheri_arithmetic :: Integer -> Integer -> Integer -> Integer -> [Integer]
