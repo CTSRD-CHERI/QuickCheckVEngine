@@ -344,6 +344,8 @@ rv32_xcheri_extract = [ cgetperm            --> extract_1op cgetperm
                       , cfromptr            --> extract_2op cfromptr
                       , csub                --> extract_2op csub
                       , cspecialrw          --> extract_cspecialrw
+                      , crrl                --> extract_1op crrl
+                      , cram                --> extract_1op cram
                       , cmove               --> extract_cmove
                       , cjalr               --> extract_imm cjalr
                       , ccall               --> extract_ccall
