@@ -34,6 +34,7 @@
 
 module QuickCheckVEngine.Templates.Utils.CHERI (
   randomCCall
+, clearASR
 , legalCapLoad
 , legalCapStore
 , switchEncodingMode
@@ -71,6 +72,13 @@ randomCCall pccReg idcReg typeReg tmpReg =
                   , (1, Empty) ]
   <> instSeq [ encode ccall idcReg pccReg
              , encode cmove 31 1 ]
+
+clearASR :: Integer -> Integer -> Template
+clearASR tmp1 tmp2 = instSeq [ encode cspecialrw 0 0 tmp1, -- Get PCC
+                               encode addi 0xbff 0 tmp2, -- Load immediate without ASR set
+                               encode candperm tmp2 tmp1 tmp1, -- Mask out ASR
+                               encode cspecialrw 28 tmp1 0, -- Clear ASR in trap vector
+                               encode cjalr tmp1 0 ]
 
 legalCapLoad :: Integer -> Integer -> Template
 legalCapLoad addrReg targetReg = Random $ do

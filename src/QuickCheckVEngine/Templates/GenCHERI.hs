@@ -74,6 +74,7 @@ genRandomCHERITest arch = do
                            , (10, switchEncodingMode)
                            , (10, cspecialRWChain)
                            , (20, randomCCall srcAddr srcData tmpReg tmpReg2)
+                           , (10, clearASR tmpReg tmpReg2)
                            , (if remaining > 10 then 1 else 0, surroundWithMemAccess arch thisNested) ]
   if remaining > 10
     then do nextNested <- resize (remaining `Prelude.div` 2) (genRandomCHERITest arch)
