@@ -72,14 +72,15 @@ module RISCV.RV32_Xcheri (
 , cbuildcap
 , ccopytype
 , ccseal
+, csealentry
 , ctoptr
 , cfromptr
 , csub
 , cmove
-, cspecialrw
 , cjalr
 , ccall
 , ctestsubset
+, cspecialrw
 , clear
 , fpclear
 , croundrepresentablelength
@@ -128,6 +129,7 @@ ccleartag                 = "1111111 01011 cs1[4:0] 000 cd[4:0] 1011011"
 cbuildcap                 = "0011101 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 ccopytype                 = "0011110 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 ccseal                    = "0011111 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csealentry                = "1111111 10001 cs1[4:0] 000 cd[4:0] 1011011"
 
 -- Capability Pointer Arithmetic
 ctoptr                    = "0010010 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
@@ -267,6 +269,7 @@ rv32_xcheri_disass = [ cgetperm            --> prettyR_2op "cgetperm"
                      , cbuildcap           --> prettyR "cbuildcap"
                      , ccopytype           --> prettyR "ccopytype"
                      , ccseal              --> prettyR "ccseal"
+                     , csealentry          --> prettyR_2op "csealentry"
                      , ccleartag           --> prettyR_2op "ccleartag"
                      , cincoffsetimmediate --> prettyI "cincoffsetimmediate"
                      , csetboundsimmediate --> prettyI "csetboundsimmediate"
@@ -328,6 +331,7 @@ rv32_xcheri_misc src1 src2 srcScr imm dest =
   , encode csetflags  src1 src2 dest
   , encode ccopytype  src1 src2 dest
   , encode ccseal     src1 src2 dest
+  , encode csealentry src1 dest
   , encode ccleartag  src1 dest
   , encode cspecialrw srcScr src1 dest ]
 

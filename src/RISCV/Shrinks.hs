@@ -279,6 +279,7 @@ rv32_xcheri_shrink = [ cgetperm            --> shrink_cgetperm
                      , cbuildcap           --> shrink_capcap
                      , ccopytype           --> shrink_capcap
                      , ccseal              --> shrink_capcap
+                     , csealentry          --> shrink_cap
                      , ccleartag           --> shrink_cap
                      , cincoffsetimmediate --> shrink_capimm
                      , csetboundsimmediate --> shrink_capimm
@@ -337,6 +338,7 @@ rv32_xcheri_extract = [ cgetperm            --> extract_1op cgetperm
                       , cbuildcap           --> extract_2op cbuildcap
                       , ccopytype           --> extract_2op ccopytype
                       , ccseal              --> extract_2op ccseal
+                      , csealentry          --> extract_1op csealentry
                       , ccleartag           --> extract_1op ccleartag
                       , cincoffsetimmediate --> extract_imm cincoffsetimmediate
                       , csetboundsimmediate --> extract_imm csetboundsimmediate
