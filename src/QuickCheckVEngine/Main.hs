@@ -4,6 +4,7 @@
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2018 Jonathan Woodruff
 -- Copyright (c) 2018-2020 Alexandre Joannou
+-- Copyright (c) 2018-2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -197,10 +198,10 @@ main = withSocketsDo $ do
         m_traces <- doRVFIDII socA socB alive (timeoutDelay flags) False insts
         let (traceA, traceB) = fromMaybe (error "unexpected doRVFIDII failure")
                                          m_traces
-        let tcNew = tcTrans tc traceA traceB
-        writeFile "last_failure.S" ("# last failing test case:\n" ++ show tcNew)
+        writeFile "last_failure.S" ("# last failing test case:\n" ++ show tc)
         when (optVerbosity flags > 0) $
           do putStrLn "Replaying shrunk failed test case:"
+             let tcNew = tcTrans tc traceA traceB
              checkSingle tcNew 2 False (const $ return ())
              return ()
         when (optSave flags) $
@@ -212,12 +213,12 @@ main = withSocketsDo $ do
                    putStrLn "One-line description?"
                    comment <- getLine
                    writeFile (fileName ++ ".S")
-                             ("# " ++ comment ++ "\n" ++ show tcNew)
+                             ("# " ++ comment ++ "\n" ++ show tc)
                Just dir -> do
                  t <- getCurrentTime
                  let tstamp = [if x == ' ' then '_' else x | x <- (show t)]
                  writeFile (dir ++ "/failure-" ++ tstamp ++ ".S")
-                           ("# Automatically generated failing test case" ++ "\n" ++ show tcNew)
+                           ("# Automatically generated failing test case" ++ "\n" ++ show tc)
   let checkTrapAndSave tc = saveOnFail tc check_mcause_on_trap
   let checkResult = if (optVerbosity flags > 1)
                     then verboseCheckWithResult
