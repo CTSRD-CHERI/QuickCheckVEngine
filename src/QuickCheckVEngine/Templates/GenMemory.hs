@@ -45,6 +45,7 @@ module QuickCheckVEngine.Templates.GenMemory (
 , gen_rv64_i_cache
 , gen_rv32_Xcheri_cache
 , gen_rv64_Xcheri_cache
+, gen_pte
 ) where
 
 import InstrCodec
@@ -52,6 +53,7 @@ import Test.QuickCheck
 import RISCV.RV32_I
 import RISCV.RV32_A
 import RISCV.RV32_Zifencei
+import RISCV.RV32_Zicsr
 import RISCV.RV64_I
 import RISCV.RV32_Xcheri
 import QuickCheckVEngine.Template
@@ -171,3 +173,37 @@ gen_cache has_a has_zifencei has_xlen_64 has_caplen = Random $
      return $ prologue
               <> replicateTemplate (size - length prologue_list - 1)
                                    (Distribution $ concat insts)
+
+
+gen_pte = Random $
+  do lperms <- bits 10
+     uperms <- bits 2
+     return $ Sequence [Single $ encode ori uperms 0 1, -- two cheri pte bits
+                        Single $ encode slli 19 1 1,
+                        Single $ encode ori 0x000 1 1, -- 11 msbs of PA
+                        Single $ encode slli 11 1 1,
+                        Single $ encode ori 0x000 1 1, -- next 11 bits of PA
+                        Single $ encode slli 11 1 1,
+                        Single $ encode ori 0x100 1 1, -- next 11 bits of PA
+                        Single $ encode slli 11 1 1,
+                        Single $ encode ori 0x000 1 1, -- next 11 bits of PA
+                        Single $ encode slli 10 1 1,
+                        Single $ encode ori lperms 1 1, -- Permissions bits
+                        Single $ encode addi 1 0 5,
+                        Single $ encode slli 31 5 5,
+                        Single $ encode slli 31 5 5,
+                        Single $ encode slli 1 5 5,
+                        Single $ encode lui 0x80 6,
+                        Single $ encode add 6 5 5,
+                        Single $ encode lui 0x40000 7,
+                        Single $ encode slli 1 7 7,
+                        Single $ encode sd 0 1 7,
+                        Single $ encode csrrw 0x180 5 0]
+                        <>
+                        (NoShrink $ Single $ encode "0001001 00000 00000 000 00000 1110011") -- sfence.vma 0 0
+                        <> Sequence [
+                        Single $ encode sret,
+                        Distribution [(1,Single $ encode ccleartag 3 3), (1,Single $ encode cmove 3 3)],
+                        Distribution [(1,Single $ encode sw 16 3 0), (1,Single $ encode sq 16 3 0)],
+                        Distribution [(1,Single $ encode lw 16 0 4), (1,Single $ encode lq 16 0 4)],
+                        Single $ encode cgettag 4 5]

@@ -314,6 +314,9 @@ main = withSocketsDo $ do
               when (has_ifencei archDesc && has_xlen_64 archDesc) $
                 do putStrLn "rv64 Zifencei extension Verification:"
                    doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_i_zifencei_memory) (nTests flags)
+              when (has_s archDesc) $
+                do putStrLn "PTE template:"
+                   doCheck (genTemplate $ gen_pte) (nTests flags)
               when (has_cheri archDesc) $
                 do putStrLn "Xcheri extension Capability Inspection Verification:"
                    doCheck (genTemplate $ repeatTemplateTillEnd genCHERIinspection) (nTests flags)
