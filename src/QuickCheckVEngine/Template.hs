@@ -200,9 +200,9 @@ tp = makeTokenParser $ emptyDef { commentLine   = "#"
 partial p = (,) <$> p <*> getInput
 parseTestCase = do
   whiteSpace tp
-  TC <$> do tss <- many1 parseTestStrand
+  TC <$> do tss <- optionMaybe $ many1 parseTestStrand
             eof
-            return tss
+            return $ fromMaybe [] tss
 parseTestStrand = do
   mshrink <- optionMaybe $     (reserved tp ".noshrink" >> return False)
                            <|> (reserved tp   ".shrink" >> return  True)
