@@ -228,29 +228,32 @@ main = withSocketsDo $ do
                            (prop socA socB alive checkTrapAndSave archDesc (timeoutDelay flags) (optVerbosity flags > 1) gen)
         case res of Failure {} -> return 1
                     _          -> return 0
-  let checkFile (memoryInitFile :: Maybe FilePath) (fileName :: FilePath) = do
-        putStrLn $ "Reading trace from " ++ fileName
-        trace <- read <$> readFile fileName
-        initTrace <- case (memoryInitFile) of
-          Just memInit -> do putStrLn $ "Reading memory initialisation from file " ++ memInit
-                             readDataFile memInit
-          Nothing -> return mempty
-        res <- checkSingle (initTrace <> trace) (optVerbosity flags) (optShrink flags) checkTrapAndSave
-        case res of Failure {} -> putStrLn "Failure."
-                    _          -> putStrLn "No Failure."
-        return ()
+  let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
+            | skipped == 0 = do putStrLn $ "Reading trace from " ++ fileName
+                                trace <- read <$> readFile fileName
+                                initTrace <- case (memoryInitFile) of
+                                    Just memInit -> do putStrLn $ "Reading memory initialisation from file " ++ memInit
+                                                       readDataFile memInit
+                                    Nothing -> return mempty
+                                res <- checkSingle (initTrace <> trace) (optVerbosity flags) (optShrink flags) checkTrapAndSave
+                                case res of Failure {} -> putStrLn "Failure."
+                                            _          -> putStrLn "No Failure."
+                                isAlive <- readIORef alive
+                                return $ if isAlive then 0 else 1
+            | otherwise = return (skipped + 1)
   --
   failuresRef <- newIORef 0
   let doCheck a b = do res <- checkGen a b
                        modifyIORef failuresRef ((+) res)
   case (instTraceFile flags) of
     Just fileName -> do
-      checkFile (memoryInitFile flags) fileName
+      void $ checkFile (memoryInitFile flags) 0 fileName
     Nothing -> do
       case (instDirectory flags) of
         Just directory -> do
           fileNames <- System.FilePath.Find.find always (extension ==? ".S") directory
-          mapM_ (checkFile Nothing) fileNames
+          skipped <- foldM (checkFile Nothing) 0 fileNames
+          when (skipped > 1) $ putStrLn $ "Warning: skipped " ++ show (skipped - 1) ++ " tests due to dead implementations"
         Nothing -> do
           case instrSoc of
             Nothing -> do
