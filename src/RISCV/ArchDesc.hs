@@ -58,6 +58,7 @@ data ArchDesc = ArchDesc { has_xlen_32 :: Bool
                          , has_xlen_64 :: Bool
                          , has_i       :: Bool
                          , has_m       :: Bool
+                         , has_s       :: Bool
                          , has_a       :: Bool
                          , has_f       :: Bool
                          , has_d       :: Bool
@@ -75,6 +76,7 @@ instance Show ArchDesc where
                                        , not $ null x ]
                 ++ ext has_i "i"
                 ++ ext has_m "m"
+                ++ ext has_s "s"
                 ++ ext has_a "a"
                 ++ ext has_f "f"
                 ++ ext has_d "d"
@@ -91,6 +93,7 @@ archDesc_null  = ArchDesc { has_xlen_32 = False
                           , has_xlen_64 = False
                           , has_i       = False
                           , has_m       = False
+                          , has_s       = False
                           , has_a       = False
                           , has_f       = False
                           , has_d       = False
@@ -107,6 +110,7 @@ archDesc_rv32i = ArchDesc { has_xlen_32 = True
                           , has_xlen_64 = False
                           , has_i       = True
                           , has_m       = False
+                          , has_s       = False
                           , has_a       = False
                           , has_f       = False
                           , has_d       = False
@@ -124,6 +128,7 @@ fromString str = ArchDesc { has_xlen_32 = True
                           , has_xlen_64 = rv64
                           , has_i       = i
                           , has_m       = m
+                          , has_s       = s
                           , has_a       = a
                           , has_f       = f
                           , has_d       = d
@@ -138,6 +143,7 @@ fromString str = ArchDesc { has_xlen_32 = True
         rv64 = (head archStrings) =~ "rv64"
         i = (head archStrings =~ "i") || (head archStrings =~ "g")
         m = (head archStrings =~ "m") || (head archStrings =~ "g")
+        s = (head archStrings =~ "s") || (head archStrings =~ "g")
         a = (head archStrings =~ "a") || (head archStrings =~ "g")
         f = (head archStrings =~ "f") || (head archStrings =~ "g")
         d = (head archStrings =~ "d") || (head archStrings =~ "g")
