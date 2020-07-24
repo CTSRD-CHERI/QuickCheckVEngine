@@ -196,7 +196,7 @@ instance ToTestCase [Integer] where
 -- Parse a TestCase
 tp = makeTokenParser $ emptyDef { commentLine   = "#"
                                 , reservedNames = [ ".shrink", ".noshrink"
-                                                  , ".4byte" ] }
+                                                  , ".4byte", ".2byte" ] }
 partial p = (,) <$> p <*> getInput
 parseTestCase = do
   whiteSpace tp
@@ -206,7 +206,7 @@ parseTestCase = do
 parseTestStrand = do
   mshrink <- optionMaybe $     (reserved tp ".noshrink" >> return False)
                            <|> (reserved tp   ".shrink" >> return  True)
-  insts   <- many1 $ reserved tp ".4byte" >> natural tp
+  insts   <- many1 $ (reserved tp ".4byte" <|> reserved tp ".2byte") >> natural tp
   return $ TS (fromMaybe True mshrink) insts
 
 -- | Create a list of instructions represented as a list of 'Integer' from the
