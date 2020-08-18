@@ -37,15 +37,14 @@ module QuickCheckVEngine.Templates.GenCHERI (
 ) where
 
 import Test.QuickCheck
+import Control.Monad
 import RISCV
 import InstrCodec
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
-genRandomCHERITest :: ArchDesc -> Gen Template
-genRandomCHERITest arch = do
-  remaining <- getSize
-  repeats   <- bits 7
+genRandomCHERITest :: ArchDesc -> Template
+genRandomCHERITest arch = Random $ do
   srcAddr   <- src
   srcData   <- src
   tmpReg    <- src
@@ -61,28 +60,21 @@ genRandomCHERITest arch = do
   fenceOp2  <- (bits 4)
   csrAddr   <- frequency [(1, return 0xbc0), (1, return 0x342), (1, bits 12)]
   srcScr    <- elements [28, 29, 30, 31]
-  srcCsr    <- elements [0x141, 0x143, 0x341, 0x343]
-  thisNested <- resize (remaining `Prelude.div` 2) (genRandomCHERITest arch)
-  let test =  Distribution [ (if remaining > 10 then 5 else 0, legalLoad arch)
-                           , (if remaining > 10 then 5 else 0, legalStore arch)
-                           , (if remaining > 10 then 5 else 0, legalCapLoad srcAddr dest)
-                           , (if remaining > 10 then 5 else 0, legalCapStore srcAddr)
-                           , (10, uniformTemplate $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) -- TODO add csr
-                           , (10, uniformTemplate $ rv32_xcheri srcAddr srcData srcScr imm mop dest)
-                           , (10, Single $ encode cspecialrw srcScr srcAddr dest)
-                           , (10, uniformTemplate $ rv32_zicsr srcData dest srcCsr mop)
-                           , (10, switchEncodingMode)
-                           , (10, cspecialRWChain)
-                           , (20, randomCCall srcAddr srcData tmpReg tmpReg2)
-                           , (10, clearASR tmpReg tmpReg2)
-                           , (if remaining > 10 then 1 else 0, surroundWithMemAccess arch thisNested) ]
-  if remaining > 10
-    then do nextNested <- resize (remaining `Prelude.div` 2) (genRandomCHERITest arch)
-            return $ test <> nextNested
-    else return test
+  srcCsr    <- elements [0x141, 0x142, 0x341, 0x342]
+  return $ Distribution [ (5, legalLoad arch)
+                        , (5, legalStore arch)
+                        , (5, legalCapLoad srcAddr dest)
+                        , (5, legalCapStore srcAddr)
+                        , (10, uniformTemplate $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) -- TODO add csr
+                        , (10, uniformTemplate $ rv32_xcheri srcAddr srcData srcScr imm mop dest)
+                        , (10, Single $ encode cspecialrw srcScr srcAddr dest)
+                        , (10, uniformTemplate $ rv32_zicsr srcData dest srcCsr mop)
+                        , (10, switchEncodingMode)
+                        , (10, cspecialRWChain)
+                        , (10, randomCCall srcAddr srcData tmpReg tmpReg2)
+                        , (10, clearASR tmpReg tmpReg2)]
 
 randomCHERITest :: ArchDesc -> Template
-randomCHERITest arch = Random $ do
-   temp <- genRandomCHERITest arch
-   return $ if has_f arch || has_d arch then NoShrink (fp_prologue arch) <> temp
-                                        else temp
+randomCHERITest arch = let temp = repeatTemplateTillEnd $ genRandomCHERITest arch
+                       in if has_f arch || has_d arch then NoShrink (fp_prologue arch) <> temp
+                                                      else temp
