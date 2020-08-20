@@ -61,7 +61,8 @@ genRandomCHERITest arch = Random $ do
   csrAddr   <- frequency [(1, return 0xbc0), (1, return 0x342)]
   srcScr    <- elements $ [0, 1, 28, 29, 30, 31] ++ (if has_s arch then [12, 13, 14, 15] else []) ++ [2]
   srcCsr    <- elements [0x141, 0x142, 0x341, 0x342]
-  return $ Distribution [ (5, legalLoad arch)
+  return $ Distribution [
+                          (5, legalLoad arch)
                         , (5, legalStore arch)
                         , (5, legalCapLoad srcAddr dest)
                         , (5, legalCapStore srcAddr)
@@ -72,7 +73,9 @@ genRandomCHERITest arch = Random $ do
                         , (10, switchEncodingMode)
                         , (10, cspecialRWChain)
                         , (10, randomCCall srcAddr srcData tmpReg tmpReg2)
-                        , (10, clearASR tmpReg tmpReg2)]
+                        , (10, makeShortCap)
+                        , (10, clearASR tmpReg tmpReg2)
+                        ]
 
 randomCHERITest :: ArchDesc -> Template
 randomCHERITest arch = let temp = repeatTemplateTillEnd $ genRandomCHERITest arch

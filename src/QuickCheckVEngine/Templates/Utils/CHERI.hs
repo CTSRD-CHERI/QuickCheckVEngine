@@ -35,6 +35,7 @@
 module QuickCheckVEngine.Templates.Utils.CHERI (
   randomCCall
 , clearASR
+, makeShortCap
 , legalCapLoad
 , legalCapStore
 , switchEncodingMode
@@ -47,6 +48,7 @@ module QuickCheckVEngine.Templates.Utils.CHERI (
 ) where
 
 import Test.QuickCheck
+import Data.Bits
 import RISCV
 import InstrCodec
 import QuickCheckVEngine.Template
@@ -79,6 +81,19 @@ clearASR tmp1 tmp2 = instSeq [ encode cspecialrw 0 0 tmp1, -- Get PCC
                                encode candperm tmp2 tmp1 tmp1, -- Mask out ASR
                                encode cspecialrw 28 tmp1 0, -- Clear ASR in trap vector
                                encode cjalr tmp1 0 ]
+
+makeShortCap :: Template
+makeShortCap = Random $ do
+  dst <- dest
+  source <- src
+  tmp <- src
+  len <- choose (0, 32)
+  offset <- oneof [choose (0,32), bits 14]
+  return $ instSeq [ encode csetboundsimmediate len source dst,
+                     encode addi (Data.Bits.shift offset (-12)) 0 tmp,
+                     encode slli 12 tmp tmp,
+                     encode csetoffset tmp dst dst,
+                     encode cincoffsetimmediate (offset Data.Bits..&. 0xfff) dst dst]
 
 legalCapLoad :: Integer -> Integer -> Template
 legalCapLoad addrReg targetReg = Random $ do
