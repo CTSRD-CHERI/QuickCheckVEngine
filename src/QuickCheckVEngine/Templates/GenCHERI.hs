@@ -59,7 +59,7 @@ genRandomCHERITest arch = Random $ do
   fenceOp1  <- (bits 4)
   fenceOp2  <- (bits 4)
   csrAddr   <- frequency [(1, return 0xbc0), (1, return 0x342)]
-  srcScr    <- elements [28, 29, 30, 31]
+  srcScr    <- elements $ [0, 1, 28, 29, 30, 31] ++ (if has_s arch then [12, 13, 14, 15] else []) ++ [2]
   srcCsr    <- elements [0x141, 0x142, 0x341, 0x342]
   return $ Distribution [ (5, legalLoad arch)
                         , (5, legalStore arch)
