@@ -93,7 +93,7 @@ li32 :: Integer -> Integer -> Template
 li32 reg imm = instSeq $ doHi20 ++ doLo12
   where doHi20 = [ encode lui (toInteger hi20) reg | hi20 /= 0]
         doLo12 = if (lo12 /= 0 || hi20 == 0)
-                    then [encode addi (toInteger lo12) 0 reg] else []
+                    then [encode addi (toInteger lo12) (if hi20 /= 0 then reg else 0) reg] else []
         imm32 :: Word32 = fromInteger imm
         hi20  :: Word32 = ((imm32 + 0x800) `shiftR` 12) .&. 0xfffff
         lo12  :: Word32 = if testBit imm32 12 then imm32 .|. 0xfffff000
