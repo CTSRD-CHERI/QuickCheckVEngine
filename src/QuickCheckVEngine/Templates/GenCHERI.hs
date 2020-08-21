@@ -33,6 +33,7 @@
 --
 
 module QuickCheckVEngine.Templates.GenCHERI (
+  buildCapTest,
   randomCHERITest
 ) where
 
@@ -42,6 +43,26 @@ import RISCV
 import InstrCodec
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
+import Data.Bits
+
+buildCapTest :: ArchDesc -> Template
+buildCapTest arch = Random $ do
+  let bitAppend x (a,b) = (shift x b +) <$> a b
+  cap <- oneof [bits 128, foldM bitAppend 0 [(bits,16),(bits,3),(const $ elements [0x3ffff,0x3fffe,0x3fffd,0x3fffc],18),(bits,27),(bits,64)]]
+  return $ Sequence [Single $ encode lui 0x40004 1,
+                     Single $ encode slli 1 1 1,
+                     li32 2 (cap Data.Bits..&. 0xffffffff),
+                     Single $ encode sw 0 2 1,
+                     li32 2 ((shift cap (-32)) Data.Bits..&. 0xffffffff),
+                     Single $ encode sw 4 2 1,
+                     li32 2 ((shift cap (-64)) Data.Bits..&. 0xffffffff),
+                     Single $ encode sw 8 2 1,
+                     li32 2 ((shift cap (-96)) Data.Bits..&. 0xffffffff),
+                     Single $ encode sw 12 2 1,
+                     Single $ encode lq 0 1 2,
+                     Single $ encode cbuildcap 2 3 2,
+                     Single $ encode cgettag 2 4]
+
 
 genRandomCHERITest :: ArchDesc -> Template
 genRandomCHERITest arch = Random $ do
