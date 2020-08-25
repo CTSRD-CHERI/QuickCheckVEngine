@@ -61,7 +61,8 @@ buildCapTest arch = Random $ do
                      Single $ encode sw 12 2 1,
                      Single $ encode lq 0 1 2,
                      Single $ encode cbuildcap 2 3 2,
-                     Single $ encode cgettag 2 4]
+                     Single $ encode cgettype 2 4,
+                     Single $ encode cgettag 2 5]
 
 
 genRandomCHERITest :: ArchDesc -> Template
