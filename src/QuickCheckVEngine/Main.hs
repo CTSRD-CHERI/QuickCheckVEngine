@@ -87,6 +87,7 @@ data Options = Options
     , instrPort      :: Maybe String
     , saveDir        :: Maybe FilePath
     , timeoutDelay   :: Int
+    , testLen        :: Int
     , optShrink      :: Bool
     , optSave        :: Bool
     } deriving Show
@@ -105,6 +106,7 @@ defaultOptions = Options
     , instrPort      = Nothing
     , saveDir        = Nothing
     , timeoutDelay   = 6000000000 -- 60 seconds
+    , testLen        = 2048
     , optShrink      = True
     , optSave        = True
     }
@@ -150,6 +152,9 @@ options =
   , Option ['T']     ["timeout"]
       (ReqArg (\ f opts -> opts { timeoutDelay = read f }) "TIMEOUT")
         "Timeout after TIMEOUT microseconds of A or B not responding"
+  , Option ['L']     ["test-length"]
+      (ReqArg (\ f opts -> opts { testLen = read f }) "TEST-LENGTH")
+        "Generate tests up to TEST-LENGTH instructions long"
   , Option ['S']     ["disable-shrink"]
       (NoArg (\ opts -> opts { optShrink = False }))
         "Disable shrinking of failed tests"
@@ -186,8 +191,8 @@ main = withSocketsDo $ do
   instrSoc <- mapM (open "instruction-generator-port") addrInstr
   --
   alive <- newIORef True -- Cleared when either implementation times out, since they will may not be able to respond to future queries
-  let checkSingle tc verbosity doShrink onFail = do
-        quickCheckWithResult (Args Nothing 1 1 2048 (verbosity > 0) (if doShrink then 1000 else 0))
+  let checkSingle tc verbosity doShrink len onFail = do
+        quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 1000 else 0))
                              (prop socA socB alive onFail archDesc (timeoutDelay flags) (verbosity > 1) (return tc))
   let check_mcause_on_trap tc traceA traceB =
         if or (map rvfiIsTrap traceA) || or (map rvfiIsTrap traceB)
@@ -202,7 +207,7 @@ main = withSocketsDo $ do
         when (optVerbosity flags > 0) $
           do putStrLn "Replaying shrunk failed test case:"
              let tcNew = tcTrans tc traceA traceB
-             checkSingle tcNew 2 False (const $ return ())
+             checkSingle tcNew 2 False (testLen flags) (const $ return ())
              return ()
         when (optSave flags) $
           do case (saveDir flags) of
@@ -224,7 +229,7 @@ main = withSocketsDo $ do
                     then verboseCheckWithResult
                     else quickCheckWithResult
   let checkGen gen remainingTests = do
-        res <- checkResult (Args Nothing remainingTests 1 2048 (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
+        res <- checkResult (Args Nothing remainingTests 1 (testLen flags) (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
                            (prop socA socB alive checkTrapAndSave archDesc (timeoutDelay flags) (optVerbosity flags > 1) gen)
         case res of Failure {} -> return 1
                     _          -> return 0
@@ -235,7 +240,7 @@ main = withSocketsDo $ do
                                     Just memInit -> do putStrLn $ "Reading memory initialisation from file " ++ memInit
                                                        readDataFile memInit
                                     Nothing -> return mempty
-                                res <- checkSingle (initTrace <> trace) (optVerbosity flags) (optShrink flags) checkTrapAndSave
+                                res <- checkSingle (initTrace <> trace) (optVerbosity flags) (optShrink flags) (testLen flags) checkTrapAndSave
                                 case res of Failure {} -> putStrLn "Failure."
                                             _          -> putStrLn "No Failure."
                                 isAlive <- readIORef alive
