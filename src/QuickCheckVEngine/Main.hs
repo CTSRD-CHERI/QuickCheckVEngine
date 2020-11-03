@@ -333,8 +333,8 @@ main = withSocketsDo $ do
                    doCheck (genTemplate $ repeatTemplateTillEnd genCHERIcontrol) (nTests flags)
                    putStrLn "Xcheri extensions Cache Verification:"
                    doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_Xcheri_cache) (nTests flags)
-                   putStrLn "Xcheri extension buildCap Template:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd $ buildCapTest archDesc) (nTests flags)
+                   putStrLn "Xcheri extension Capability Decode Template:"
+                   doCheck (genTemplate $ repeatTemplateTillEnd $ capDecodeTest archDesc) (nTests flags)
                    putStrLn "Xcheri extension Random Template:"
                    doCheck (genTemplate $ randomCHERITest archDesc) (nTests flags)
 

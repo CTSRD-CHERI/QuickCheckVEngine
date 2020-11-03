@@ -33,7 +33,7 @@
 --
 
 module QuickCheckVEngine.Templates.GenCHERI (
-  buildCapTest,
+  capDecodeTest,
   randomCHERITest
 ) where
 
@@ -45,10 +45,13 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 import Data.Bits
 
-buildCapTest :: ArchDesc -> Template
-buildCapTest arch = Random $ do
+capDecodeTest :: ArchDesc -> Template
+capDecodeTest arch = Random $ do
   let bitAppend x (a,b) = (shift x b +) <$> a b
-  cap <- oneof [bits 128, foldM bitAppend 0 [(bits,16),(bits,3),(const $ elements [0x00000,0x00001,0x00002,0x00003],18),(bits,27),(bits,64)]]
+  cap <- oneof [bits 128, -- completely random cap
+                foldM bitAppend 0 [(bits,16),(bits,3),(const $ elements [0x00000,0x00001,0x00002,0x00003],18),(bits,27),(bits,64)], -- reserved otypes
+                choose(40,63) >>= \exp -> foldM bitAppend 0 [(bits,16),(bits,3),(bits,18),(const $ return 1,1),(bits,9),(const $ return $ shift exp (-3),3),(bits,11),(const $ return $ exp Data.Bits..&. 0x3,3),(bits,64)] -- tricky exponents
+                ]
   return $ Sequence [Single $ encode lui 0x40004 1,
                      Single $ encode slli 1 1 1,
                      li32 2 (cap Data.Bits..&. 0xffffffff),
@@ -60,6 +63,13 @@ buildCapTest arch = Random $ do
                      li32 2 ((shift cap (-96)) Data.Bits..&. 0xffffffff),
                      Single $ encode sw 12 2 1,
                      Single $ encode lq 0 1 2,
+                     Single $ encode cgetlen 2 6,
+                     Single $ encode cgetoffset 2 6,
+                     Single $ encode cgetbase 2 6,
+                     Single $ encode cgetaddr 2 6,
+                     Single $ encode cgettype 2 6,
+                     Single $ encode cgetflags 2 6,
+                     Single $ encode cgetperm 2 6,
                      Single $ encode cbuildcap 2 3 2,
                      Single $ encode cgettype 2 4,
                      Single $ encode cgettag 2 5]
