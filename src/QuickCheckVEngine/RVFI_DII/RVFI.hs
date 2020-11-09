@@ -48,6 +48,7 @@
 
 module QuickCheckVEngine.RVFI_DII.RVFI (
   RVFI_Packet
+, rvfiEmptyHaltPacket
 , rvfiIsHalt
 , rvfiIsTrap
 , rvfiCheck
@@ -60,6 +61,7 @@ import qualified Data.Bits.Bitwise as BW
 import Data.Binary
 import Data.Binary.Put
 import Data.Binary.Get
+import qualified Data.ByteString.Lazy as BS
 import Data.Semigroup -- Should no longer be required with modern ghc
 import RISCV
 import Text.Printf
@@ -171,6 +173,10 @@ instance Binary RVFI_Packet where
              , rvfi_mem_rdata = mem_rdata
              , rvfi_mem_wdata = mem_wdata
              }
+
+-- | An otherwise empty halt token for padding
+rvfiEmptyHaltPacket :: RVFI_Packet
+rvfiEmptyHaltPacket = (runGet get (BS.repeat 0)) { rvfi_halt = 1 }
 
 instance Show RVFI_Packet where
   show tok

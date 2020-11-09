@@ -91,6 +91,16 @@ genInstrServer sckt = do
   return $ unsafePerformIO $ do sendAll sckt (encode seed)
                                 (decode . BS.reverse) <$> Network.Socket.ByteString.Lazy.recv sckt 4
 
+-- | Helper that zips two lists of potentially unequal lengths, padding the
+--   shorter with a default element.
+zipWithPadding :: a -> b -> (a -> b -> c) -> [a] -> [b] -> [c]
+zipWithPadding a b f = go
+  where
+    go []     []     = []
+    go []     (y:ys) = f a y : go [] ys
+    go (x:xs) []     = f x b : go xs []
+    go (x:xs) (y:ys) = f x y : go xs ys
+
 -- | The core QuickCheck property sending the 'TestCase' to the tested RISC-V
 --   implementations as 'DII_Packet's and checking the returned 'RVFI_Packet's
 --   for equivalence. It receives among other things a callback function
@@ -110,8 +120,9 @@ prop scktA scktB alive onFail arch delay doLog gen =
             m_traces <- doRVFIDII scktA scktB alive delay doLog insts
             case m_traces of
               Just (traceA, traceB) -> do
-                let diff = zipWith (rvfiCheckAndShow $ has_xlen_64 arch)
-                                   traceA traceB
+                let diff = zipWithPadding rvfiEmptyHaltPacket rvfiEmptyHaltPacket
+                                          (rvfiCheckAndShow $ has_xlen_64 arch)
+                                          traceA traceB
                 when doLog $ mapM_ (putStrLn . snd) diff
                 return $ property $ and (map fst diff)
               _ -> return $ property False
