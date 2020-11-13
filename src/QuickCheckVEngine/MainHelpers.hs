@@ -166,4 +166,6 @@ doRVFIDII scktA scktB alive delay doLog insts = do
         writeIORef alive False
         putStrLn "Error: exception on IO with implementations. Forcing all future tests to report 'SUCCESS'"
         return Nothing
-  else error "doRVFIDII should not be called when both implementations are not alive"
+  else do
+     putStrLn "Warning: doRVFIDII called when both implementations are not alive"
+     return Nothing
