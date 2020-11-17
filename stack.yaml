@@ -1,0 +1,12 @@
+# resolver: lts-3.5
+# Note: lts-13.30 seems to be the only version that include quickcheck 2.12
+resolver: lts-13.30
+
+# User packages to be built.
+packages:
+- .
+# Dependency packages to be pulled from upstream that are not in the resolver.
+# These entries can reference officially published versions as well as
+# forks / in-progress versions pinned to a git hash.
+extra-deps:
+- bitwise-1.0.0.1  # not included in the default resolver set
