@@ -196,10 +196,11 @@ main = withSocketsDo $ do
                              (prop socA socB alive onFail archDesc (timeoutDelay flags) (verbosity > 1) (return tc))
   let check_mcause_on_trap tc traceA traceB =
         if or (map rvfiIsTrap traceA) || or (map rvfiIsTrap traceB)
-           then tc <> TC [TS False [encode csrrs 0x342 0 1, encode csrrs 0x343 0 1, encode csrrs 0xbc0 0 1]]
+           then tc <> TC ([TS False [encode csrrs 0x342 0 1, encode csrrs 0x343 0 1, encode csrrs 0xbc0 0 1]], const [])
            else tc
   let saveOnFail tc tcTrans = do
-        let insts = (map diiInstruction $ fromTestCase tc) ++ [diiEnd]
+        let (rawInsts, assert) = fromTestCase tc
+        let insts = (map diiInstruction rawInsts) ++ [diiEnd]
         m_traces <- doRVFIDII socA socB alive (timeoutDelay flags) False insts
         let (traceA, traceB) = fromMaybe (error "unexpected doRVFIDII failure")
                                          m_traces

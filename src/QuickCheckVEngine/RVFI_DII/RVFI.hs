@@ -47,8 +47,9 @@
 -}
 
 module QuickCheckVEngine.RVFI_DII.RVFI (
-  RVFI_Packet
+  RVFI_Packet (..)
 , rvfiEmptyHaltPacket
+, rvfiGetFromString
 , rvfiIsHalt
 , rvfiIsTrap
 , rvfiCheck
@@ -112,6 +113,27 @@ data RVFI_Packet = RVFI_Packet {
 -- Modelling of Atomic Memory Operations
 -- Skipping instructions
 }
+
+rvfiGetFromString "valid"     = Just $ toInteger . rvfi_valid
+rvfiGetFromString "order"     = Just $ toInteger . rvfi_order
+rvfiGetFromString "insn"      = Just $ toInteger . rvfi_insn
+rvfiGetFromString "trap"      = Just $ toInteger . rvfi_trap
+rvfiGetFromString "halt"      = Just $ toInteger . rvfi_halt
+rvfiGetFromString "intr"      = Just $ toInteger . rvfi_intr
+rvfiGetFromString "rs1_addr"  = Just $ toInteger . rvfi_rs1_addr
+rvfiGetFromString "rs2_addr"  = Just $ toInteger . rvfi_rs2_addr
+rvfiGetFromString "rs1_rdata" = Just $ toInteger . rvfi_rs1_rdata
+rvfiGetFromString "rs2_rdata" = Just $ toInteger . rvfi_rs2_rdata
+rvfiGetFromString "rd_addr"   = Just $ toInteger . rvfi_rd_addr
+rvfiGetFromString "rd_wdata"  = Just $ toInteger . rvfi_rd_wdata
+rvfiGetFromString "pc_rdata"  = Just $ toInteger . rvfi_pc_rdata
+rvfiGetFromString "pc_wdata"  = Just $ toInteger . rvfi_pc_wdata
+rvfiGetFromString "mem_addr"  = Just $ toInteger . rvfi_mem_addr
+rvfiGetFromString "mem_rmask" = Just $ toInteger . rvfi_mem_rmask
+rvfiGetFromString "mem_wmask" = Just $ toInteger . rvfi_mem_wmask
+rvfiGetFromString "mem_rdata" = Just $ toInteger . rvfi_mem_rdata
+rvfiGetFromString "mem_wdata" = Just $ toInteger . rvfi_mem_wdata
+rvfiGetFromString _           = Nothing
 
 instance Binary RVFI_Packet where
   put pkt =    putWord8    (rvfi_intr pkt)
