@@ -49,6 +49,7 @@ module QuickCheckVEngine.RVFI_DII.DII (
   DII_Packet
 , diiInstruction
 , diiEnd
+, diiVersNegotiate
 ) where
 
 import Data.Word
@@ -115,3 +116,9 @@ diiEnd :: DII_Packet
 diiEnd = DII_Packet { dii_cmd  = dii_cmd_end
                     , dii_time = 1
                     , dii_insn = 0 }
+
+-- | Construct a version negotiation 'DII_Packet'
+diiVersNegotiate :: DII_Packet
+diiVersNegotiate = DII_Packet { dii_cmd  = dii_cmd_end
+                    , dii_time = 1
+                    , dii_insn = 0x56455253 } -- send 'V' 'E' 'R' 'S'
