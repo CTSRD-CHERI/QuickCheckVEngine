@@ -113,7 +113,8 @@ prop scktA scktB alive onFail arch delay doLog gen =
   forAllShrink gen shrink mkProp
   where mkProp testCase = whenFail (onFail testCase) (doProp testCase)
         doProp testCase = monadicIO $ run $ do
-          let instTrace = map diiInstruction $ fromTestCase testCase
+          let (rawInsts, asserts) = fromTestCase testCase
+          let instTrace = map diiInstruction rawInsts
           let insts = instTrace ++ [diiEnd]
           currentlyAlive <- readIORef alive
           if currentlyAlive then do
@@ -124,7 +125,11 @@ prop scktA scktB alive onFail arch delay doLog gen =
                                           (rvfiCheckAndShow $ has_xlen_64 arch)
                                           traceA traceB
                 when doLog $ mapM_ (putStrLn . snd) diff
-                return $ property $ and (map fst diff)
+                let implAAsserts = asserts (init traceA)
+                let implBAsserts = asserts (init traceB)
+                mapM_ (\s -> putStrLn ("Impl A failed assert: " ++ s)) implAAsserts
+                mapM_ (\s -> putStrLn ("Impl B failed assert: " ++ s)) implBAsserts
+                return $ property $ (and (map fst diff)) && (null implAAsserts) && (null implBAsserts)
               _ -> return $ property False
           -- We don't want to shrink once one of the implementations has died,
           -- so always return that the property is true
