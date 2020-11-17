@@ -180,6 +180,10 @@ csrs_map = -- User Trap Setup
         ++ [ (0xB80 + x, "mhpmcounter" ++ show x ++ "h") | x <- hpmcounter_indices ]
         ++ -- Machine Counter Setup
            [ (0x320, "mcountinhibit") ]
+        ++ -- CHERI CSRs
+           [ (0x8C0, "uccsr")
+           , (0x9C0, "sccsr")
+           , (0xBC0, "mccsr") ]
         ++ map (\x -> (x, "mhpmevent" ++ show (x - (head hpmevent_csr_indices) + 3)))
                hpmevent_csr_indices
         -- TODO Debug/Trace Registers (shared with Debug Mode)
