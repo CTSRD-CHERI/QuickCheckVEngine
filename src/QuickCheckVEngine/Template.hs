@@ -202,7 +202,7 @@ instance ToTestCase [Integer] where
 tp = makeTokenParser $ emptyDef { commentLine   = "#"
                                 , reservedNames = [ ".shrink", ".noshrink"
                                                   , ".4byte", ".2byte"
-                                                  , ".assert", ".equals"] }
+                                                  , ".assert"] }
 partial p = (,) <$> p <*> getInput
 parseTestCase = do
   whiteSpace tp
@@ -224,7 +224,7 @@ parseInst = do
 parseAssert = do
   reserved tp ".assert"
   field <- identifier tp
-  reserved tp ".equals"
+  symbol tp "=="
   val <- natural tp
   str <- stringLiteral tp
   return $ \report -> case rvfiGetFromString field of Nothing -> ["Invalid assert (" ++ str ++ "): field " ++ field ++ " not recognised"]
