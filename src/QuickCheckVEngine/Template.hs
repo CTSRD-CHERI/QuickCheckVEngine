@@ -82,7 +82,7 @@ data Template = Empty
               | Distribution [(Int, Template)]
               | Sequence [Template]
               | Random (Gen Template)
-              | Assert (Template, [RVFI_Packet] -> Bool, String)
+              | Assert Template ([RVFI_Packet] -> Bool) String
               | NoShrink Template
 instance Show Template where
   show Empty = "Empty"
@@ -90,12 +90,13 @@ instance Show Template where
   show (Distribution x) = "Distribution " ++ show x
   show (Sequence x) = "Sequence " ++ show x
   show (Random x) = "Random (?)"
-  show (Assert (x,y,z)) = "Assert (" ++ show x ++ ") " ++ show z
+  show (Assert x _ z) = "Assert (" ++ show x ++ ") " ++ show z
   show (NoShrink x) = "NoShrink (" ++ show x ++ ")"
 instance Semigroup Template where
   x <> y = Sequence [x, y]
 instance Monoid Template where
   mempty = Empty
+  mappend = (<>)
 
 -- | Turn a list of 'Integer' instructions into a 'Sequence [Template]'
 instSeq :: [Integer] -> Template
@@ -130,29 +131,29 @@ repeatTemplateTillEnd template = Random $ do
 
 -- | Wrap a single instruction in an assert
 assertSingle :: Integer -> (RVFI_Packet -> Bool) -> String -> Template
-assertSingle insn assert str = Assert (Single insn,
-                                       \z -> case z of []     -> True
-                                                       (x:xs) -> assert x,
-                                       str)
+assertSingle insn assert str = Assert (Single insn)
+                                      (\z -> null z || assert (head z))
+                                      str
 
 -- | Wrap a single instruction in an assert that it writes back a given value
 assertSingleRWD :: Integer -> Integer -> String -> Template
 assertSingleRWD insn target str = assertSingle insn (\z -> toInteger (rvfi_rd_wdata z) == target) str
 
 -- | 'TestCase' type for generated 'Template'
-newtype TestCase = TC ([TestStrand], [RVFI_Packet] -> [String])
+data TestCase = TC ([RVFI_Packet] -> [String]) [TestStrand]
 instance Show TestCase where
-  show (TC (tss, _)) = intercalate "\n" (map show tss)
+  show (TC _ tss) = intercalate "\n" (map show tss)
 instance Read TestCase where
   readsPrec _ str = case parse (partial parseTestCase) "Read" str of
                       Left  e -> error $ show e ++ ", in:\n" ++ str ++ "\n"
                       Right x -> [x]
 instance Semigroup TestCase where
-  TC (xs, xAssert) <> TC (ys, yAssert) = TC $ (xs ++ ys, concatHelper (flatten xs) (flatten ys) (const []) yAssert)
-    where concatHelper []     ys xAcc yAcc = \zs -> xAssert (reverse $ xAcc zs) ++ yAcc zs
-          concatHelper (x:xs) ys xAcc yAcc = concatHelper xs ys (\zs -> (head zs) : (xAcc . tail) zs) (yAcc . tail)
+  TC xAssert xs <> TC yAssert ys = TC (concatHelper (flatten xs) 0) (xs ++ ys)
+    where concatHelper []     n = \zs -> (xAssert (take n zs)) ++ (yAssert (drop n zs))
+          concatHelper (x:xs) n = concatHelper xs (n + 1)
 instance Monoid TestCase where
-  mempty = TC ([], const [])
+  mempty = TC (const []) []
+  mappend = (<>)
 
 flatten [] = []
 flatten ((TS b s):ss) = (map (\x -> (b, x)) s) ++ (flatten ss)
@@ -175,14 +176,13 @@ coalesce [s] = [s]
 coalesce ((TS b1 x1):(TS b2 x2):ss) = if b1==b2 then coalesce ((TS b1 (x1++x2)):ss) else (TS b1 x1):(coalesce ((TS b2 x2):ss))
 
 instance Arbitrary TestCase where
-  arbitrary = (\c -> TC (c, const [])) <$> arbitrary
-  shrink (TC (ss,_)) = map ((\c -> TC (c, const [])) . coalesce) $
-                           [    filter tsNotNull ys
-                             ++ if tsNotNull z' then [z'] else []
-                             ++ filter tsNotNull zs
-                           | (ys, z:zs) <- splits ss
-                           , z' <- shrink z ]
-                           ++ map (map (\(b,x) -> TS b [x])) (shrink_bypass (flatten ss))
+  arbitrary = TC (const []) <$> arbitrary
+  shrink (TC _ ss) = map (TC (const []) . coalesce) $
+                         [ filter tsNotNull ys ++ if tsNotNull z' then [z'] else []
+                                               ++ filter tsNotNull zs
+                                                | (ys, z:zs) <- splits ss
+                         , z' <- shrink z ]
+                         ++ map (map (\(b, x) -> TS b [x])) (shrink_bypass (flatten ss))
     where splits [] = []
           splits (x:xs) = ([], x:xs) : [(x:ys, zs) | (ys, zs) <- splits xs]
           tsNotNull ts = (not . null) $ testStrandInsts ts
@@ -196,8 +196,7 @@ instance Show TestStrand where
           showInsts  = intercalate "\n" (map showInst insts)
           showInst inst = printf ".4byte 0x%08x # %s" inst (pretty inst)
 instance Arbitrary TestStrand where
-  arbitrary = do TC (strands, _) <- genTemplate Empty
-                 return $ head strands
+  arbitrary = return $ TS True []
   shrink (TS False x) = []
   shrink (TS True  x) = map (TS True) (shrinkList rv_shrink x)
 
@@ -206,10 +205,10 @@ class ToTestCase x where
   toTestCase :: x -> TestCase
 -- | ... from a list of 'TestStrand's
 instance ToTestCase [TestStrand] where
-  toTestCase ss = TC (ss, const [])
+  toTestCase = TC (const [])
 -- | ... from a list of instructions represented as a list of 'Integer'
 instance ToTestCase [Integer] where
-  toTestCase insts = TC ([TS True insts], const [])
+  toTestCase insts = TC (const []) [TS True insts]
 
 -- Parse a TestCase
 tp = makeTokenParser $ emptyDef { commentLine   = "#"
@@ -219,38 +218,39 @@ tp = makeTokenParser $ emptyDef { commentLine   = "#"
 partial p = (,) <$> p <*> getInput
 parseTestCase = do
   whiteSpace tp
-  tss <- optionMaybe $ many1 parseTestStrand
+  tc <- (mconcat . (uncurry TC <$>)) <$> many parseTestStrand
   eof
-  return $ foldl (<>) mempty (fromMaybe [mempty] tss)
+  return tc
 parseTestStrand = do
   mshrink <- optionMaybe $     (reserved tp ".noshrink" >> return False)
                            <|> (reserved tp   ".shrink" >> return  True)
   insts   <- many1 parseInst
-  return $ TC ([TS (fromMaybe True mshrink) (map fst insts)],
-               \reports -> concat $ zipWith (\assert report -> assert report) (map snd insts) reports)
+  return ( \r -> concat $ zipWith ($) (fst <$> insts) r
+         , [ TS (fromMaybe True mshrink) (snd <$> insts) ])
 parseInst = do
   (reserved tp ".4byte" <|> reserved tp ".2byte")
   bits <- natural tp
-  asserts <- optionMaybe $ many1 parseAssert
-  return (bits, \report -> case asserts of Nothing -> []
-                                           Just as -> concat $ map ($ report) as)
+  asserts <- many parseAssert
+  return (\r -> concatMap ($ r) asserts, bits)
 parseAssert = do
   reserved tp ".assert"
   field <- identifier tp
   symbol tp "=="
   val <- natural tp
   str <- stringLiteral tp
-  return $ \report -> case rvfiGetFromString field of Nothing -> ["Invalid assert (" ++ str ++ "): field " ++ field ++ " not recognised"]
-                                                      Just getter -> if not (getter report == val) then [str] else []
+  let e = "Invalid assert (" ++ str ++ "): field " ++ field ++ " not recognised"
+      f Nothing  = const [e]
+      f (Just g) = \r -> [str | g r /= val]
+  return $ f (rvfiGetFromString field)
 
--- | Create a list of instructions represented as a list of 'Integer' from the
---   given 'TestCase'
+-- | Create a list of instructions represented as a list of 'Integer' and
+--   associated asserts from the given 'TestCase'
 fromTestCase :: TestCase -> ([Integer], [RVFI_Packet] -> [String])
-fromTestCase (TC (ss, a)) = (concatMap testStrandInsts ss, a)
+fromTestCase (TC a ss) = (concatMap testStrandInsts ss, a)
 
 -- | Count the number of instructions in a 'TestCase'
 testCaseInstCount :: TestCase -> Int
-testCaseInstCount = length . fromTestCase
+testCaseInstCount = length . fst . fromTestCase
 
 -- | Turn a 'Template' into a single QuickCheck 'Gen [Integer]' generator
 --   of list of instructions
@@ -260,7 +260,7 @@ genTemplate template = getSize >>= genTemplateSized template
 -- | Same as 'genTemplate' but specify the desired size
 genTemplateSized :: Template -> Int -> Gen TestCase
 genTemplateSized template size = do
-  TC (xs, a) <- genHelper template
+  TC a xs <- genHelper template
   let (_, mbss) = mapAccumL (\acc (TS shrink insts) ->
                      let remaining = max 0 (size - acc)
                          nbInsts = length insts
@@ -272,7 +272,7 @@ genTemplateSized template size = do
                                        then TS shrink insts
                                        else TS shrink (take remaining insts))
                   ) 0 xs
-  return $ TC (catMaybes mbss, a)
+  return $ TC a (catMaybes mbss)
 
 -- | Turn a 'Template' into a single QuickCheck 'Gen [Integer]' generator
 --   of list of instructions, in an explicitly unsized manner
@@ -282,30 +282,30 @@ genTemplateUnsized = genHelper
 -- | Inner helper to implement the 'genTemplate' functions
 genHelper :: Template -> Gen TestCase
 genHelper Empty = return mempty
-genHelper (Single x) = return $ TC ([TS True [x]], const [])
+genHelper (Single x) = return $ TC (const []) [TS True [x]]
 genHelper (Distribution xs) = do let xs' = map (\(a, b) -> (a, return b)) xs
                                  frequency xs' >>= genHelper
 genHelper (Sequence []) = return mempty
 genHelper (Sequence (x:xs)) = do
-  TC (start, aS) <- genHelper x
-  TC (end,   aE) <- genHelper $ Sequence xs
-  let TC (_, aO) = TC (start, aS) <> TC (end, aE)
+  TC aS start <- genHelper x
+  TC aE   end <- genHelper $ Sequence xs
+  let TC aO _ = TC aS start <> TC aE end
   case (start, end) of
     ([], []) -> return mempty
-    ([], _)  -> return $ TC (end, aO)
-    (_, [])  -> return $ TC (start, aO)
+    ([], _)  -> return $ TC aO end
+    (_, [])  -> return $ TC aO start
     (_, _)   -> do
       let (TS shrink0 insts0) = last start
       let (TS shrink1 insts1) = head end
       if shrink0 == shrink1
-        then return $ TC (  init start
-                         ++ [TS shrink0 (insts0 ++ insts1)]
-                         ++ tail end, aO)
-        else return $ TC (start ++ end, aO)
+        then return $ TC aO (  init start
+                           ++ [TS shrink0 (insts0 ++ insts1)]
+                           ++ tail end )
+        else return $ TC aO (start ++ end)
 genHelper (Random x) = x >>= genHelper
-genHelper (Assert (x,y,z)) = do
-  TC (a, b) <- genHelper x
-  return $ TC (a, \c -> (if not(y c) then [z] else []) ++ b c)
+genHelper (Assert x y z) = do
+  TC a b <- genHelper x
+  return $ TC (\c -> [z | not (y c)] ++ a c) b
 genHelper (NoShrink x) = do
-  TC (a, b) <- genHelper x
-  return $ TC ([TS False (fst $ fromTestCase $ TC (a, b))], b)
+  TC a b <- genHelper x
+  return $ TC a [TS False (concatMap testStrandInsts b)]

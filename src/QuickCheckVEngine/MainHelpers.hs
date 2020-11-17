@@ -126,9 +126,9 @@ prop scktA scktB alive onFail arch delay doLog gen =
                                           traceA traceB
                 when doLog $ mapM_ (putStrLn . snd) diff
                 let implAAsserts = asserts (init traceA)
-                mapM (\s -> putStrLn ("Impl A failed assert: " ++ s)) implAAsserts
                 let implBAsserts = asserts (init traceB)
-                mapM (\s -> putStrLn ("Impl B failed assert: " ++ s)) implBAsserts
+                mapM_ (\s -> putStrLn ("Impl A failed assert: " ++ s)) implAAsserts
+                mapM_ (\s -> putStrLn ("Impl B failed assert: " ++ s)) implBAsserts
                 return $ property $ (and (map fst diff)) && (null implAAsserts) && (null implBAsserts)
               _ -> return $ property False
           -- We don't want to shrink once one of the implementations has died,
