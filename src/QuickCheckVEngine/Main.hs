@@ -184,10 +184,21 @@ main = withSocketsDo $ do
   addrB <- resolve (impBIP flags) (impBPort flags)
   socA <- open "implementation-A" addrA
   socB <- open "implementation-B" addrB
-  sendDIIPacket socA diiEnd
-  _ <- recvRVFITrace socA False
-  sendDIIPacket socB diiEnd
-  _ <- recvRVFITrace socB False
+  sendDIIPacket socA diiVersNegotiate
+  socAPkt <- recvRVFIPacket socA
+  -- FIXME: doesn't work socATraceVersion <- rvfiHaltVersion socAPkt
+  when (not (rvfiIsHalt socAPkt)) $
+    error ("Received unexpected initial packet from implementation A: " ++ show socAPkt)
+  when (optVerbosity flags > 1) $
+    putStrLn ("Received initial packet from implementation A: " ++ show socAPkt)
+  let socATraceVer = rvfiHaltVersion socAPkt
+  sendDIIPacket socB diiVersNegotiate
+  socBPkt <- recvRVFIPacket socB
+  when (not (rvfiIsHalt socBPkt)) $
+    error ("Received unexpected initial packet from implementation B: " ++ show socBPkt)
+  when (optVerbosity flags > 1) $
+    putStrLn ("Received initial packet from implementation B: " ++ show socBPkt)
+  let socBTraceVer = rvfiHaltVersion socBPkt
   addrInstr <- mapM (resolve "127.0.0.1") (instrPort flags)
   instrSoc <- mapM (open "instruction-generator-port") addrInstr
   --
@@ -367,4 +378,5 @@ main = withSocketsDo $ do
         putStrLn ("connecting to " ++ dest ++ " ...")
         sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
         connect sock (addrAddress addr)
+        putStrLn ("connected to " ++ dest ++ " ...")
         return sock

@@ -51,6 +51,7 @@ module QuickCheckVEngine.RVFI_DII.RVFI (
 , rvfiEmptyHaltPacket
 , rvfiGetFromString
 , rvfiIsHalt
+, rvfiHaltVersion
 , rvfiIsTrap
 , rvfiCheck
 , rvfiCheckAndShow
@@ -202,7 +203,7 @@ rvfiEmptyHaltPacket = (runGet get (BS.repeat 0)) { rvfi_halt = 1 }
 
 instance Show RVFI_Packet where
   show tok
-    | rvfiIsHalt tok = "halt token"
+    | rvfiIsHalt tok = printf "halt token v%d" (rvfiHaltVersion tok)
     | otherwise = printf "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, MA: 0x%016x, MWD: 0x%016x, MWM: 0b%08b, I: 0x%016x (%s)"
                   (show $ rvfi_trap tok /= 0) -- Trap
                   (rvfi_pc_wdata tok)    -- PCWD
@@ -216,6 +217,10 @@ instance Show RVFI_Packet where
 -- | Return 'True' for halt 'RVFI_Packet's
 rvfiIsHalt :: RVFI_Packet -> Bool
 rvfiIsHalt x = rvfi_halt x /= 0
+
+-- | Return 'True' for halt 'RVFI_Packet's
+rvfiHaltVersion :: RVFI_Packet -> Word8
+rvfiHaltVersion x = (shiftR (rvfi_halt x) 1) + 1
 
 -- | Return 'True' for trap 'RVFI_Packet's
 rvfiIsTrap :: RVFI_Packet -> Bool
