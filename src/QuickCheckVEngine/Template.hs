@@ -51,6 +51,8 @@ module QuickCheckVEngine.Template (
 , replicateTemplate
 , repeatTemplate
 , repeatTemplateTillEnd
+, assertSingle
+, assertSingleRWD
 , TestCase(..) -- TODO no longer export internals
 , TestStrand(..) -- TODO no longer export internals
 , toTestCase
@@ -125,6 +127,17 @@ repeatTemplateTillEnd :: Template -> Template
 repeatTemplateTillEnd template = Random $ do
   size <- getSize
   return $ replicateTemplate size template
+
+-- | Wrap a single instruction in an assert
+assertSingle :: Integer -> (RVFI_Packet -> Bool) -> String -> Template
+assertSingle insn assert str = Assert (Single insn,
+                                       \z -> case z of []     -> True
+                                                       (x:xs) -> assert x,
+                                       str)
+
+-- | Wrap a single instruction in an assert that it writes back a given value
+assertSingleRWD :: Integer -> Integer -> String -> Template
+assertSingleRWD insn target str = assertSingle insn (\z -> toInteger (rvfi_rd_wdata z) == target) str
 
 -- | 'TestCase' type for generated 'Template'
 newtype TestCase = TC ([TestStrand], [RVFI_Packet] -> [String])
@@ -259,9 +272,7 @@ genTemplateSized template size = do
                                        then TS shrink insts
                                        else TS shrink (take remaining insts))
                   ) 0 xs
-  return $ TC (catMaybes mbss, a) -- XXX Unclear what should happen to asserts
-                                  -- where corresponding instructions were
-                                  -- truncated
+  return $ TC (catMaybes mbss, a)
 
 -- | Turn a 'Template' into a single QuickCheck 'Gen [Integer]' generator
 --   of list of instructions, in an explicitly unsized manner
