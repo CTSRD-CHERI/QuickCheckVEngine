@@ -221,7 +221,7 @@ instance Binary RVFI_Packet where
 
 -- | An otherwise empty halt token for padding
 rvfiEmptyHaltPacket :: RVFI_Packet
-rvfiEmptyHaltPacket = (runGet get (BS.repeat 0)) { rvfi_halt = 1 }
+rvfiEmptyHaltPacket = (runGet get (BS.repeat 0)) {rvfi_halt = 1}
 
 instance Show RVFI_Packet where
   show tok
@@ -247,9 +247,9 @@ instance Show RVFI_Packet where
 rvfiIsHalt :: RVFI_Packet -> Bool
 rvfiIsHalt x = rvfi_halt x /= 0
 
--- | Return 'True' for halt 'RVFI_Packet's
+-- | Return the trace version for a halt packet (using the previously-unused bits)
 rvfiHaltVersion :: RVFI_Packet -> Word8
-rvfiHaltVersion x = (shiftR (rvfi_halt x) 1) + 1
+rvfiHaltVersion x = 1 + shiftR (rvfi_halt x) 1
 
 -- | Return 'True' for trap 'RVFI_Packet's
 rvfiIsTrap :: RVFI_Packet -> Bool
