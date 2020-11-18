@@ -184,21 +184,9 @@ main = withSocketsDo $ do
   addrB <- resolve (impBIP flags) (impBPort flags)
   socA <- open "implementation-A" addrA
   socB <- open "implementation-B" addrB
-  sendDIIPacket socA diiVersNegotiate
-  socAPkt <- recvRVFIPacket socA
-  -- FIXME: doesn't work socATraceVersion <- rvfiHaltVersion socAPkt
-  when (not (rvfiIsHalt socAPkt)) $
-    error ("Received unexpected initial packet from implementation A: " ++ show socAPkt)
-  when (optVerbosity flags > 1) $
-    putStrLn ("Received initial packet from implementation A: " ++ show socAPkt)
-  let socATraceVer = rvfiHaltVersion socAPkt
-  sendDIIPacket socB diiVersNegotiate
-  socBPkt <- recvRVFIPacket socB
-  when (not (rvfiIsHalt socBPkt)) $
-    error ("Received unexpected initial packet from implementation B: " ++ show socBPkt)
-  when (optVerbosity flags > 1) $
-    putStrLn ("Received initial packet from implementation B: " ++ show socBPkt)
-  let socBTraceVer = rvfiHaltVersion socBPkt
+  socATraceVer <- rvfiNegotiateVersion socA "implementation A" (optVerbosity flags)
+  socBTraceVer <- rvfiNegotiateVersion socB "implementation B" (optVerbosity flags)
+
   addrInstr <- mapM (resolve "127.0.0.1") (instrPort flags)
   instrSoc <- mapM (open "instruction-generator-port") addrInstr
   --

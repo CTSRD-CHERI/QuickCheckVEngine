@@ -53,6 +53,7 @@ module QuickCheckVEngine.RVFI_DII (
 , sendDIITrace
 , recvRVFIPacket
 , recvRVFITrace
+, rvfiNegotiateVersion
 ) where
 
 import QuickCheckVEngine.RVFI_DII.RVFI
@@ -86,6 +87,22 @@ recvRVFITrace sckt doLog = do rvfiPkt <- recvRVFIPacket sckt
                                  then return [rvfiPkt]
                                  else do morePkts <- recvRVFITrace sckt doLog
                                          return (rvfiPkt:morePkts)
+-- | Perform a trace version negotiation with an implementation and return the
+-- | accepted version.
+rvfiNegotiateVersion :: Socket -> String -> Int -> IO Word8
+rvfiNegotiateVersion sckt name verbosity = do
+  sendDIIPacket sckt diiVersNegotiate
+  -- send a version negotiate packet, old implementations will return a halt
+  -- packet with the halt field set to 1, newer implementations will use the
+  -- high bits of that field to indicate their supported trace version
+  rvfiPkt <- recvRVFIPacket sckt
+  when (verbosity > 2) $
+    putStrLn ("Received initial packet from " ++ name ++ ": " ++ show rvfiPkt)
+  unless (rvfiIsHalt rvfiPkt) $
+    error ("Received unexpected initial packet from " ++ name ++ ": " ++ show rvfiPkt)
+  let supportedVer = rvfiHaltVersion rvfiPkt
+  -- TODO: If vers > 1, send a 'v' command to set the trace version to 2
+  return supportedVer
 
 -- Internal helpers (not exported):
 --------------------------------------------------------------------------------
