@@ -117,6 +117,9 @@ rvfiNegotiateVersion sckt name verbosity = do
                ++ ": got " ++ show magic ++ " but expected \"version=\"")
       let ver = runGet Data.Binary.Get.getInt64le acceptedVer
       putStrLn ("Received " ++ name ++ " set-version ack for version " ++ show ver)
+      when (fromIntegral ver /= supportedVer) $
+        error ("Received version response with unexpected version from " ++ name
+               ++ ": got " ++ show ver ++ " but expected 2.")
   when (supportedVer /= 2) $
     putStrLn ("WARNING: " ++ name ++ " does not support version 2 traces.")
   return supportedVer
