@@ -106,7 +106,7 @@ zipWithPadding a b f = go
 --   for equivalence. It receives among other things a callback function
 --   'TestCase -> IO ()' to be performed on failure that takes in the reduced
 --   'TestCase' which caused the failure
-prop :: Socket -> Socket -> IORef Bool -> (TestCase -> IO ())
+prop :: (Socket, Int) -> (Socket, Int) -> IORef Bool -> (TestCase -> IO ())
      -> ArchDesc -> Int -> Bool -> Gen TestCase
      -> Property
 prop scktA scktB alive onFail arch delay doLog gen =
@@ -142,9 +142,9 @@ prop scktA scktB alive onFail arch delay doLog gen =
 --   'Just (traceA, traceB)', otherwise 'Nothing' and sets the provided
 --   'IORef Bool' for alive to 'False' indicating that further interaction with
 --   the implementations is futile
-doRVFIDII :: Socket -> Socket -> IORef Bool -> Int -> Bool -> [DII_Packet]
+doRVFIDII :: (Socket, Int) -> (Socket, Int) -> IORef Bool -> Int -> Bool -> [DII_Packet]
           -> IO (Maybe ([RVFI_Packet], [RVFI_Packet]))
-doRVFIDII scktA scktB alive delay doLog insts = do
+doRVFIDII (scktA, traceVerA) (scktB, traceVerB) alive delay doLog insts = do
   currentlyAlive <- readIORef alive
   if currentlyAlive then do
     result <- try $ do
@@ -154,9 +154,9 @@ doRVFIDII scktA scktB alive delay doLog insts = do
       sendDIITrace scktB insts
       when doLog $ putStrLn "Done sending instructions to implementation B"
       -- Receive from implementations
-      m_traceA <- timeout delay $ recvRVFITrace scktA doLog
+      m_traceA <- timeout delay $ recvRVFITrace (scktA, traceVerA) doLog
       when doLog $ putStrLn "Done receiving reports from implementation A"
-      m_traceB <- timeout delay $ recvRVFITrace scktB doLog
+      m_traceB <- timeout delay $ recvRVFITrace (scktB, traceVerB) doLog
       when doLog $ putStrLn "Done receiving reports from implementation B"
       --
       return (m_traceA, m_traceB)

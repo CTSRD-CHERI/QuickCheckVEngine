@@ -54,13 +54,16 @@ module QuickCheckVEngine.RVFI_DII.RVFI
     rvfiIsTrap,
     rvfiCheck,
     rvfiCheckAndShow,
+    rvfiReadV1Response,
   )
 where
 
+import Control.Monad
 import Data.Word
 import Data.Binary
 import Data.Binary.Get
 import Data.Bits
+import Data.Int
 import qualified Data.Bits.Bitwise as BW
 import qualified Data.ByteString.Lazy as BS
 import Data.Maybe
@@ -165,63 +168,83 @@ rvfiEmptyMemData =
       rvfi_mem_wdata = 0
     }
 
-instance Binary RVFI_Packet where
-  put _ = error "Should not be called, we only read packets"
-  get = do
-    intr <- getWord8
-    halt <- getWord8
-    trap <- getWord8
-    rd_addr <- getWord8
-    rs2_addr <- getWord8
-    rs1_addr <- getWord8
-    mem_wmask <- getWord8
-    mem_rmask <- getWord8
-    mem_wdata <- getWord64be
-    mem_rdata <- getWord64be
-    mem_addr <- getWord64be
-    rd_wdata <- getWord64be
-    rs2_rdata <- getWord64be
-    rs1_rdata <- getWord64be
-    insn <- getWord64be
-    pc_wdata <- getWord64be
-    pc_rdata <- getWord64be
-    order <- getWord64be
-    return $
-      RVFI_Packet
-        { rvfi_valid = 1,
-          rvfi_order = order,
-          rvfi_insn = insn,
-          rvfi_trap = trap,
-          rvfi_halt = halt,
-          rvfi_intr = intr,
-          rvfi_mode = Nothing,
-          rvfi_ixl = Nothing,
-          rvfi_pc_rdata = pc_rdata,
-          rvfi_pc_wdata = pc_wdata,
-          rvfi_int_data =
-            Just
-              RVFI_IntData
-                { rvfi_rs1_addr = rs1_addr,
-                  rvfi_rs2_addr = rs2_addr,
-                  rvfi_rs1_rdata = rs1_rdata,
-                  rvfi_rs2_rdata = rs2_rdata,
-                  rvfi_rd_addr = rd_addr,
-                  rvfi_rd_wdata = rd_wdata
-                },
-          rvfi_mem_data =
-            Just
-              RVFI_MemAccessData
-                { rvfi_mem_addr = mem_addr,
-                  rvfi_mem_rmask = fromIntegral mem_rmask, -- FIXME: sign-extend/zero-extend?
-                  rvfi_mem_wmask = fromIntegral mem_wmask, -- FIXME: sign-extend/zero-extend?
-                  rvfi_mem_rdata = mem_rdata,
-                  rvfi_mem_wdata = mem_wdata
-                }
-        }
+rvfiReadV1Response :: (Int64 -> IO BS.ByteString) -> IO RVFI_Packet
+rvfiReadV1Response reader = do
+  msg <- reader 88
+  putStrLn ("Read packet: " ++ show msg)
+  -- Note: BS.reverse since the decode was written in BE order
+  return $ runGet (isolate 88 rvfiDecodeV1Response) (BS.reverse msg)
+
+rvfiDecodeV1Response :: Get RVFI_Packet
+rvfiDecodeV1Response = do
+  intr <- getWord8
+  halt <- getWord8
+  trap <- getWord8
+  rd_addr <- getWord8
+  rs2_addr <- getWord8
+  rs1_addr <- getWord8
+  mem_wmask <- getWord8
+  mem_rmask <- getWord8
+  mem_wdata <- getWord64be
+  mem_rdata <- getWord64be
+  mem_addr <- getWord64be
+  rd_wdata <- getWord64be
+  rs2_rdata <- getWord64be
+  rs1_rdata <- getWord64be
+  insn <- getWord64be
+  pc_wdata <- getWord64be
+  pc_rdata <- getWord64be
+  order <- getWord64be
+  return $
+    RVFI_Packet
+      { rvfi_valid = 1,
+        rvfi_order = order,
+        rvfi_insn = insn,
+        rvfi_trap = trap,
+        rvfi_halt = halt,
+        rvfi_intr = intr,
+        rvfi_mode = Nothing,
+        rvfi_ixl = Nothing,
+        rvfi_pc_rdata = pc_rdata,
+        rvfi_pc_wdata = pc_wdata,
+        rvfi_int_data =
+          Just
+            RVFI_IntData
+              { rvfi_rs1_addr = rs1_addr,
+                rvfi_rs2_addr = rs2_addr,
+                rvfi_rs1_rdata = rs1_rdata,
+                rvfi_rs2_rdata = rs2_rdata,
+                rvfi_rd_addr = rd_addr,
+                rvfi_rd_wdata = rd_wdata
+              },
+        rvfi_mem_data =
+          Just
+            RVFI_MemAccessData
+              { rvfi_mem_addr = mem_addr,
+                rvfi_mem_rmask = fromIntegral mem_rmask, -- FIXME: I think this zero-extends?
+                rvfi_mem_wmask = fromIntegral mem_wmask, -- FIXME: I think this zero-extends?
+                rvfi_mem_rdata = mem_rdata,
+                rvfi_mem_wdata = mem_wdata
+              }
+      }
 
 -- | An otherwise empty halt token for padding
 rvfiEmptyHaltPacket :: RVFI_Packet
-rvfiEmptyHaltPacket = (runGet get (BS.repeat 0)) {rvfi_halt = 1}
+rvfiEmptyHaltPacket =
+  RVFI_Packet
+    { rvfi_halt = 1,
+      rvfi_valid = 0,
+      rvfi_order = 0,
+      rvfi_insn = 0,
+      rvfi_trap = 0,
+      rvfi_intr = 0,
+      rvfi_mode = Nothing,
+      rvfi_ixl = Nothing,
+      rvfi_pc_rdata = 0,
+      rvfi_pc_wdata = 0,
+      rvfi_int_data = Nothing,
+      rvfi_mem_data = Nothing
+    }
 
 instance Show RVFI_Packet where
   show tok
