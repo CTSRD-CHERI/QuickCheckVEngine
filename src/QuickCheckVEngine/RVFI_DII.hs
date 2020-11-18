@@ -61,10 +61,12 @@ import QuickCheckVEngine.RVFI_DII.DII
 
 import Data.Int
 import Data.Binary
+import Data.Binary.Get
 import Control.Monad
 import Network.Socket
 import Network.Socket.ByteString.Lazy
 import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString.Lazy.Char8 as C8
 
 -- | Send a single 'DII_Packet'
 sendDIIPacket :: Socket -> DII_Packet -> IO ()
@@ -101,7 +103,22 @@ rvfiNegotiateVersion sckt name verbosity = do
   unless (rvfiIsHalt rvfiPkt) $
     error ("Received unexpected initial packet from " ++ name ++ ": " ++ show rvfiPkt)
   let supportedVer = rvfiHaltVersion rvfiPkt
-  -- TODO: If vers > 1, send a 'v' command to set the trace version to 2
+  -- If vers > 1, send a 'v' command to set the trace version to 2
+  when (supportedVer > 1) $
+    do
+      putStrLn ("Requesting version 2 trace output from:" ++ name)
+      sendDIIPacket sckt (diiRequestVers 2)
+      msg <- recvBlking sckt 16
+      when (verbosity > 2) $
+        putStrLn ("Received " ++ name ++ " set-version response: " ++ show msg)
+      let (magic, acceptedVer) = BS.splitAt 8 msg
+      when (magic /= C8.pack "version=") $
+        error ("Received version response with bad magic number from " ++ name
+               ++ ": got " ++ show magic ++ " but expected \"version=\"")
+      let ver = runGet Data.Binary.Get.getInt64le acceptedVer
+      putStrLn ("Received " ++ name ++ " set-version ack for version " ++ show ver)
+  when (supportedVer /= 2) $
+    putStrLn ("WARNING: " ++ name ++ " does not support version 2 traces.")
   return supportedVer
 
 -- Internal helpers (not exported):

@@ -50,6 +50,7 @@ module QuickCheckVEngine.RVFI_DII.DII (
 , diiInstruction
 , diiEnd
 , diiVersNegotiate
+, diiRequestVers
 ) where
 
 import Data.Word
@@ -122,3 +123,9 @@ diiVersNegotiate :: DII_Packet
 diiVersNegotiate = DII_Packet { dii_cmd  = dii_cmd_end
                     , dii_time = 1
                     , dii_insn = 0x56455253 } -- send 'V' 'E' 'R' 'S'
+
+-- | Construct a version request 'DII_Packet'
+diiRequestVers :: Word32 -> DII_Packet
+diiRequestVers vers = DII_Packet { dii_cmd  = 0x76 -- 'v'
+                                  , dii_time = 1
+                                  , dii_insn = vers }
