@@ -4,6 +4,7 @@
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2018 Jonathan Woodruff
 -- Copyright (c) 2018, 2020 Alexandre Joannou
+-- Copyright (c) 2020 Alex Richardson
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -37,36 +38,33 @@
 -- SUCH DAMAGE.
 --
 
-{-|
-    Module      : QuickCheckVEngine.RVFI_DII
-    Description : The RVFI-DII interface
+-- |
+--    Module      : QuickCheckVEngine.RVFI_DII
+--    Description : The RVFI-DII interface
+--
+--    This module re-exports the 'QuickCheckVEngine.RVFI_DII.RVFI' and
+--    'QuickCheckVEngine.RVFI_DII.DII' modules, and provides functions to send and
+--    receive 'DII_Packet's and 'RVFI_Packet's over a 'Socket'.
+module QuickCheckVEngine.RVFI_DII
+  ( module QuickCheckVEngine.RVFI_DII.RVFI,
+    module QuickCheckVEngine.RVFI_DII.DII,
+    sendDIIPacket,
+    sendDIITrace,
+    recvRVFITrace,
+    rvfiNegotiateVersion,
+  )
+where
 
-    This module re-exports the 'QuickCheckVEngine.RVFI_DII.RVFI' and
-    'QuickCheckVEngine.RVFI_DII.DII' modules, and provides functions to send and
-    receive 'DII_Packet's and 'RVFI_Packet's over a 'Socket'.
--}
-
-module QuickCheckVEngine.RVFI_DII (
-  module QuickCheckVEngine.RVFI_DII.RVFI
-, module QuickCheckVEngine.RVFI_DII.DII
-, sendDIIPacket
-, sendDIITrace
-, recvRVFIPacket
-, recvRVFITrace
-, rvfiNegotiateVersion
-) where
-
-import QuickCheckVEngine.RVFI_DII.RVFI
-import QuickCheckVEngine.RVFI_DII.DII
-
-import Data.Int
+import Control.Monad
 import Data.Binary
 import Data.Binary.Get
-import Control.Monad
-import Network.Socket
-import Network.Socket.ByteString.Lazy
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteString.Lazy.Char8 as C8
+import Data.Int
+import Network.Socket
+import Network.Socket.ByteString.Lazy
+import QuickCheckVEngine.RVFI_DII.DII
+import QuickCheckVEngine.RVFI_DII.RVFI
 
 -- | Send a single 'DII_Packet'
 sendDIIPacket :: Socket -> DII_Packet -> IO ()
@@ -77,18 +75,24 @@ sendDIITrace :: Socket -> [DII_Packet] -> IO ()
 sendDIITrace sckt trace = mapM_ (sendDIIPacket sckt) trace
 
 -- | Receive a single 'RVFI_Packet'
-recvRVFIPacket :: Socket -> IO RVFI_Packet
-recvRVFIPacket sckt = do msg <- recvBlking sckt 88
-                         return $ decode (BS.reverse msg)
+recvRVFIPacketV1 :: Socket -> IO RVFI_Packet
+recvRVFIPacketV1 sckt = rvfiReadV1Response (recvBlking sckt)
+
+recvRVFIPacket :: (Socket, Int) -> IO RVFI_Packet
+recvRVFIPacket (sock, 1) = recvRVFIPacketV1 sock
+recvRVFIPacket (_, vers) = error ("Invalid trace version" ++ show vers)
 
 -- | Receive an execution trace (a '[RVFI_Packet]')
-recvRVFITrace :: Socket -> Bool -> IO [RVFI_Packet]
-recvRVFITrace sckt doLog = do rvfiPkt <- recvRVFIPacket sckt
-                              when doLog $ putStrLn $ "\t" ++ show rvfiPkt
-                              if rvfiIsHalt rvfiPkt
-                                 then return [rvfiPkt]
-                                 else do morePkts <- recvRVFITrace sckt doLog
-                                         return (rvfiPkt:morePkts)
+recvRVFITrace :: (Socket, Int) -> Bool -> IO [RVFI_Packet]
+recvRVFITrace (sckt, traceVersion) doLog = do
+  rvfiPkt <- recvRVFIPacket (sckt, traceVersion)
+  when doLog $ putStrLn $ "\t" ++ show rvfiPkt
+  if rvfiIsHalt rvfiPkt
+    then return [rvfiPkt]
+    else do
+      morePkts <- recvRVFITrace (sckt, traceVersion) doLog
+      return (rvfiPkt : morePkts)
+
 -- | Perform a trace version negotiation with an implementation and return the
 -- | accepted version.
 rvfiNegotiateVersion :: Socket -> String -> Int -> IO Word8
@@ -97,7 +101,7 @@ rvfiNegotiateVersion sckt name verbosity = do
   -- send a version negotiate packet, old implementations will return a halt
   -- packet with the halt field set to 1, newer implementations will use the
   -- high bits of that field to indicate their supported trace version
-  rvfiPkt <- recvRVFIPacket sckt
+  rvfiPkt <- recvRVFIPacketV1 sckt
   when (verbosity > 2) $
     putStrLn ("Received initial packet from " ++ name ++ ": " ++ show rvfiPkt)
   unless (rvfiIsHalt rvfiPkt) $
@@ -129,7 +133,7 @@ rvfiNegotiateVersion sckt name verbosity = do
 
 -- | Receive a fixed number of bytes
 recvBlking :: Socket -> Int64 -> IO BS.ByteString
-recvBlking sckt 0 = return BS.empty
+recvBlking _ 0 = return BS.empty
 recvBlking sckt n = do received  <- Network.Socket.ByteString.Lazy.recv sckt n
                        remainder <- recvBlking sckt (n - BS.length received)
                        return $ BS.append received remainder

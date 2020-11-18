@@ -4,6 +4,7 @@
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2018 Jonathan Woodruff
 -- Copyright (c) 2018-2020 Alexandre Joannou
+-- Copyright (c) 2020 Alex Richardson
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
