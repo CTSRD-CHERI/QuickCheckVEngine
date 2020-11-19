@@ -52,7 +52,7 @@ hpmevent_indexFromName nm = lookup nm [ (b, a) | (a, b) <- hpmevent_map]
 
 -- | Return 'Just' an hpmevent name for a known hpmevent index or 'Nothing'
 hpmevent_nameFromIndex :: Integer -> Maybe String
-hpmevent_nameFromIndex idx = lookup idx csrs_map
+hpmevent_nameFromIndex idx = lookup idx hpmevent_map
 
 -- | List of hpmevents' (index, name) tuples
 --   XXX Note: this list is derived from the document at
