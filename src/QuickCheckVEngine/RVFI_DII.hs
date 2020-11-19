@@ -77,6 +77,7 @@ sendDIITrace (sckt, _, _, _) trace = mapM_ (sendDIIPacket sckt) trace
 -- | Receive a single 'RVFI_Packet'
 recvRVFIPacket :: (Socket, Int) -> (String, Int) -> IO RVFI_Packet
 recvRVFIPacket (sock, 1) (name, verbosity) = rvfiReadV1Response ((recvBlking sock), name, verbosity)
+recvRVFIPacket (sock, 2) (name, verbosity) = rvfiReadV2Response ((recvBlking sock), name, verbosity)
 recvRVFIPacket (_, vers) (name, _) = error (name ++ " invalid trace version" ++ show vers)
 
 -- | Receive an execution trace (a '[RVFI_Packet]')
