@@ -28,6 +28,7 @@ executable QCVEngine
                        RISCV.RV_C,
                        RISCV.RV_CSRs,
                        RISCV.HPMEvents,
+                       RISCV.Shrinks,
                        QuickCheckVEngine.MainHelpers,
                        QuickCheckVEngine.RVFI_DII,
                        QuickCheckVEngine.RVFI_DII.RVFI,
