@@ -41,17 +41,35 @@
 -}
 
 module RISCV.HPMEvents (
-  hpmevent_map
+  HPMEventIdx
+, HPMEventName
+, hpmevent_map
+, hpmevent_indices
+, hpmevent_names
 , hpmevent_indexFromName
 , hpmevent_nameFromIndex
 ) where
 
+-- | HPMEventIdx type
+type HPMEventIdx = Integer
+
+-- | HPMEventName type
+type HPMEventName = String
+
+-- | Return the list of available existing hpmevent indices
+hpmevent_indices :: [HPMEventIdx]
+hpmevent_indices = map fst hpmevent_map
+
+-- | Return the list of available existing hpmevent names
+hpmevent_names :: [HPMEventName]
+hpmevent_names = map snd hpmevent_map
+
 -- | Return 'Just' an hpmevent index for a known hpmevent name or 'Nothing'
-hpmevent_indexFromName :: String -> Maybe Integer
-hpmevent_indexFromName nm = lookup nm [ (b, a) | (a, b) <- hpmevent_map]
+hpmevent_indexFromName :: HPMEventName -> Maybe HPMEventIdx
+hpmevent_indexFromName nm = lookup nm [ (b, a) | (a, b) <- hpmevent_map ]
 
 -- | Return 'Just' an hpmevent name for a known hpmevent index or 'Nothing'
-hpmevent_nameFromIndex :: Integer -> Maybe String
+hpmevent_nameFromIndex :: HPMEventIdx -> Maybe HPMEventName
 hpmevent_nameFromIndex idx = lookup idx hpmevent_map
 
 -- | List of hpmevents' (index, name) tuples
@@ -59,7 +77,7 @@ hpmevent_nameFromIndex idx = lookup idx hpmevent_map
 --   XXX https://github.com/CTSRD-CHERI/Flute/blob/CHERI/Doc/Performance_Monitor/Performance_Monitoring.md
 --   XXX and should be updated/refined, and possibly contributed back when it
 --   XXX comes to architectural events.
-hpmevent_map :: [(Integer, String)]
+hpmevent_map :: [(HPMEventIdx, HPMEventName)]
 hpmevent_map = -- Architecturally defined events
                [ (0, "noEvent") ]
             ++ -- Architectural events
@@ -76,16 +94,14 @@ hpmevent_map = -- Architecturally defined events
                , (12, "shiftInst")
                , (13, "mulDivInst")
                , (14, "fpInst")
-               , (18, "fenceInst")
-               ]
+               , (18, "fenceInst") ]
             ++ -- Architectural CHERI events 
                [ (24, "cheriSetBoundsImprecise")
                , (25, "cheriUnrepCap")
                , (26, "cheriWideLoad")
                , (27, "cheriWideStore")
                , (28, "cheriCapLoad")
-               , (29, "cheriCapStore")
-               ]
+               , (29, "cheriCapStore") ]
             ++ -- Flute core specific events
                [ (15, "scSuccess")
                , (16, "loadWaitCycle")
@@ -94,5 +110,4 @@ hpmevent_map = -- Architecturally defined events
                , (20, "DBusyNoConsume")
                , (21, "1BusyNoConsume")
                , (22, "2BusyNoConsume")
-               , (23, "3BusyNoConsume")
-               ]
+               , (23, "3BusyNoConsume") ]

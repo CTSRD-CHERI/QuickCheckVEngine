@@ -70,6 +70,7 @@ import QuickCheckVEngine.Templates.GenCompressed
 import QuickCheckVEngine.Templates.GenAtomics
 import QuickCheckVEngine.Templates.GenFP
 import QuickCheckVEngine.Templates.GenCHERI
+import QuickCheckVEngine.Templates.GenHPM
 
 -- command line arguments
 --------------------------------------------------------------------------------
@@ -323,6 +324,11 @@ main = withSocketsDo $ do
               when (has_s archDesc) $
                 do putStrLn "PTE template:"
                    doCheck (genTemplate $ gen_pte) (nTests flags)
+
+              --when (has_icsr archDesc) $
+              --  do putStrLn "HPM Template:"
+              --     doCheck (genTemplate $ repeatTemplateTillEnd (genHPM archDesc)) (nTests flags)
+
               when (has_cheri archDesc) $
                 do putStrLn "Xcheri extension Capability Inspection Verification:"
                    doCheck (genTemplate $ repeatTemplateTillEnd genCHERIinspection) (nTests flags)

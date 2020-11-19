@@ -39,21 +39,69 @@
 -}
 
 module RISCV.RV_CSRs (
-  csrs_map
+  CSRIdx
+, CSRName
+, HPMCounterIdx
+, HPMCounterCSRIdx
+, HPMEventSelCSRIdx
+, hpmcounter_idx_to_csr_idx
+, hpmcounter_indices
+, hpmcounter_csr_indices
+, hpmevent_csr_indices
+, csrs_map
 , csrs_indexFromName
+, unsafe_csrs_indexFromName
 , csrs_nameFromIndex
 ) where
 
+import Data.Maybe
+
+-- | CSRIdx type
+type CSRIdx = Integer
+-- | CSRName type
+type CSRName = String
+-- | HPMCounterIdx type
+type HPMCounterIdx = Integer
+-- | HPMCounterCSRIdx type
+type HPMCounterCSRIdx = Integer
+-- | HPMEventSelCSRIdx type
+type HPMEventSelCSRIdx = Integer
+
+-- | the number of supported HPM counters
+nHPMCounters = 29
+
+-- | Turns an 'HPMCounterIdx' into an 'HPMCounterCSRIdx'
+hpmcounter_idx_to_csr_idx :: HPMCounterIdx -> HPMCounterCSRIdx
+hpmcounter_idx_to_csr_idx idx =
+  hpmcounter_csr_indices !! fromInteger (idx - head hpmcounter_indices)
+
+-- | Return the list of available existing hpmcounter indices
+hpmcounter_indices :: [HPMCounterIdx]
+hpmcounter_indices = take nHPMCounters [ 3 .. ]
+
+-- | Return the list of available existing hpmcounter CSR indices
+hpmcounter_csr_indices :: [HPMCounterCSRIdx]
+hpmcounter_csr_indices = take nHPMCounters [ 0xB03 .. ]
+
+-- | Return the list of available existing hpmevent selector CSR indices
+hpmevent_csr_indices :: [HPMEventSelCSRIdx]
+hpmevent_csr_indices = take nHPMCounters [ 0x323 .. ]
+
 -- | Return 'Just' a CSR index for a known CSR name or 'Nothing'
-csrs_indexFromName :: String -> Maybe Integer
-csrs_indexFromName nm = lookup nm [ (b, a) | (a, b) <- csrs_map]
+csrs_indexFromName :: CSRName -> Maybe CSRIdx
+csrs_indexFromName nm = lookup nm [ (b, a) | (a, b) <- csrs_map ]
+
+-- | Return a CSR index for a known CSR name or an error
+unsafe_csrs_indexFromName :: CSRName -> CSRIdx
+unsafe_csrs_indexFromName nm = fromMaybe (error $ "unknown CSR name: " ++ nm)
+                                         (csrs_indexFromName nm)
 
 -- | Return 'Just' a CSR name for a known index or 'Nothing'
-csrs_nameFromIndex :: Integer -> Maybe String
+csrs_nameFromIndex :: CSRIdx -> Maybe CSRName
 csrs_nameFromIndex idx = lookup idx csrs_map
 
 -- | List of CSRs' (index, name) tuples
-csrs_map :: [(Integer, String)]
+csrs_map :: [(CSRIdx, CSRName)]
 csrs_map = -- User Trap Setup
            [ (0x000, "ustatus")
            , (0x004, "uie")
@@ -72,11 +120,11 @@ csrs_map = -- User Trap Setup
            [ (0xC00, "cycle")
            , (0xC01, "time")
            , (0xC02, "instret") ]
-        ++ [ (0xC00 + x, "hpmcounter" ++ show x) | x <- [3..31] ]
+        ++ [ (0xC00 + x, "hpmcounter" ++ show x) | x <- hpmcounter_indices ]
         ++ [ (0xC80, "cycleh")
            , (0xC81, "timeh")
            , (0xC82, "instreth") ]
-        ++ [ (0xC80 + x, "hpmcounter" ++ show x ++ "h") | x <- [3..31] ]
+        ++ [ (0xC80 + x, "hpmcounter" ++ show x ++ "h") | x <- hpmcounter_indices ]
         ++ -- Supervisor Trap Setup
            [ (0x100, "sstatus")
            , (0x102, "sedeleg")
@@ -119,13 +167,15 @@ csrs_map = -- User Trap Setup
         ++ -- Machine Counters/Timers
            [ (0xB00, "mcycle")
            , (0xB02, "minstret") ]
-        ++ [ (0xB00 + x, "mhpmcounter" ++ show x) | x <- [3..31] ]
+        ++ map (\x -> (x, "mhpmcounter" ++ show (x - (head hpmcounter_csr_indices) + 3)))
+               hpmcounter_csr_indices
         ++ [ (0xB80, "mcycleh")
            , (0xB82, "minstreth") ]
-        ++ [ (0xB80 + x, "mhpmcounter" ++ show x ++ "h") | x <- [3..31] ]
+        ++ [ (0xB80 + x, "mhpmcounter" ++ show x ++ "h") | x <- hpmcounter_indices ]
         ++ -- Machine Counter Setup
            [ (0x320, "mcountinhibit") ]
-        ++ [ (0x320 + x, "mhpmevent" ++ show x) | x <- [3..31] ]
+        ++ map (\x -> (x, "mhpmevent" ++ show (x - (head hpmevent_csr_indices) + 3)))
+               hpmevent_csr_indices
         -- TODO Debug/Trace Registers (shared with Debug Mode)
         -- TODO Debug Mode Registers
         -- List last checked from:

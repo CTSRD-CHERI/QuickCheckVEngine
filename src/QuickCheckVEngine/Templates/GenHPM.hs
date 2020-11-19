@@ -1,20 +1,13 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2018 Jonathan Woodruff
--- Copyright (c) 2018 Matthew Naylor
--- Copyright (c) 2019 Peter Rugg
--- Copyright (c) 2019, 2020 Alexandre Joannou
+-- Copyright (c) 2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
 -- Cambridge Computer Laboratory (Department of Computer Science and
 -- Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
 -- DARPA SSITH research programme.
---
--- This software was partly developed by the University of Cambridge
--- Computer Laboratory as part of the Partially-Ordered Event-Triggered
--- Systems (POETS) project, funded by EPSRC grant EP/N031768/1.
 --
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions
@@ -38,16 +31,14 @@
 -- SUCH DAMAGE.
 --
 
-module QuickCheckVEngine.Templates.Utils (
-  module QuickCheckVEngine.Templates.Utils.General
-, module QuickCheckVEngine.Templates.Utils.CHERI
-, module QuickCheckVEngine.Templates.Utils.FP
-, module QuickCheckVEngine.Templates.Utils.HPM
-, module QuickCheckVEngine.Templates.Utils.Compressed
+module QuickCheckVEngine.Templates.GenHPM (
+  genHPM
 ) where
 
-import QuickCheckVEngine.Templates.Utils.General
-import QuickCheckVEngine.Templates.Utils.CHERI
-import QuickCheckVEngine.Templates.Utils.FP
-import QuickCheckVEngine.Templates.Utils.HPM
-import QuickCheckVEngine.Templates.Utils.Compressed
+import RISCV
+import QuickCheckVEngine.Template
+import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.RandomTest
+
+genHPM :: ArchDesc -> Template
+genHPM = surroundWithHPMAccess . randomTest

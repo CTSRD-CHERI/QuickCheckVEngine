@@ -45,6 +45,13 @@ module QuickCheckVEngine.Templates.Utils.General (
   li
 , li32
 , li64
+, csrr
+, csrw
+, csrwi
+, csrs
+, csrc
+, csrsi
+, csrci
   -- * Arbitrary value generators
 , src
 , dest
@@ -64,6 +71,7 @@ module QuickCheckVEngine.Templates.Utils.General (
 , legalStore
 , surroundWithMemAccess
   -- * Other helpers
+, csrBitSetOrClear
 , prepReg
 , prepReg32
 , prepReg64
@@ -102,6 +110,38 @@ li32 reg imm = instSeq $ doHi20 ++ doLo12
 -- | 'li64' returns a 'Template' that loads a 64-bit immediate into a register
 li64 :: Integer -> Integer -> Template
 li64 reg imm = error "li64 is not yet supported"
+
+-- | 'csrr' pseudo-instruction to read a CSR
+csrr :: Integer -> Integer -> Template
+csrr rd csr_idx = Single $ encode csrrs csr_idx 0 rd
+
+-- | 'csrw' pseudo-instruction to write a general purpose register's value to a CSR
+csrw :: Integer -> Integer -> Template
+csrw csr_idx rs1 = Single $ encode csrrw csr_idx rs1 0
+
+-- | 'csrwi' pseudo-instruction to write an immediate value to a CSR
+csrwi :: Integer -> Integer -> Template
+csrwi csr_idx uimm = Single $ encode csrrwi csr_idx uimm 0
+
+-- | 'csrs' pseudo-instruction to set the bits in a CSR corresponding to the
+--   set bits of a mask value in a general purpose register
+csrs :: Integer -> Integer -> Template
+csrs csr_idx rs1 = Single $ encode csrrs csr_idx rs1 0
+
+-- | 'csrc' pseudo-instruction to clear the bits in a CSR corresponding to the
+--   set bits of a mask value in a general purpose register
+csrc :: Integer -> Integer -> Template
+csrc csr_idx rs1 = Single $ encode csrrc csr_idx rs1 0
+
+-- | 'csrsi' pseudo-instruction to set the bits in a CSR corresponding to the
+--   set bits of a mask value obtained by zero extending the 5-bit uimm
+csrsi :: Integer -> Integer -> Template
+csrsi csr_idx uimm = Single $ encode csrrsi csr_idx uimm 0
+
+-- | 'csrci' pseudo-instruction to clear the bits in a CSR corresponding to the
+--   set bits of a mask value obtained by zero extending the 5-bit uimm
+csrci :: Integer -> Integer -> Template
+csrci csr_idx uimm = Single $ encode csrrci csr_idx uimm 0
 
 -- * Arbitrary value generators
 --------------------------------------------------------------------------------
@@ -258,6 +298,15 @@ surroundWithMemAccess arch x = Random $ do
 
 -- * Other helpers
 --------------------------------------------------------------------------------
+
+-- | Helper for single bit setting / clearing of a CSR
+csrBitSetOrClear :: Bool -> CSRIdx -> Integer -> Integer -> Template
+csrBitSetOrClear set csrIdx bitIdx tmpReg
+  | bitIdx < 5 = insti csrIdx mask
+  | otherwise = li32 tmpReg mask <> inst csrIdx tmpReg
+  where mask  = (1 `shiftL` fromInteger bitIdx)
+        inst  = if set then  csrs else csrc
+        insti = if set then csrsi else csrci
 
 {- No longer used, use 'li32' instead
 -- | 'loadImm32' initializes the given register with the given value
