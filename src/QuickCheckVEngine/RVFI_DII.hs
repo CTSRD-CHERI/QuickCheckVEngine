@@ -118,13 +118,10 @@ diiSetVersion sckt supportedVersion name verbosity = do
       let reqVersion = 2
       putStrLn ("Requesting version " ++ show reqVersion ++ " trace output from:" ++ name)
       sendDIIPacket sckt (diiRequestVers (fromIntegral reqVersion))
-      msg <- recvBlking sckt 16
-      when (verbosity > 2) $
-        putStrLn ("Received " ++ name ++ " set-version response: " ++ show msg)
-      let (magic, acceptedVer) = BS.splitAt 8 msg
-      -- Implementations should respond with a "version="+Uint64 packet
-      rvfiCheckMagicBytes magic "version=" (name, verbosity)
-      let receivedVersion = fromIntegral (runGet Data.Binary.Get.getInt64le acceptedVer)
+      -- Implementations should respond with a "version=" + UInt64 packet
+      let connection = ((recvBlking sckt), name, verbosity)
+      versionBytes <- rvfiReadDataPacketWithMagic connection 16 "version="
+      let receivedVersion = fromIntegral (runGet Data.Binary.Get.getInt64le versionBytes)
       when (verbosity > 0) $
         putStrLn ("Received " ++ name ++ " set-version ack for version " ++ show receivedVersion)
       when (receivedVersion /= reqVersion) $
