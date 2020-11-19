@@ -403,12 +403,16 @@ rvfiEmptyHaltPacket =
       rvfi_mem_data = Nothing
     }
 
+prvString :: Maybe RV_PrivMode -> String
+prvString Nothing = "PRV_?"
+prvString (Just x) = show x
+
 instance Show RVFI_Packet where
   show tok
     | rvfiIsHalt tok = printf "halt token v%d" (rvfiHaltVersion tok)
     | otherwise =
       printf
-        "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, MA: 0x%016x, MWD: 0x%016x, MWM: 0b%08b, I: 0x%016x P:%s (%s)"
+        "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, MA: 0x%016x, MWD: 0x%016x, MWM: 0b%08b, I: 0x%016x %s (%s)"
         (show $ rvfi_trap tok /= 0) -- Trap
         (rvfi_pc_wdata tok) -- PCWD
         (rvfi_rd_addr intData) -- RD
@@ -417,7 +421,7 @@ instance Show RVFI_Packet where
         (toNatural (rvfi_mem_wdata memData)) -- MWD
         (rvfi_mem_wmask memData) -- MWM
         (rvfi_insn tok)
-        (show (rvfi_mode tok))
+        (prvString (rvfi_mode tok))
         (pretty (toInteger (rvfi_insn tok))) -- Inst
     where
       intData = fromMaybe rvfiEmptyIntData (rvfi_int_data tok)
