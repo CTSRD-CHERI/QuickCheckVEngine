@@ -53,6 +53,7 @@ module QuickCheckVEngine.RVFI_DII.RVFI
     rvfiHaltVersion,
     rvfiIsTrap,
     rvfiCheck,
+    rvfiCheckMagicBytes,
     rvfiCheckAndShow,
     rvfiReadV1Response,
   )
@@ -63,10 +64,11 @@ import Data.Word
 import Data.Binary
 import Data.Binary.Get
 import Data.Bits
-import Data.Int
 import qualified Data.Bits.Bitwise as BW
 import qualified Data.ByteString.Lazy as BS
 import Data.ByteString.Lazy.Builder (lazyByteStringHex, toLazyByteString)
+import qualified Data.ByteString.Lazy.Char8 as C8
+import Data.Int
 import Data.Maybe
 import RISCV
 import Text.Printf
@@ -132,13 +134,14 @@ rvfiGetFromString "mem_wdata" = Just $ toInteger . rvfi_mem_wdata
 rvfiGetFromString _           = Nothing
 
 data RVFI_IntData = RVFI_IntData
-  { rvfi_rs1_addr :: RV_RegIdx,
-    rvfi_rs2_addr :: RV_RegIdx,
-    rvfi_rs1_rdata :: RV_WordXLEN,
-    rvfi_rs2_rdata :: RV_WordXLEN,
-    rvfi_rd_addr :: RV_RegIdx,
-    rvfi_rd_wdata :: RV_WordXLEN
+  { rvfi_rs1_addr :: {-# UNPACK #-} !RV_RegIdx,
+    rvfi_rs2_addr :: {-# UNPACK #-} !RV_RegIdx,
+    rvfi_rs1_rdata :: {-# UNPACK #-} !RV_WordXLEN,
+    rvfi_rs2_rdata :: {-# UNPACK #-} !RV_WordXLEN,
+    rvfi_rd_addr :: {-# UNPACK #-} !RV_RegIdx,
+    rvfi_rd_wdata :: {-# UNPACK #-} !RV_WordXLEN
   }
+  deriving (Show)
 
 rvfiEmptyIntData :: RVFI_IntData
 rvfiEmptyIntData =
@@ -172,8 +175,17 @@ rvfiEmptyMemData =
 hexStr :: BS.ByteString -> String
 hexStr msg = show (toLazyByteString (lazyByteStringHex msg))
 
-rvfiReadV1Response :: (Int64 -> IO BS.ByteString) -> (String, Int) -> IO RVFI_Packet
-rvfiReadV1Response reader (name, verbosity)= do
+rvfiCheckMagicBytes :: BS.ByteString -> String -> (String, Int) -> IO ()
+rvfiCheckMagicBytes magicBytes expected (name, verbosity) = do
+  let expBytes = C8.pack expected
+  when (verbosity > 2) $
+    putStrLn ("\t" ++ name ++ "Read header magic bytes: " ++ show magicBytes)
+  when (magicBytes /= expBytes) $
+    error (name ++ " received invalid data packet: got magic=" ++ show magicBytes ++ " but expected " ++ show expBytes)
+  return ()
+
+rvfiReadV1Response :: (Int64 -> IO BS.ByteString, String, Int) -> IO RVFI_Packet
+rvfiReadV1Response (reader, name, verbosity) = do
   msg <- reader 88
   when (verbosity > 1) $
     putStrLn ("\t" ++ name ++ " read packet: " ++ hexStr msg)

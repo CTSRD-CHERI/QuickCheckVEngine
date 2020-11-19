@@ -75,11 +75,8 @@ sendDIITrace :: (Socket, Int, String, Int) -> [DII_Packet] -> IO ()
 sendDIITrace (sckt, _, _, _) trace = mapM_ (sendDIIPacket sckt) trace
 
 -- | Receive a single 'RVFI_Packet'
-recvRVFIPacketV1 :: Socket -> (String, Int) -> IO RVFI_Packet
-recvRVFIPacketV1 sckt (name, verbosity) = rvfiReadV1Response (recvBlking sckt) (name, verbosity)
-
 recvRVFIPacket :: (Socket, Int) -> (String, Int) -> IO RVFI_Packet
-recvRVFIPacket (sock, 1) (name, verbosity) = recvRVFIPacketV1 sock (name, verbosity)
+recvRVFIPacket (sock, 1) (name, verbosity) = rvfiReadV1Response ((recvBlking sock), name, verbosity)
 recvRVFIPacket (_, vers) (name, _) = error (name ++ " invalid trace version" ++ show vers)
 
 -- | Receive an execution trace (a '[RVFI_Packet]')
@@ -101,7 +98,7 @@ rvfiNegotiateVersion sckt name verbosity = do
   -- send a version negotiate packet, old implementations will return a halt
   -- packet with the halt field set to 1, newer implementations will use the
   -- high bits of that field to indicate their supported trace version
-  rvfiPkt <- recvRVFIPacketV1 sckt (name, verbosity)
+  rvfiPkt <- rvfiReadV1Response ((recvBlking sckt), name, verbosity)
   when (verbosity > 2) $
     putStrLn ("Received initial packet from " ++ name ++ ": " ++ show rvfiPkt)
   unless (rvfiIsHalt rvfiPkt) $
@@ -125,23 +122,23 @@ diiSetVersion sckt supportedVersion name verbosity = do
       when (verbosity > 2) $
         putStrLn ("Received " ++ name ++ " set-version response: " ++ show msg)
       let (magic, acceptedVer) = BS.splitAt 8 msg
-      when (magic /= C8.pack "version=") $
-        error
-          ( "Received version response with bad magic number from " ++ name
-              ++ ": got "
-              ++ show magic
-              ++ " but expected \"version=\""
-          )
-      let ver = runGet Data.Binary.Get.getInt64le acceptedVer
-      putStrLn ("Received " ++ name ++ " set-version ack for version " ++ show ver)
-      let receivedVersion = fromIntegral ver
+      -- Implementations should respond with a "version="+Uint64 packet
+      rvfiCheckMagicBytes magic "version=" (name, verbosity)
+      let receivedVersion = fromIntegral (runGet Data.Binary.Get.getInt64le acceptedVer)
+      when (verbosity > 0) $
+        putStrLn ("Received " ++ name ++ " set-version ack for version " ++ show receivedVersion)
       when (receivedVersion /= reqVersion) $
         putStrLn
           ( "WARNING: Received version response with unexpected version from " ++ name
               ++ ": got "
-              ++ show ver
+              ++ show receivedVersion
               ++ " but expected "
               ++ show reqVersion
+          )
+      when (receivedVersion > reqVersion) $
+        error
+          ( name ++ " uses a trace version " ++ show receivedVersion
+              ++ " which is greater than the newest supported one!"
           )
       return receivedVersion
 
