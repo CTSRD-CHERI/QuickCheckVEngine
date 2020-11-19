@@ -57,9 +57,12 @@ module QuickCheckVEngine.RVFI_DII.RVFI
     rvfiCheckAndShow,
     rvfiReadDataPacketWithMagic,
     rvfiReadV1Response,
+    rvfiReadV2Response,
   )
 where
 
+import Basement.Numerical.Number (toNatural)
+import qualified Basement.Types.Word256
 import Control.Monad
 import Data.Word
 import Data.Binary
@@ -156,11 +159,11 @@ rvfiEmptyIntData =
     }
 
 data RVFI_MemAccessData = RVFI_MemAccessData
-  { rvfi_mem_addr :: RV_WordXLEN,
-    rvfi_mem_rmask :: Word32,
-    rvfi_mem_wmask :: Word32,
-    rvfi_mem_rdata :: RV_WordXLEN,
-    rvfi_mem_wdata :: RV_WordXLEN
+  { rvfi_mem_addr :: {-# UNPACK #-} !RV_WordXLEN,
+    rvfi_mem_rmask :: {-# UNPACK #-} !Word32,
+    rvfi_mem_wmask :: {-# UNPACK #-} !Word32,
+    rvfi_mem_rdata :: {-# UNPACK #-} !Basement.Types.Word256.Word256,
+    rvfi_mem_wdata :: {-# UNPACK #-} !Basement.Types.Word256.Word256
   }
 
 rvfiEmptyMemData :: RVFI_MemAccessData
@@ -204,9 +207,123 @@ rvfiReadDataPacketWithMagic (reader, name, verbosity) size expectedMagic = do
   when (size < 8) $
     errorWithContext name ("Invalid packet size:" ++ show size)
   msg <- reader size
+  connectionDebugMessage 3 (name, verbosity) ("read packet: " ++ hexStr msg)
   let (magic, bytes) = BS.splitAt 8 msg
   rvfiCheckMagicBytes magic expectedMagic (name, verbosity)
   return bytes
+
+rvfiReadV2Response :: (Int64 -> IO BS.ByteString, String, Int) -> IO RVFI_Packet
+rvfiReadV2Response (reader, name, verbosity) = do
+  let connInfo = (name, verbosity)
+  connectionDebugMessage 3 connInfo "reading V2 packet..."
+  headerBytes <- rvfiReadDataPacketWithMagic (reader, name, verbosity) 64 "trace-v2"
+  let (traceSizeBytes, payloadBytes) = BS.splitAt 8 headerBytes
+  let traceSize = runGet getWord64le traceSizeBytes
+  connectionDebugMessage 3 connInfo ("trace-v2 common payload bytes: " ++ hexStr payloadBytes)
+  -- Ensure that we read all bytes in the packet
+  let (basicData, availableFeatures) = runGet (isolate 48 rvfiDecodeV2Header) payloadBytes
+  connectionDebugMessage 3 connInfo ("features: " ++ (printf "0x%016x" availableFeatures))
+  (intData, rf1, numBytes1) <- rvfiMaybeReadIntData (reader, name, verbosity) availableFeatures
+  (memData, rf2, numBytes2) <- rvfiMaybeReadMemData (reader, name, verbosity) rf1
+  when (rf2 /= 0) $
+    errorWithContext name ("Remaining unknown feature bits set: " ++ show rf2)
+  let remainingBytes = (fromIntegral traceSize) - 64 - numBytes1 - numBytes2
+  when (remainingBytes /= 0) $
+    errorWithContext name ("Did not read all bytes of V2 trace packet: " ++ show remainingBytes ++ " remaining")
+  return $ basicData {rvfi_int_data = intData, rvfi_mem_data = memData}
+
+rvfiDecodeV2Header :: Get (RVFI_Packet, Word64)
+rvfiDecodeV2Header = do
+  order <- getWord64le
+  insn <- getWord64le
+  trap <- getWord8
+  halt <- getWord8
+  intr <- getWord8
+  mode <- getWord8
+  ixl <- getWord8
+  valid <- getWord8
+  skip 2 -- 2 bytes of padding
+  pc_rdata <- getWord64le
+  pc_wdata <- getWord64le
+  availableFeatures <- getWord64le
+  return $
+    ( RVFI_Packet
+        { rvfi_valid = valid,
+          rvfi_order = order,
+          rvfi_insn = insn,
+          rvfi_trap = trap,
+          rvfi_halt = halt,
+          rvfi_intr = intr,
+          rvfi_mode = Just (toEnum (fromIntegral mode)),
+          rvfi_ixl = Just ixl,
+          rvfi_pc_rdata = pc_rdata,
+          rvfi_pc_wdata = pc_wdata,
+          rvfi_int_data = Nothing,
+          rvfi_mem_data = Nothing
+        },
+      availableFeatures
+    )
+
+-- See sail-riscv/model/rvfi_dii.sail for the bitfield definitions
+rvfiMaybeReadIntData :: (Int64 -> IO BS.ByteString, String, Int) -> Word64 -> IO (Maybe RVFI_IntData, Word64, Int)
+rvfiMaybeReadIntData connection availableFeatures = do
+  let remainingFeatures = availableFeatures .&. (complement 0x1)
+  if ((availableFeatures .&. 0x1) == 0)
+    then do return (Nothing, remainingFeatures, 0)
+    else do
+      bytes <- rvfiReadDataPacketWithMagic connection 40 "int-data"
+      return $ (Just (runGet (isolate 32 rvfiDecodeIntData) bytes), remainingFeatures, 40)
+
+rvfiDecodeIntData :: Get RVFI_IntData
+rvfiDecodeIntData = do
+  rd_wdata <- getWord64le
+  rs1_rdata <- getWord64le
+  rs2_rdata <- getWord64le
+  rd_addr <- getWord8
+  rs1_addr <- getWord8
+  rs2_addr <- getWord8
+  skip 5 -- 5 bytes of padding
+  return
+    $! RVFI_IntData
+      { rvfi_rd_wdata = rd_wdata,
+        rvfi_rs1_rdata = rs1_rdata,
+        rvfi_rs2_rdata = rs2_rdata,
+        rvfi_rd_addr = rd_addr,
+        rvfi_rs1_addr = rs1_addr,
+        rvfi_rs2_addr = rs2_addr
+      }
+
+rvfiMaybeReadMemData :: (Int64 -> IO BS.ByteString, String, Int) -> Word64 -> IO (Maybe RVFI_MemAccessData, Word64, Int)
+rvfiMaybeReadMemData connection availableFeatures = do
+  let remainingFeatures = availableFeatures .&. (complement 0x2)
+  if ((availableFeatures .&. 0x2) == 0)
+    then do return (Nothing, remainingFeatures, 0)
+    else do
+      bytes <- rvfiReadDataPacketWithMagic connection 88 "mem-data"
+      return $ (Just (runGet (isolate 80 rvfiDecodeMemData) bytes), remainingFeatures, 88)
+
+rvfiDecodeMemData :: Get RVFI_MemAccessData
+rvfiDecodeMemData = do
+  rdata1 <- getWord64le
+  rdata2 <- getWord64le
+  rdata3 <- getWord64le
+  rdata4 <- getWord64le
+  wdata1 <- getWord64le
+  wdata2 <- getWord64le
+  wdata3 <- getWord64le
+  wdata4 <- getWord64le
+  let rd_rdata = Basement.Types.Word256.Word256 rdata1 rdata2 rdata3 rdata4
+  mem_rmask <- getWord32le
+  mem_wmask <- getWord32le
+  mem_addr <- getWord64le
+  return
+    $! RVFI_MemAccessData
+      { rvfi_mem_addr = mem_addr,
+        rvfi_mem_rmask = mem_rmask,
+        rvfi_mem_wmask = mem_wmask,
+        rvfi_mem_rdata = Basement.Types.Word256.Word256 rdata4 rdata3 rdata2 rdata1,
+        rvfi_mem_wdata = Basement.Types.Word256.Word256 wdata4 wdata3 wdata2 wdata1
+      }
 
 rvfiReadV1Response :: (Int64 -> IO BS.ByteString, String, Int) -> IO RVFI_Packet
 rvfiReadV1Response (reader, name, verbosity) = do
@@ -263,8 +380,8 @@ rvfiDecodeV1Response = do
               { rvfi_mem_addr = mem_addr,
                 rvfi_mem_rmask = fromIntegral mem_rmask, -- FIXME: I think this zero-extends?
                 rvfi_mem_wmask = fromIntegral mem_wmask, -- FIXME: I think this zero-extends?
-                rvfi_mem_rdata = mem_rdata,
-                rvfi_mem_wdata = mem_wdata
+                rvfi_mem_rdata = Basement.Types.Word256.Word256 0 0 0 mem_rdata,
+                rvfi_mem_wdata = Basement.Types.Word256.Word256 0 0 0 mem_wdata
               }
       }
 
@@ -297,7 +414,7 @@ instance Show RVFI_Packet where
         (rvfi_rd_addr intData) -- RD
         (rvfi_rd_wdata intData) -- RWD
         (rvfi_mem_addr memData) -- MA
-        (rvfi_mem_wdata memData) -- MWD
+        (toNatural (rvfi_mem_wdata memData)) -- MWD
         (rvfi_mem_wmask memData) -- MWM
         (rvfi_insn tok)
         (show (rvfi_mode tok))
