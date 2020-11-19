@@ -66,6 +66,7 @@ import Data.Bits
 import Data.Int
 import qualified Data.Bits.Bitwise as BW
 import qualified Data.ByteString.Lazy as BS
+import Data.ByteString.Lazy.Builder (lazyByteStringHex, toLazyByteString)
 import Data.Maybe
 import RISCV
 import Text.Printf
@@ -168,10 +169,14 @@ rvfiEmptyMemData =
       rvfi_mem_wdata = 0
     }
 
-rvfiReadV1Response :: (Int64 -> IO BS.ByteString) -> IO RVFI_Packet
-rvfiReadV1Response reader = do
+hexStr :: BS.ByteString -> String
+hexStr msg = show (toLazyByteString (lazyByteStringHex msg))
+
+rvfiReadV1Response :: (Int64 -> IO BS.ByteString) -> (String, Int) -> IO RVFI_Packet
+rvfiReadV1Response reader (name, verbosity)= do
   msg <- reader 88
-  putStrLn ("Read packet: " ++ show msg)
+  when (verbosity > 1) $
+    putStrLn ("\t" ++ name ++ " read packet: " ++ hexStr msg)
   -- Note: BS.reverse since the decode was written in BE order
   return $ runGet (isolate 88 rvfiDecodeV1Response) (BS.reverse msg)
 

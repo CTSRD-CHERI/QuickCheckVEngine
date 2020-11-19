@@ -71,26 +71,26 @@ sendDIIPacket :: Socket -> DII_Packet -> IO ()
 sendDIIPacket sckt inst = sendAll sckt $ BS.reverse (encode inst)
 
 -- | Send an instruction trace (a '[DII_Packet]')
-sendDIITrace :: Socket -> [DII_Packet] -> IO ()
-sendDIITrace sckt trace = mapM_ (sendDIIPacket sckt) trace
+sendDIITrace :: (Socket, Int, String, Int) -> [DII_Packet] -> IO ()
+sendDIITrace (sckt, _, _, _) trace = mapM_ (sendDIIPacket sckt) trace
 
 -- | Receive a single 'RVFI_Packet'
-recvRVFIPacketV1 :: Socket -> IO RVFI_Packet
-recvRVFIPacketV1 sckt = rvfiReadV1Response (recvBlking sckt)
+recvRVFIPacketV1 :: Socket -> (String, Int) -> IO RVFI_Packet
+recvRVFIPacketV1 sckt  (name, verbosity) = rvfiReadV1Response (recvBlking sckt) (name, verbosity)
 
-recvRVFIPacket :: (Socket, Int) -> IO RVFI_Packet
-recvRVFIPacket (sock, 1) = recvRVFIPacketV1 sock
-recvRVFIPacket (_, vers) = error ("Invalid trace version" ++ show vers)
+recvRVFIPacket :: (Socket, Int) -> (String, Int) -> IO RVFI_Packet
+recvRVFIPacket (sock, 1) (name, verbosity) = recvRVFIPacketV1 sock (name, verbosity)
+recvRVFIPacket (_, vers)  (name, _)= error (name ++ " invalid trace version" ++ show vers)
 
 -- | Receive an execution trace (a '[RVFI_Packet]')
-recvRVFITrace :: (Socket, Int) -> Bool -> IO [RVFI_Packet]
-recvRVFITrace (sckt, traceVersion) doLog = do
-  rvfiPkt <- recvRVFIPacket (sckt, traceVersion)
+recvRVFITrace :: (Socket, Int, String, Int) -> Bool -> IO [RVFI_Packet]
+recvRVFITrace (sckt, traceVersion, name, verbosity) doLog = do
+  rvfiPkt <- recvRVFIPacket (sckt, traceVersion) (name, verbosity)
   when doLog $ putStrLn $ "\t" ++ show rvfiPkt
   if rvfiIsHalt rvfiPkt
     then return [rvfiPkt]
     else do
-      morePkts <- recvRVFITrace (sckt, traceVersion) doLog
+      morePkts <- recvRVFITrace (sckt, traceVersion, name, verbosity) doLog
       return (rvfiPkt : morePkts)
 
 -- | Perform a trace version negotiation with an implementation and return the
@@ -101,7 +101,7 @@ rvfiNegotiateVersion sckt name verbosity = do
   -- send a version negotiate packet, old implementations will return a halt
   -- packet with the halt field set to 1, newer implementations will use the
   -- high bits of that field to indicate their supported trace version
-  rvfiPkt <- recvRVFIPacketV1 sckt
+  rvfiPkt <- recvRVFIPacketV1 sckt (name, verbosity)
   when (verbosity > 2) $
     putStrLn ("Received initial packet from " ++ name ++ ": " ++ show rvfiPkt)
   unless (rvfiIsHalt rvfiPkt) $
