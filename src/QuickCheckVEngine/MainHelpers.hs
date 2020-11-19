@@ -168,7 +168,7 @@ doRVFIDII connA connB alive delay doLog insts = do
         return Nothing
       Left (SomeException e) -> do
         writeIORef alive False
-        putStrLn ("Error: exception on IO with implementations. Forcing all future tests to report 'SUCCESS'" ++ show e)
+        putStrLn ("Error: exception on IO with implementations. Forcing all future tests to report 'SUCCESS': " ++ show e)
         return Nothing
   else do
      putStrLn "Warning: doRVFIDII called when both implementations are not alive"
