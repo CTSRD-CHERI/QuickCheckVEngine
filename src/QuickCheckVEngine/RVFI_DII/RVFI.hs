@@ -55,6 +55,7 @@ module QuickCheckVEngine.RVFI_DII.RVFI
     rvfiCheck,
     rvfiCheckMagicBytes,
     rvfiCheckAndShow,
+    rvfiReadDataPacketWithMagic,
     rvfiReadV1Response,
   )
 where
@@ -175,20 +176,42 @@ rvfiEmptyMemData =
 hexStr :: BS.ByteString -> String
 hexStr msg = show (toLazyByteString (lazyByteStringHex msg))
 
-rvfiCheckMagicBytes :: BS.ByteString -> String -> (String, Int) -> IO ()
-rvfiCheckMagicBytes magicBytes expected (name, verbosity) = do
+type ConnectionInfo = (String, Int)
+
+connectionDebugMessage :: Int -> ConnectionInfo -> String -> IO ()
+connectionDebugMessage minVerbosity (name, verbosity) msg = do
+  when (verbosity >= minVerbosity) $
+    putStrLn ("\t" ++ name ++ ": " ++ msg)
+
+errorWithContext :: String -> String -> IO ()
+errorWithContext name msg = do
+  error (name ++ ": " ++ msg)
+
+connectionError :: ConnectionInfo -> String -> IO ()
+connectionError (name, _) msg = do
+  errorWithContext name msg
+
+rvfiCheckMagicBytes :: BS.ByteString -> String -> ConnectionInfo -> IO ()
+rvfiCheckMagicBytes magicBytes expected conn = do
   let expBytes = C8.pack expected
-  when (verbosity > 2) $
-    putStrLn ("\t" ++ name ++ "Read header magic bytes: " ++ show magicBytes)
+  connectionDebugMessage 3 conn ("read header magic bytes: " ++ show magicBytes)
   when (magicBytes /= expBytes) $
-    error (name ++ " received invalid data packet: got magic=" ++ show magicBytes ++ " but expected " ++ show expBytes)
+    connectionError conn ("received invalid data packet: got magic=" ++ show magicBytes ++ " but expected " ++ show expBytes)
   return ()
+
+rvfiReadDataPacketWithMagic :: (Int64 -> IO BS.ByteString, String, Int) -> Int64 -> String -> IO BS.ByteString
+rvfiReadDataPacketWithMagic (reader, name, verbosity) size expectedMagic = do
+  when (size < 8) $
+    errorWithContext name ("Invalid packet size:" ++ show size)
+  msg <- reader size
+  let (magic, bytes) = BS.splitAt 8 msg
+  rvfiCheckMagicBytes magic expectedMagic (name, verbosity)
+  return bytes
 
 rvfiReadV1Response :: (Int64 -> IO BS.ByteString, String, Int) -> IO RVFI_Packet
 rvfiReadV1Response (reader, name, verbosity) = do
   msg <- reader 88
-  when (verbosity > 1) $
-    putStrLn ("\t" ++ name ++ " read packet: " ++ hexStr msg)
+  connectionDebugMessage 2 (name, verbosity) ("read packet: " ++ hexStr msg)
   -- Note: BS.reverse since the decode was written in BE order
   return $ runGet (isolate 88 rvfiDecodeV1Response) (BS.reverse msg)
 
