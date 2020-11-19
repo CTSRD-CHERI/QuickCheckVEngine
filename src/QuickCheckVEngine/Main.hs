@@ -186,8 +186,8 @@ main = withSocketsDo $ do
   socB <- open "implementation-B" addrB
   socATraceVer <- rvfiNegotiateVersion socA "implementation A" (optVerbosity flags)
   socBTraceVer <- rvfiNegotiateVersion socB "implementation B" (optVerbosity flags)
-  let connectionA = (socA, fromIntegral socATraceVer, "implementation A", (optVerbosity flags))
-  let connectionB = (socB, fromIntegral socBTraceVer, "implementation B", (optVerbosity flags))
+  let connectionA = (socA, socATraceVer, "implementation A", (optVerbosity flags))
+  let connectionB = (socB, socBTraceVer, "implementation B", (optVerbosity flags))
 
   addrInstr <- mapM (resolve "127.0.0.1") (instrPort flags)
   instrSoc <- mapM (open "instruction-generator-port") addrInstr

@@ -76,11 +76,11 @@ sendDIITrace (sckt, _, _, _) trace = mapM_ (sendDIIPacket sckt) trace
 
 -- | Receive a single 'RVFI_Packet'
 recvRVFIPacketV1 :: Socket -> (String, Int) -> IO RVFI_Packet
-recvRVFIPacketV1 sckt  (name, verbosity) = rvfiReadV1Response (recvBlking sckt) (name, verbosity)
+recvRVFIPacketV1 sckt (name, verbosity) = rvfiReadV1Response (recvBlking sckt) (name, verbosity)
 
 recvRVFIPacket :: (Socket, Int) -> (String, Int) -> IO RVFI_Packet
 recvRVFIPacket (sock, 1) (name, verbosity) = recvRVFIPacketV1 sock (name, verbosity)
-recvRVFIPacket (_, vers)  (name, _)= error (name ++ " invalid trace version" ++ show vers)
+recvRVFIPacket (_, vers) (name, _) = error (name ++ " invalid trace version" ++ show vers)
 
 -- | Receive an execution trace (a '[RVFI_Packet]')
 recvRVFITrace :: (Socket, Int, String, Int) -> Bool -> IO [RVFI_Packet]
@@ -95,7 +95,7 @@ recvRVFITrace (sckt, traceVersion, name, verbosity) doLog = do
 
 -- | Perform a trace version negotiation with an implementation and return the
 -- | accepted version.
-rvfiNegotiateVersion :: Socket -> String -> Int -> IO Word8
+rvfiNegotiateVersion :: Socket -> String -> Int -> IO Int
 rvfiNegotiateVersion sckt name verbosity = do
   sendDIIPacket sckt diiVersNegotiate
   -- send a version negotiate packet, old implementations will return a halt
@@ -107,26 +107,43 @@ rvfiNegotiateVersion sckt name verbosity = do
   unless (rvfiIsHalt rvfiPkt) $
     error ("Received unexpected initial packet from " ++ name ++ ": " ++ show rvfiPkt)
   let supportedVer = rvfiHaltVersion rvfiPkt
-  -- If vers > 1, send a 'v' command to set the trace version to 2
-  when (supportedVer > 1) $
-    do
-      putStrLn ("Requesting version 2 trace output from:" ++ name)
-      sendDIIPacket sckt (diiRequestVers 2)
+  result <- diiSetVersion sckt (fromIntegral supportedVer) name verbosity
+  when (result /= 2) $
+    putStrLn ("WARNING: " ++ name ++ " does not support version 2 traces.")
+  return result
+
+-- | If supportedVersion > 1, send a 'v' command to set the trace version to v2
+diiSetVersion :: Socket -> Int -> String -> Int -> IO Int
+diiSetVersion sckt supportedVersion name verbosity = do
+  if supportedVersion < 2
+    then return 1
+    else do
+      let reqVersion = 2
+      putStrLn ("Requesting version " ++ show reqVersion ++ " trace output from:" ++ name)
+      sendDIIPacket sckt (diiRequestVers (fromIntegral reqVersion))
       msg <- recvBlking sckt 16
       when (verbosity > 2) $
         putStrLn ("Received " ++ name ++ " set-version response: " ++ show msg)
       let (magic, acceptedVer) = BS.splitAt 8 msg
       when (magic /= C8.pack "version=") $
-        error ("Received version response with bad magic number from " ++ name
-               ++ ": got " ++ show magic ++ " but expected \"version=\"")
+        error
+          ( "Received version response with bad magic number from " ++ name
+              ++ ": got "
+              ++ show magic
+              ++ " but expected \"version=\""
+          )
       let ver = runGet Data.Binary.Get.getInt64le acceptedVer
       putStrLn ("Received " ++ name ++ " set-version ack for version " ++ show ver)
-      when (fromIntegral ver /= supportedVer) $
-        error ("Received version response with unexpected version from " ++ name
-               ++ ": got " ++ show ver ++ " but expected 2.")
-  when (supportedVer /= 2) $
-    putStrLn ("WARNING: " ++ name ++ " does not support version 2 traces.")
-  return supportedVer
+      let receivedVersion = fromIntegral ver
+      when (receivedVersion /= reqVersion) $
+        putStrLn
+          ( "WARNING: Received version response with unexpected version from " ++ name
+              ++ ": got "
+              ++ show ver
+              ++ " but expected "
+              ++ show reqVersion
+          )
+      return receivedVersion
 
 -- Internal helpers (not exported):
 --------------------------------------------------------------------------------
@@ -134,6 +151,7 @@ rvfiNegotiateVersion sckt name verbosity = do
 -- | Receive a fixed number of bytes
 recvBlking :: Socket -> Int64 -> IO BS.ByteString
 recvBlking _ 0 = return BS.empty
-recvBlking sckt n = do received  <- Network.Socket.ByteString.Lazy.recv sckt n
-                       remainder <- recvBlking sckt (n - BS.length received)
-                       return $ BS.append received remainder
+recvBlking sckt n = do
+  received <- Network.Socket.ByteString.Lazy.recv sckt n
+  remainder <- recvBlking sckt (n - BS.length received)
+  return $ BS.append received remainder
