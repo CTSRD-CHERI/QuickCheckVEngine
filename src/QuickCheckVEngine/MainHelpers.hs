@@ -106,10 +106,9 @@ zipWithPadding a b f = go
 --   for equivalence. It receives among other things a callback function
 --   'TestCase -> IO ()' to be performed on failure that takes in the reduced
 --   'TestCase' which caused the failure
-prop :: (Socket, Int) -> (Socket, Int) -> IORef Bool -> (TestCase -> IO ())
-     -> ArchDesc -> Int -> Bool -> Gen TestCase
-     -> Property
-prop scktA scktB alive onFail arch delay doLog gen =
+prop :: (Socket, Int, String, Int) -> (Socket, Int, String, Int) -> IORef Bool
+     -> (TestCase -> IO ()) -> ArchDesc -> Int -> Bool -> Gen TestCase -> Property
+prop connA connB alive onFail arch delay doLog gen =
   forAllShrink gen shrink mkProp
   where mkProp testCase = whenFail (onFail testCase) (doProp testCase)
         doProp testCase = monadicIO $ run $ do
@@ -118,7 +117,7 @@ prop scktA scktB alive onFail arch delay doLog gen =
           let insts = instTrace ++ [diiEnd]
           currentlyAlive <- readIORef alive
           if currentlyAlive then do
-            m_traces <- doRVFIDII scktA scktB alive delay doLog insts
+            m_traces <- doRVFIDII connA connB alive delay doLog insts
             case m_traces of
               Just (traceA, traceB) -> do
                 let diff = zipWithPadding rvfiEmptyHaltPacket rvfiEmptyHaltPacket
@@ -142,21 +141,21 @@ prop scktA scktB alive onFail arch delay doLog gen =
 --   'Just (traceA, traceB)', otherwise 'Nothing' and sets the provided
 --   'IORef Bool' for alive to 'False' indicating that further interaction with
 --   the implementations is futile
-doRVFIDII :: (Socket, Int) -> (Socket, Int) -> IORef Bool -> Int -> Bool -> [DII_Packet]
+doRVFIDII :: (Socket, Int, String, Int) -> (Socket, Int, String, Int) -> IORef Bool -> Int -> Bool -> [DII_Packet]
           -> IO (Maybe ([RVFI_Packet], [RVFI_Packet]))
-doRVFIDII (scktA, traceVerA) (scktB, traceVerB) alive delay doLog insts = do
+doRVFIDII connA connB alive delay doLog insts = do
   currentlyAlive <- readIORef alive
   if currentlyAlive then do
     result <- try $ do
       -- Send to implementations
-      sendDIITrace scktA insts
+      sendDIITrace connA insts
       when doLog $ putStrLn "Done sending instructions to implementation A"
-      sendDIITrace scktB insts
+      sendDIITrace connB insts
       when doLog $ putStrLn "Done sending instructions to implementation B"
       -- Receive from implementations
-      m_traceA <- timeout delay $ recvRVFITrace (scktA, traceVerA) doLog
+      m_traceA <- timeout delay $ recvRVFITrace connA doLog
       when doLog $ putStrLn "Done receiving reports from implementation A"
-      m_traceB <- timeout delay $ recvRVFITrace (scktB, traceVerB) doLog
+      m_traceB <- timeout delay $ recvRVFITrace connB doLog
       when doLog $ putStrLn "Done receiving reports from implementation B"
       --
       return (m_traceA, m_traceB)
@@ -169,7 +168,7 @@ doRVFIDII (scktA, traceVerA) (scktB, traceVerB) alive delay doLog insts = do
         return Nothing
       Left (SomeException e) -> do
         writeIORef alive False
-        putStrLn "Error: exception on IO with implementations. Forcing all future tests to report 'SUCCESS'"
+        putStrLn ("Error: exception on IO with implementations. Forcing all future tests to report 'SUCCESS'" ++ show e)
         return Nothing
   else do
      putStrLn "Warning: doRVFIDII called when both implementations are not alive"
