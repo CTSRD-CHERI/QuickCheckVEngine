@@ -83,7 +83,7 @@ type RV_RegIdx = Word8
 -- | Type synonym for a RISCV XLEN-bit word
 type RV_WordXLEN = Word64
 
-data RV_PrivMode = PRV_U | PRV_S | PRV_Reserved | PRV_M deriving (Enum, Show)
+data RV_PrivMode = PRV_U | PRV_S | PRV_Reserved | PRV_M deriving (Enum, Show, Eq)
 
 type RV_XL = Word8
 
@@ -439,6 +439,15 @@ rvfiHaltVersion x = 1 + shiftR (rvfi_halt x) 1
 rvfiIsTrap :: RVFI_Packet -> Bool
 rvfiIsTrap x = rvfi_trap x /= 0
 
+-- | Since version 1 trace format implementations don't report the current privilege
+-- | level we can't fail the comparison if one implementation reports a privilege level
+-- | and the other one does
+privLevelSame :: (Maybe RV_PrivMode) -> (Maybe RV_PrivMode) -> Bool
+privLevelSame _ Nothing = True
+privLevelSame Nothing _ = True
+privLevelSame x y = (x == y)
+
+
 -- | Compare 'RVFI_Packet's
 -- TODO: Improve handling of Maybe values
 rvfiCheck :: Bool -> RVFI_Packet -> RVFI_Packet -> Bool
@@ -449,6 +458,7 @@ rvfiCheck is64 x y
     (maskUpper False (rvfi_insn x) == maskUpper False (rvfi_insn y))
       && (rvfi_trap x == rvfi_trap y)
       && (rvfi_halt x == rvfi_halt y)
+      && (privLevelSame (rvfi_mode x) (rvfi_mode y))
       && (rvfi_rd_addr xInt == rvfi_rd_addr yInt)
       && ((rvfi_rd_addr xInt == 0) || (maskUpper is64 (rvfi_rd_wdata xInt) == maskUpper is64 (rvfi_rd_wdata yInt)))
       && (rvfi_mem_wmask xMem == rvfi_mem_wmask yMem)
