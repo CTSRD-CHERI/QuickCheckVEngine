@@ -58,7 +58,7 @@ import Network.Socket.ByteString.Lazy
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 import Control.Monad
-import Control.Exception
+import Control.Exception (try, SomeException(..))
 import qualified Data.ByteString.Lazy as BS
 
 import qualified InstrCodec
@@ -106,7 +106,7 @@ zipWithPadding a b f = go
 --   for equivalence. It receives among other things a callback function
 --   'TestCase -> IO ()' to be performed on failure that takes in the reduced
 --   'TestCase' which caused the failure
-prop :: (Socket, Int, String, Int) -> (Socket, Int, String, Int) -> IORef Bool
+prop :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool
      -> (TestCase -> IO ()) -> ArchDesc -> Int -> Bool -> Gen TestCase -> Property
 prop connA connB alive onFail arch delay doLog gen =
   forAllShrink gen shrink mkProp
@@ -141,7 +141,7 @@ prop connA connB alive onFail arch delay doLog gen =
 --   'Just (traceA, traceB)', otherwise 'Nothing' and sets the provided
 --   'IORef Bool' for alive to 'False' indicating that further interaction with
 --   the implementations is futile
-doRVFIDII :: (Socket, Int, String, Int) -> (Socket, Int, String, Int) -> IORef Bool -> Int -> Bool -> [DII_Packet]
+doRVFIDII :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> Int -> Bool -> [DII_Packet]
           -> IO (Maybe ([RVFI_Packet], [RVFI_Packet]))
 doRVFIDII connA connB alive delay doLog insts = do
   currentlyAlive <- readIORef alive

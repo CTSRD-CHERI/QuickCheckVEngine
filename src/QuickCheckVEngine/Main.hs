@@ -186,8 +186,9 @@ main = withSocketsDo $ do
   socB <- open "implementation-B" addrB
   socATraceVer <- rvfiNegotiateVersion socA "implementation A" (optVerbosity flags)
   socBTraceVer <- rvfiNegotiateVersion socB "implementation B" (optVerbosity flags)
-  let connectionA = (socA, socATraceVer, "implementation A", (optVerbosity flags))
-  let connectionB = (socB, socBTraceVer, "implementation B", (optVerbosity flags))
+  let connectionA = RvfiDiiConnection socA socATraceVer "implementation A" (optVerbosity flags)
+  let connectionB = RvfiDiiConnection socB socBTraceVer "implementation B" (optVerbosity flags)
+
 
   addrInstr <- mapM (resolve "127.0.0.1") (instrPort flags)
   instrSoc <- mapM (open "instruction-generator-port") addrInstr
@@ -366,7 +367,7 @@ main = withSocketsDo $ do
         return addr
     open dest addr = do
         putStrLn ("connecting to " ++ dest ++ " ...")
-        sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
+        sock <- Network.Socket.socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
         connect sock (addrAddress addr)
         putStrLn ("connected to " ++ dest ++ " ...")
         return sock
