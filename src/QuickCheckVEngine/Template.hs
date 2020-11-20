@@ -137,7 +137,7 @@ assertSingle insn assert str = Assert (Single insn)
 
 -- | Wrap a single instruction in an assert that it writes back a given value
 assertSingleRWD :: Integer -> Integer -> String -> Template
-assertSingleRWD insn target str = assertSingle insn (\z -> toInteger (rvfi_rd_wdata z) == target) str
+assertSingleRWD insn target str = assertSingle insn (\z -> toInteger (rvfi_rd_wdata_or_zero z) == target) str
 
 -- | 'TestCase' type for generated 'Template'
 data TestCase = TC ([RVFI_Packet] -> [String]) [TestStrand]

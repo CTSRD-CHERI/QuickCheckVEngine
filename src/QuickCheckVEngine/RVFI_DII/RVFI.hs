@@ -58,6 +58,7 @@ module QuickCheckVEngine.RVFI_DII.RVFI
     rvfiReadDataPacketWithMagic,
     rvfiReadV1Response,
     rvfiReadV2Response,
+    rvfi_rd_wdata_or_zero,
   )
 where
 
@@ -122,20 +123,23 @@ rvfiGetFromString "insn"      = Just $ toInteger . rvfi_insn
 rvfiGetFromString "trap"      = Just $ toInteger . rvfi_trap
 rvfiGetFromString "halt"      = Just $ toInteger . rvfi_halt
 rvfiGetFromString "intr"      = Just $ toInteger . rvfi_intr
-rvfiGetFromString "rs1_addr"  = Just $ toInteger . rvfi_rs1_addr
-rvfiGetFromString "rs2_addr"  = Just $ toInteger . rvfi_rs2_addr
-rvfiGetFromString "rs1_rdata" = Just $ toInteger . rvfi_rs1_rdata
-rvfiGetFromString "rs2_rdata" = Just $ toInteger . rvfi_rs2_rdata
-rvfiGetFromString "rd_addr"   = Just $ toInteger . rvfi_rd_addr
-rvfiGetFromString "rd_wdata"  = Just $ toInteger . rvfi_rd_wdata
+rvfiGetFromString "rs1_addr"  = Just $ toInteger . rvfi_rs1_addr . (fromMaybe rvfiEmptyIntData) . rvfi_int_data
+rvfiGetFromString "rs2_addr"  = Just $ toInteger . rvfi_rs2_addr . (fromMaybe rvfiEmptyIntData) . rvfi_int_data
+rvfiGetFromString "rs1_rdata" = Just $ toInteger . rvfi_rs1_rdata . (fromMaybe rvfiEmptyIntData) . rvfi_int_data
+rvfiGetFromString "rs2_rdata" = Just $ toInteger . rvfi_rs2_rdata . (fromMaybe rvfiEmptyIntData) . rvfi_int_data
+rvfiGetFromString "rd_addr"   = Just $ toInteger . rvfi_rd_addr . (fromMaybe rvfiEmptyIntData) . rvfi_int_data
+rvfiGetFromString "rd_wdata"  = Just $ toInteger . rvfi_rd_wdata . (fromMaybe rvfiEmptyIntData) . rvfi_int_data
 rvfiGetFromString "pc_rdata"  = Just $ toInteger . rvfi_pc_rdata
 rvfiGetFromString "pc_wdata"  = Just $ toInteger . rvfi_pc_wdata
-rvfiGetFromString "mem_addr"  = Just $ toInteger . rvfi_mem_addr
-rvfiGetFromString "mem_rmask" = Just $ toInteger . rvfi_mem_rmask
-rvfiGetFromString "mem_wmask" = Just $ toInteger . rvfi_mem_wmask
-rvfiGetFromString "mem_rdata" = Just $ toInteger . rvfi_mem_rdata
-rvfiGetFromString "mem_wdata" = Just $ toInteger . rvfi_mem_wdata
+rvfiGetFromString "mem_addr"  = Just $ toInteger . rvfi_mem_addr . (fromMaybe rvfiEmptyMemData) . rvfi_mem_data
+rvfiGetFromString "mem_rmask" = Just $ toInteger . rvfi_mem_rmask . (fromMaybe rvfiEmptyMemData) . rvfi_mem_data
+rvfiGetFromString "mem_wmask" = Just $ toInteger . rvfi_mem_wmask . (fromMaybe rvfiEmptyMemData) . rvfi_mem_data
+rvfiGetFromString "mem_rdata" = Just $ toInteger . toNatural . rvfi_mem_rdata . (fromMaybe rvfiEmptyMemData) . rvfi_mem_data
+rvfiGetFromString "mem_wdata" = Just $ toInteger . toNatural . rvfi_mem_wdata . (fromMaybe rvfiEmptyMemData) . rvfi_mem_data
 rvfiGetFromString _           = Nothing
+
+rvfi_rd_wdata_or_zero :: RVFI_Packet -> Word64
+rvfi_rd_wdata_or_zero x = rvfi_rd_wdata (fromMaybe rvfiEmptyIntData (rvfi_int_data x))
 
 data RVFI_IntData = RVFI_IntData
   { rvfi_rs1_addr :: {-# UNPACK #-} !RV_RegIdx,
