@@ -58,7 +58,6 @@ import Data.Word
 import Data.Binary
 import Data.Binary.Put
 import Data.Binary.Get
-import Data.Semigroup -- Should no longer be required with modern ghc
 
 -- | Type synonym for a DII command
 type DII_Cmd = Word8
@@ -90,7 +89,7 @@ instance Binary DII_Packet where
             <> putWord8 (dii_cmd pkt)
             <> putWord16be (dii_time pkt)
             <> putWord32be (dii_insn pkt)
-  get = do getWord8
+  get = do _ <- getWord8
            cmd  <- getWord8
            time <- getWord16be
            insn <- getWord32be
