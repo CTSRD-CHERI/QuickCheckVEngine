@@ -117,6 +117,7 @@ data RVFI_Packet = RVFI_Packet
     -- Skipping instructions
   }
 
+rvfiGetFromString :: [Char] -> Maybe (RVFI_Packet -> Integer)
 rvfiGetFromString "valid"     = Just $ toInteger . rvfi_valid
 rvfiGetFromString "order"     = Just $ toInteger . rvfi_order
 rvfiGetFromString "insn"      = Just $ toInteger . rvfi_insn
@@ -316,7 +317,6 @@ rvfiDecodeMemData = do
   wdata2 <- getWord64le
   wdata3 <- getWord64le
   wdata4 <- getWord64le
-  let rd_rdata = Basement.Types.Word256.Word256 rdata1 rdata2 rdata3 rdata4
   mem_rmask <- getWord32le
   mem_wmask <- getWord32le
   mem_addr <- getWord64le
