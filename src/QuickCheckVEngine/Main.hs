@@ -93,6 +93,7 @@ data Options = Options
     , optSave        :: Bool
     } deriving Show
 
+defaultOptions :: Options
 defaultOptions = Options
     { optVerbosity   = 1
     , nTests         = 100
@@ -176,7 +177,7 @@ main :: IO ()
 main = withSocketsDo $ do
   -- parse command line arguments
   rawArgs <- getArgs
-  (flags, leftover) <- commandOpts rawArgs
+  (flags, _) <- commandOpts rawArgs
   when (optVerbosity flags > 1) $ print flags
   let archDesc = arch flags
   -- initialize model and implementation sockets
