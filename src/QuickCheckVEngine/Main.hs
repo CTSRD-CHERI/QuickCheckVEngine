@@ -211,7 +211,7 @@ main = withSocketsDo $ do
         when (optVerbosity flags > 0) $
           do putStrLn "Replaying shrunk failed test case:"
              let tcNew = tcTrans tc traceA traceB
-             checkSingle tcNew 2 False (testLen flags) (const $ return ())
+             _ <- checkSingle tcNew 2 False (testLen flags) (const $ return ())
              return ()
         when (optSave flags) $
           do case (saveDir flags) of
