@@ -446,9 +446,9 @@ rvfiHaltVersion x = 1 + shiftR (rvfi_halt x) 1
 rvfiIsTrap :: RVFI_Packet -> Bool
 rvfiIsTrap x = rvfi_trap x /= 0
 
-privLevelSame :: (Maybe RV_PrivMode) -> (Maybe RV_PrivMode) -> Bool
-privLevelSame x y = fromMaybe False (mzipWith (==) x y)
-
+-- | Compare two Maybe fields, but assume success if one of them does not exist.
+optionalFieldsSame :: Eq a => (Maybe a) -> (Maybe a) -> Bool
+optionalFieldsSame x y = fromMaybe True (mzipWith (==) x y)
 
 -- | Compare 'RVFI_Packet's
 -- TODO: Improve handling of Maybe values
@@ -460,7 +460,7 @@ rvfiCheck is64 x y
     (maskUpper False (rvfi_insn x) == maskUpper False (rvfi_insn y))
       && (rvfi_trap x == rvfi_trap y)
       && (rvfi_halt x == rvfi_halt y)
-      && (privLevelSame (rvfi_mode x) (rvfi_mode y))
+      && (optionalFieldsSame (rvfi_mode x) (rvfi_mode y))
       && (rvfi_rd_addr xInt == rvfi_rd_addr yInt)
       && ((rvfi_rd_addr xInt == 0) || (maskUpper is64 (rvfi_rd_wdata xInt) == maskUpper is64 (rvfi_rd_wdata yInt)))
       && (rvfi_mem_wmask xMem == rvfi_mem_wmask yMem)
