@@ -402,12 +402,18 @@ prvString :: Maybe RV_PrivMode -> String
 prvString Nothing = "PRV_?"
 prvString (Just x) = show x
 
+ixlString :: Maybe RV_XL -> String
+ixlString Nothing = "?"
+ixlString (Just 1) = "32"
+ixlString (Just 2) = "64"
+ixlString (Just _) = "Invalid"
+
 instance Show RVFI_Packet where
   show tok
     | rvfiIsHalt tok = "halt token"
     | otherwise =
       printf
-        "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, MA: 0x%016x, MWD: 0x%016x, MWM: 0b%08b, I: 0x%016x %s (%s)"
+        "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, MA: 0x%016x, MWD: 0x%016x, MWM: 0b%08b, I: 0x%016x %s XL:%s (%s)"
         (show $ rvfi_trap tok /= 0) -- Trap
         (rvfi_pc_wdata tok) -- PCWD
         (rvfi_rd_addr intData) -- RD
@@ -417,6 +423,7 @@ instance Show RVFI_Packet where
         (rvfi_mem_wmask memData) -- MWM
         (rvfi_insn tok)
         (prvString (rvfi_mode tok))
+        (ixlString (rvfi_ixl tok))
         (pretty (toInteger (rvfi_insn tok))) -- Inst
     where
       intData = fromMaybe rvfiEmptyIntData (rvfi_int_data tok)
@@ -449,6 +456,7 @@ rvfiCheck is64 x y
       && (rvfi_trap x == rvfi_trap y)
       && (rvfi_halt x == rvfi_halt y)
       && (optionalFieldsSame (rvfi_mode x) (rvfi_mode y))
+      && (optionalFieldsSame (rvfi_ixl x) (rvfi_ixl y))
       && (rvfi_rd_addr xInt == rvfi_rd_addr yInt)
       && ((rvfi_rd_addr xInt == 0) || (maskUpper is64 (rvfi_rd_wdata xInt) == maskUpper is64 (rvfi_rd_wdata yInt)))
       && (rvfi_mem_wmask xMem == rvfi_mem_wmask yMem)
