@@ -187,8 +187,8 @@ main = withSocketsDo $ do
   socB <- open "implementation-B" addrB
   socATraceVer <- rvfiNegotiateVersion socA "implementation A" (optVerbosity flags)
   socBTraceVer <- rvfiNegotiateVersion socB "implementation B" (optVerbosity flags)
-  let connectionA = RvfiDiiConnection socA socATraceVer "implementation A" (optVerbosity flags)
-  let connectionB = RvfiDiiConnection socB socBTraceVer "implementation B" (optVerbosity flags)
+  let connA = RvfiDiiConnection socA socATraceVer "implementation A" (optVerbosity flags)
+  let connB = RvfiDiiConnection socB socBTraceVer "implementation B" (optVerbosity flags)
 
 
   addrInstr <- mapM (resolve "127.0.0.1") (instrPort flags)
@@ -197,7 +197,7 @@ main = withSocketsDo $ do
   alive <- newIORef True -- Cleared when either implementation times out, since they will may not be able to respond to future queries
   let checkSingle tc verbosity doShrink len onFail = do
         quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 1000 else 0))
-                             (prop connectionA connectionB alive onFail archDesc (timeoutDelay flags) (verbosity > 1) (return tc))
+                             (prop connA connB alive onFail archDesc (timeoutDelay flags) (verbosity > 1) (return tc))
   let check_mcause_on_trap tc traceA traceB =
         if or (map rvfiIsTrap traceA) || or (map rvfiIsTrap traceB)
            then tc <> TC (const []) [TS False [encode csrrs 0x342 0 1, encode csrrs 0x343 0 1, encode csrrs 0xbc0 0 1]]
@@ -205,14 +205,14 @@ main = withSocketsDo $ do
   let saveOnFail tc tcTrans = do
         let (rawInsts, _) = fromTestCase tc
         let insts = (map diiInstruction rawInsts) ++ [diiEnd]
-        m_traces <- doRVFIDII connectionA connectionB alive (timeoutDelay flags) False insts
+        m_traces <- doRVFIDII connA connB alive (timeoutDelay flags) False insts
         let (traceA, traceB) = fromMaybe (error "unexpected doRVFIDII failure")
                                          m_traces
         writeFile "last_failure.S" ("# last failing test case:\n" ++ show tc)
         when (optVerbosity flags > 0) $
           do putStrLn "Replaying shrunk failed test case:"
              let tcNew = tcTrans tc traceA traceB
-             _ <- checkSingle tcNew 2 False (testLen flags) (const $ return ())
+             checkSingle tcNew 2 False (testLen flags) (const $ return ())
              return ()
         when (optSave flags) $
           do case (saveDir flags) of
@@ -235,7 +235,7 @@ main = withSocketsDo $ do
                     else quickCheckWithResult
   let checkGen gen remainingTests = do
         res <- checkResult (Args Nothing remainingTests 1 (testLen flags) (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
-                           (prop connectionA connectionB alive checkTrapAndSave archDesc (timeoutDelay flags) (optVerbosity flags > 1) gen)
+                           (prop connA connB alive checkTrapAndSave archDesc (timeoutDelay flags) (optVerbosity flags > 1) gen)
         case res of Failure {} -> return 1
                     _          -> return 0
   let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
