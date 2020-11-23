@@ -65,6 +65,7 @@ where
 import Basement.Numerical.Number (toNatural)
 import qualified Basement.Types.Word256
 import Control.Monad
+import Control.Monad.Zip (mzipWith)
 import Data.Word
 import Data.Binary
 import Data.Binary.Get
@@ -445,13 +446,8 @@ rvfiHaltVersion x = 1 + shiftR (rvfi_halt x) 1
 rvfiIsTrap :: RVFI_Packet -> Bool
 rvfiIsTrap x = rvfi_trap x /= 0
 
--- | Since version 1 trace format implementations don't report the current privilege
--- | level we can't fail the comparison if one implementation reports a privilege level
--- | and the other one does
 privLevelSame :: (Maybe RV_PrivMode) -> (Maybe RV_PrivMode) -> Bool
-privLevelSame _ Nothing = True
-privLevelSame Nothing _ = True
-privLevelSame x y = (x == y)
+privLevelSame x y = fromMaybe False (mzipWith (==) x y)
 
 
 -- | Compare 'RVFI_Packet's
