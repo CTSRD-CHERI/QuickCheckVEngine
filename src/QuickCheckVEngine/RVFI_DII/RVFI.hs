@@ -217,6 +217,8 @@ rvfiReadDataPacketWithMagic (reader, name, verbosity) size expectedMagic = do
   rvfiCheckMagicBytes magic expectedMagic (name, verbosity)
   return bytes
 
+type RVFIFeatures = Word64
+
 rvfiReadV2Response :: (Int64 -> IO BS.ByteString, String, Int) -> IO RVFI_Packet
 rvfiReadV2Response (reader, name, verbosity) = do
   let connInfo = (name, verbosity)
@@ -237,7 +239,7 @@ rvfiReadV2Response (reader, name, verbosity) = do
     errorWithContext name ("Did not read all bytes of V2 trace packet: " ++ show remainingBytes ++ " remaining")
   return $ basicData {rvfi_int_data = intData, rvfi_mem_data = memData}
 
-rvfiDecodeV2Header :: Get (RVFI_Packet, Word64)
+rvfiDecodeV2Header :: Get (RVFI_Packet, RVFIFeatures)
 rvfiDecodeV2Header = do
   order <- getWord64le
   insn <- getWord64le
@@ -270,7 +272,7 @@ rvfiDecodeV2Header = do
     )
 
 -- See sail-riscv/model/rvfi_dii.sail for the bitfield definitions
-rvfiMaybeReadIntData :: (Int64 -> IO BS.ByteString, String, Int) -> Word64 -> IO (Maybe RVFI_IntData, Word64, Int)
+rvfiMaybeReadIntData :: (Int64 -> IO BS.ByteString, String, Int) -> RVFIFeatures -> IO (Maybe RVFI_IntData, RVFIFeatures, Int)
 rvfiMaybeReadIntData connection availableFeatures = do
   let remainingFeatures = availableFeatures .&. (complement 0x1)
   if ((availableFeatures .&. 0x1) == 0)
@@ -298,7 +300,7 @@ rvfiDecodeIntData = do
         rvfi_rs2_addr = rs2_addr
       }
 
-rvfiMaybeReadMemData :: (Int64 -> IO BS.ByteString, String, Int) -> Word64 -> IO (Maybe RVFI_MemAccessData, Word64, Int)
+rvfiMaybeReadMemData :: (Int64 -> IO BS.ByteString, String, Int) -> RVFIFeatures -> IO (Maybe RVFI_MemAccessData, RVFIFeatures, Int)
 rvfiMaybeReadMemData connection availableFeatures = do
   let remainingFeatures = availableFeatures .&. (complement 0x2)
   if ((availableFeatures .&. 0x2) == 0)
