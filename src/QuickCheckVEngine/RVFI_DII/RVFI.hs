@@ -55,7 +55,6 @@ module QuickCheckVEngine.RVFI_DII.RVFI (
 , rvfiCheck
 , rvfiCheckAndShow
 , rvfiCheckMagicBytes
-, rvfiCheckAndShow
 , rvfiReadDataPacketWithMagic
 , rvfiReadV1Response
 , rvfiReadV2Response
