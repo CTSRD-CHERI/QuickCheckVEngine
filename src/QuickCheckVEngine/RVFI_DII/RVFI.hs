@@ -416,7 +416,7 @@ prvString (Just x) = show x
 
 instance Show RVFI_Packet where
   show tok
-    | rvfiIsHalt tok = printf "halt token v%d" (rvfiHaltVersion tok)
+    | rvfiIsHalt tok = "halt token"
     | otherwise =
       printf
         "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, MA: 0x%016x, MWD: 0x%016x, MWM: 0b%08b, I: 0x%016x %s (%s)"
