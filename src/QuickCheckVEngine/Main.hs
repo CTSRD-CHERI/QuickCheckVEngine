@@ -190,7 +190,6 @@ main = withSocketsDo $ do
   let connA = RvfiDiiConnection socA socATraceVer "implementation A" (optVerbosity flags)
   let connB = RvfiDiiConnection socB socBTraceVer "implementation B" (optVerbosity flags)
 
-
   addrInstr <- mapM (resolve "127.0.0.1") (instrPort flags)
   instrSoc <- mapM (open "instruction-generator-port") addrInstr
   --
