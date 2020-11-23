@@ -405,6 +405,7 @@ ixlString :: Maybe RV_XL -> String
 ixlString Nothing = "?"
 ixlString (Just 1) = "32"
 ixlString (Just 2) = "64"
+ixlString (Just 3) = "128"
 ixlString (Just _) = "Invalid"
 
 instance Show RVFI_Packet where
