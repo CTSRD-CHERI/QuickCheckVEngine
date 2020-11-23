@@ -58,6 +58,7 @@ import Data.Word
 import Data.Binary
 import Data.Binary.Put
 import Data.Binary.Get
+import Data.Semigroup -- Should no longer be required with modern ghc
 
 -- | Type synonym for a DII command
 type DII_Cmd = Word8

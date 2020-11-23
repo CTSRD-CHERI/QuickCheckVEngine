@@ -70,6 +70,7 @@ import Data.Word
 import Data.Binary
 import Data.Binary.Get
 import Data.Bits
+import Data.Semigroup -- Should no longer be required with modern ghc
 import qualified Data.Bits.Bitwise as BW
 import qualified Data.ByteString.Lazy as BS
 import Data.ByteString.Lazy.Builder (lazyByteStringHex, toLazyByteString)
