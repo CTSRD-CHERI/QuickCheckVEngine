@@ -45,16 +45,15 @@
 --    This module re-exports the 'QuickCheckVEngine.RVFI_DII.RVFI' and
 --    'QuickCheckVEngine.RVFI_DII.DII' modules, and provides functions to send and
 --    receive 'DII_Packet's and 'RVFI_Packet's over a 'Socket'.
-module QuickCheckVEngine.RVFI_DII
-  ( module QuickCheckVEngine.RVFI_DII.RVFI,
-    module QuickCheckVEngine.RVFI_DII.DII,
-    RvfiDiiConnection(..),
-    sendDIIPacket,
-    sendDIITrace,
-    recvRVFITrace,
-    rvfiNegotiateVersion,
-  )
-where
+module QuickCheckVEngine.RVFI_DII (
+  module QuickCheckVEngine.RVFI_DII.RVFI
+, module QuickCheckVEngine.RVFI_DII.DII
+, RvfiDiiConnection(..)
+, sendDIIPacket
+, sendDIITrace
+, recvRVFITrace
+, rvfiNegotiateVersion
+) where
 
 import Control.Monad
 import Data.Binary

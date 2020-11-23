@@ -45,22 +45,22 @@
 --    The 'QuickCheckVEngine.RVFI_DII.RVFI' module defines the RISC-V RVFI
 --    interface as introduced
 --    <https://github.com/SymbioticEDA/riscv-formal/blob/master/docs/rvfi.md here>
-module QuickCheckVEngine.RVFI_DII.RVFI
-  ( RVFI_Packet,
-    rvfiEmptyHaltPacket,
-    rvfiGetFromString,
-    rvfiIsHalt,
-    rvfiHaltVersion,
-    rvfiIsTrap,
-    rvfiCheck,
-    rvfiCheckMagicBytes,
-    rvfiCheckAndShow,
-    rvfiReadDataPacketWithMagic,
-    rvfiReadV1Response,
-    rvfiReadV2Response,
-    rvfi_rd_wdata_or_zero,
-  )
-where
+module QuickCheckVEngine.RVFI_DII.RVFI (
+  RVFI_Packet (..)
+, rvfiEmptyHaltPacket
+, rvfiGetFromString
+, rvfiIsHalt
+, rvfiHaltVersion
+, rvfiIsTrap
+, rvfiCheck
+, rvfiCheckAndShow
+, rvfiCheckMagicBytes
+, rvfiCheckAndShow
+, rvfiReadDataPacketWithMagic
+, rvfiReadV1Response
+, rvfiReadV2Response
+, rvfi_rd_wdata_or_zero
+) where
 
 import Basement.Numerical.Number (toNatural)
 import qualified Basement.Types.Word256
@@ -92,31 +92,31 @@ type RV_XL = Word8
 -- * Definition of the RISC-V Formal Interface
 
 -- | The 'RVFI_Packet' type captures (a subset of) the RISC-V Formal Interface
-data RVFI_Packet = RVFI_Packet
-  { -- Metadata
-    rvfi_valid :: Word8,
-    rvfi_order :: Word64,
-    rvfi_insn :: Word64,
-    rvfi_trap :: Word8,
-    rvfi_halt :: Word8,
-    rvfi_intr :: Word8,
-    rvfi_mode :: Maybe RV_PrivMode,
-    rvfi_ixl :: Maybe RV_XL,
-    -- Program Counter
-    rvfi_pc_rdata :: RV_WordXLEN,
-    rvfi_pc_wdata :: RV_WordXLEN,
-    -- Integer Register Read/Write
-    rvfi_int_data :: Maybe RVFI_IntData,
-    -- Memory Access
-    rvfi_mem_data :: Maybe RVFI_MemAccessData
-    -- Further TODOs in the RVFI specification:
-    -- Control and Status Registers (CSRs)
-    -- Modelling of Floating-Point State
-    -- Handling of Speculative Execution
-    -- Modelling of Virtual Memory
-    -- Modelling of Atomic Memory Operations
-    -- Skipping instructions
-  }
+data RVFI_Packet = RVFI_Packet {
+-- Metadata
+  rvfi_valid :: Word8
+, rvfi_order :: Word64
+, rvfi_insn  :: Word64
+, rvfi_trap  :: Word8
+, rvfi_halt  :: Word8
+, rvfi_intr  :: Word8
+, rvfi_mode  :: Maybe RV_PrivMode
+, rvfi_ixl   :: Maybe RV_XL
+-- Program Counter
+, rvfi_pc_rdata :: RV_WordXLEN
+, rvfi_pc_wdata :: RV_WordXLEN
+-- Integer Register Read/Write
+, rvfi_int_data :: Maybe RVFI_IntData
+-- Memory Access
+, rvfi_mem_data :: Maybe RVFI_MemAccessData
+-- Further TODOs in the RVFI specification:
+-- Control and Status Registers (CSRs)
+-- Modelling of Floating-Point State
+-- Handling of Speculative Execution
+-- Modelling of Virtual Memory
+-- Modelling of Atomic Memory Operations
+-- Skipping instructions
+}
 
 rvfiGetFromString :: [Char] -> Maybe (RVFI_Packet -> Integer)
 rvfiGetFromString "valid"     = Just $ toInteger . rvfi_valid
@@ -143,44 +143,42 @@ rvfiGetFromString _           = Nothing
 rvfi_rd_wdata_or_zero :: RVFI_Packet -> Word64
 rvfi_rd_wdata_or_zero x = rvfi_rd_wdata (fromMaybe rvfiEmptyIntData (rvfi_int_data x))
 
-data RVFI_IntData = RVFI_IntData
-  { rvfi_rs1_addr :: {-# UNPACK #-} !RV_RegIdx,
-    rvfi_rs2_addr :: {-# UNPACK #-} !RV_RegIdx,
-    rvfi_rs1_rdata :: {-# UNPACK #-} !RV_WordXLEN,
-    rvfi_rs2_rdata :: {-# UNPACK #-} !RV_WordXLEN,
-    rvfi_rd_addr :: {-# UNPACK #-} !RV_RegIdx,
-    rvfi_rd_wdata :: {-# UNPACK #-} !RV_WordXLEN
+data RVFI_IntData = RVFI_IntData {
+  rvfi_rs1_addr  :: {-# UNPACK #-} !RV_RegIdx
+, rvfi_rs2_addr  :: {-# UNPACK #-} !RV_RegIdx
+, rvfi_rs1_rdata :: {-# UNPACK #-} !RV_WordXLEN
+, rvfi_rs2_rdata :: {-# UNPACK #-} !RV_WordXLEN
+, rvfi_rd_addr   :: {-# UNPACK #-} !RV_RegIdx
+, rvfi_rd_wdata  :: {-# UNPACK #-} !RV_WordXLEN
   }
   deriving (Show)
 
 rvfiEmptyIntData :: RVFI_IntData
-rvfiEmptyIntData =
-  RVFI_IntData
-    { rvfi_rs1_addr = 0,
-      rvfi_rs2_addr = 0,
-      rvfi_rs1_rdata = 0,
-      rvfi_rs2_rdata = 0,
-      rvfi_rd_addr = 0,
-      rvfi_rd_wdata = 0
-    }
+rvfiEmptyIntData = RVFI_IntData {
+rvfi_rs1_addr = 0
+, rvfi_rs2_addr = 0
+, rvfi_rs1_rdata = 0
+, rvfi_rs2_rdata = 0
+, rvfi_rd_addr = 0
+, rvfi_rd_wdata = 0
+}
 
-data RVFI_MemAccessData = RVFI_MemAccessData
-  { rvfi_mem_addr :: {-# UNPACK #-} !RV_WordXLEN,
-    rvfi_mem_rmask :: {-# UNPACK #-} !Word32,
-    rvfi_mem_wmask :: {-# UNPACK #-} !Word32,
-    rvfi_mem_rdata :: {-# UNPACK #-} !Basement.Types.Word256.Word256,
-    rvfi_mem_wdata :: {-# UNPACK #-} !Basement.Types.Word256.Word256
-  }
+data RVFI_MemAccessData = RVFI_MemAccessData {
+ rvfi_mem_addr   :: {-# UNPACK #-} !RV_WordXLEN
+, rvfi_mem_rmask :: {-# UNPACK #-} !Word32
+, rvfi_mem_wmask :: {-# UNPACK #-} !Word32
+, rvfi_mem_rdata :: {-# UNPACK #-} !Basement.Types.Word256.Word256
+, rvfi_mem_wdata :: {-# UNPACK #-} !Basement.Types.Word256.Word256
+}
 
 rvfiEmptyMemData :: RVFI_MemAccessData
-rvfiEmptyMemData =
-  RVFI_MemAccessData
-    { rvfi_mem_addr = 0,
-      rvfi_mem_rmask = 0,
-      rvfi_mem_wmask = 0,
-      rvfi_mem_rdata = 0,
-      rvfi_mem_wdata = 0
-    }
+rvfiEmptyMemData = RVFI_MemAccessData {
+  rvfi_mem_addr = 0
+, rvfi_mem_rmask = 0
+, rvfi_mem_wmask = 0
+, rvfi_mem_rdata = 0
+, rvfi_mem_wdata = 0
+}
 
 hexStr :: BS.ByteString -> String
 hexStr msg = show (toLazyByteString (lazyByteStringHex msg))
@@ -254,23 +252,20 @@ rvfiDecodeV2Header = do
   pc_rdata <- getWord64le
   pc_wdata <- getWord64le
   availableFeatures <- getWord64le
-  return $
-    ( RVFI_Packet
-        { rvfi_valid = valid,
-          rvfi_order = order,
-          rvfi_insn = insn,
-          rvfi_trap = trap,
-          rvfi_halt = halt,
-          rvfi_intr = intr,
-          rvfi_mode = Just (toEnum (fromIntegral mode)),
-          rvfi_ixl = Just ixl,
-          rvfi_pc_rdata = pc_rdata,
-          rvfi_pc_wdata = pc_wdata,
-          rvfi_int_data = Nothing,
-          rvfi_mem_data = Nothing
-        },
-      availableFeatures
-    )
+  return $ (RVFI_Packet {
+      rvfi_valid = valid
+    , rvfi_order = order
+    , rvfi_insn = insn
+    , rvfi_trap = trap
+    , rvfi_halt = halt
+    , rvfi_intr = intr
+    , rvfi_mode = Just (toEnum (fromIntegral mode))
+    , rvfi_ixl = Just ixl
+    , rvfi_pc_rdata = pc_rdata
+    , rvfi_pc_wdata = pc_wdata
+    , rvfi_int_data = Nothing
+    , rvfi_mem_data = Nothing
+    }, availableFeatures)
 
 -- See sail-riscv/model/rvfi_dii.sail for the bitfield definitions
 rvfiMaybeReadIntData :: (Int64 -> IO BS.ByteString, String, Int) -> RVFIFeatures -> IO (Maybe RVFI_IntData, RVFIFeatures, Int)
@@ -291,15 +286,14 @@ rvfiDecodeIntData = do
   rs1_addr <- getWord8
   rs2_addr <- getWord8
   skip 5 -- 5 bytes of padding
-  return
-    $! RVFI_IntData
-      { rvfi_rd_wdata = rd_wdata,
-        rvfi_rs1_rdata = rs1_rdata,
-        rvfi_rs2_rdata = rs2_rdata,
-        rvfi_rd_addr = rd_addr,
-        rvfi_rs1_addr = rs1_addr,
-        rvfi_rs2_addr = rs2_addr
-      }
+  return $! RVFI_IntData {
+      rvfi_rd_wdata = rd_wdata
+    , rvfi_rs1_rdata = rs1_rdata
+    , rvfi_rs2_rdata = rs2_rdata
+    , rvfi_rd_addr = rd_addr
+    , rvfi_rs1_addr = rs1_addr
+    , rvfi_rs2_addr = rs2_addr
+    }
 
 rvfiMaybeReadMemData :: (Int64 -> IO BS.ByteString, String, Int) -> RVFIFeatures -> IO (Maybe RVFI_MemAccessData, RVFIFeatures, Int)
 rvfiMaybeReadMemData connection availableFeatures = do
@@ -323,14 +317,13 @@ rvfiDecodeMemData = do
   mem_rmask <- getWord32le
   mem_wmask <- getWord32le
   mem_addr <- getWord64le
-  return
-    $! RVFI_MemAccessData
-      { rvfi_mem_addr = mem_addr,
-        rvfi_mem_rmask = mem_rmask,
-        rvfi_mem_wmask = mem_wmask,
-        rvfi_mem_rdata = Basement.Types.Word256.Word256 rdata4 rdata3 rdata2 rdata1,
-        rvfi_mem_wdata = Basement.Types.Word256.Word256 wdata4 wdata3 wdata2 wdata1
-      }
+  return $! RVFI_MemAccessData {
+      rvfi_mem_addr = mem_addr
+    , rvfi_mem_rmask = mem_rmask
+    , rvfi_mem_wmask = mem_wmask
+    , rvfi_mem_rdata = Basement.Types.Word256.Word256 rdata4 rdata3 rdata2 rdata1
+    , rvfi_mem_wdata = Basement.Types.Word256.Word256 wdata4 wdata3 wdata2 wdata1
+    }
 
 rvfiReadV1Response :: (Int64 -> IO BS.ByteString, String, Int) -> IO RVFI_Packet
 rvfiReadV1Response (reader, name, verbosity) = do
@@ -359,37 +352,31 @@ rvfiDecodeV1Response = do
   pc_wdata <- getWord64be
   pc_rdata <- getWord64be
   order <- getWord64be
-  return $
-    RVFI_Packet
-      { rvfi_valid = 1,
-        rvfi_order = order,
-        rvfi_insn = insn,
-        rvfi_trap = trap,
-        rvfi_halt = halt,
-        rvfi_intr = intr,
-        rvfi_mode = Nothing,
-        rvfi_ixl = Nothing,
-        rvfi_pc_rdata = pc_rdata,
-        rvfi_pc_wdata = pc_wdata,
-        rvfi_int_data =
-          Just
-            RVFI_IntData
-              { rvfi_rs1_addr = rs1_addr,
-                rvfi_rs2_addr = rs2_addr,
-                rvfi_rs1_rdata = rs1_rdata,
-                rvfi_rs2_rdata = rs2_rdata,
-                rvfi_rd_addr = rd_addr,
-                rvfi_rd_wdata = rd_wdata
-              },
-        rvfi_mem_data =
-          Just
-            RVFI_MemAccessData
-              { rvfi_mem_addr = mem_addr,
-                rvfi_mem_rmask = fromIntegral mem_rmask, -- FIXME: I think this zero-extends?
-                rvfi_mem_wmask = fromIntegral mem_wmask, -- FIXME: I think this zero-extends?
-                rvfi_mem_rdata = Basement.Types.Word256.Word256 0 0 0 mem_rdata,
-                rvfi_mem_wdata = Basement.Types.Word256.Word256 0 0 0 mem_wdata
-              }
+  return $ RVFI_Packet { rvfi_valid = 1,
+      rvfi_order = order
+    , rvfi_insn = insn
+    , rvfi_trap = trap
+    , rvfi_halt = halt
+    , rvfi_intr = intr
+    , rvfi_mode = Nothing
+    , rvfi_ixl = Nothing
+    , rvfi_pc_rdata = pc_rdata
+    , rvfi_pc_wdata = pc_wdata
+    , rvfi_int_data = Just RVFI_IntData {
+        rvfi_rs1_addr = rs1_addr
+      , rvfi_rs2_addr = rs2_addr
+      , rvfi_rs1_rdata = rs1_rdata
+      , rvfi_rs2_rdata = rs2_rdata
+      , rvfi_rd_addr = rd_addr
+      , rvfi_rd_wdata = rd_wdata
+      }
+    , rvfi_mem_data = Just RVFI_MemAccessData {
+         rvfi_mem_addr = mem_addr
+        , rvfi_mem_rmask = fromIntegral mem_rmask -- FIXME: I think this zero-extends?
+        , rvfi_mem_wmask = fromIntegral mem_wmask -- FIXME: I think this zero-extends?
+        , rvfi_mem_rdata = Basement.Types.Word256.Word256 0 0 0 mem_rdata
+        , rvfi_mem_wdata = Basement.Types.Word256.Word256 0 0 0 mem_wdata
+        }
       }
 
 -- | An otherwise empty halt token for padding
@@ -481,5 +468,5 @@ rvfiCheck is64 x y
 --   each input 'RVFI_Packet' if inputs are not succeeding the 'rvfiCheck'
 rvfiCheckAndShow :: Bool -> RVFI_Packet -> RVFI_Packet -> (Bool, String)
 rvfiCheckAndShow is64 x y
-  | rvfiCheck is64 x y = (True, "     " ++ show x)
-  | otherwise = (False, " A < " ++ show x ++ "\n B > " ++ show y)
+  | rvfiCheck is64 x y = (True,  "     " ++ show x)
+  | otherwise          = (False, " A < " ++ show x ++ "\n B > " ++ show y)
