@@ -445,6 +445,22 @@ rvfiIsTrap x = rvfi_trap x /= 0
 optionalFieldsSame :: Eq a => (Maybe a) -> (Maybe a) -> Bool
 optionalFieldsSame x y = fromMaybe True (mzipWith (==) x y)
 
+compareMemData :: Bool -> RVFI_Packet -> RVFI_Packet -> (RVFI_MemAccessData -> Word32)
+               -> (RVFI_MemAccessData -> Basement.Types.Word256.Word256) -> Bool
+compareMemData is64 x y getMask getData = do
+  let xMem = fromMaybe rvfiEmptyMemData (rvfi_mem_data x)
+  let yMem = fromMaybe rvfiEmptyMemData (rvfi_mem_data y)
+  let xMask = (getMask xMem)
+  let yMask = (getMask yMem)
+  (xMask == yMask)
+    && ((xMask == 0) || (maskUpper (rvfi_mem_addr xMem) == maskUpper (rvfi_mem_addr yMem)))
+    && (maskWith (getData xMem) xMask == maskWith (getData yMem) yMask)
+  where
+    maskUpper _x = if is64 then _x else _x Data.Bits..&. 0x00000000FFFFFFFF
+    byteMask2bitMask mask = BW.fromListLE $ concatMap (replicate 8) (BW.toListLE mask)
+    maskWith a b = a Data.Bits..&. byteMask2bitMask b
+
+
 -- | Compare 'RVFI_Packet's
 -- TODO: Improve handling of Maybe values
 rvfiCheck :: Bool -> RVFI_Packet -> RVFI_Packet -> Bool
@@ -459,18 +475,12 @@ rvfiCheck is64 x y
       && (optionalFieldsSame (rvfi_ixl x) (rvfi_ixl y))
       && (rvfi_rd_addr xInt == rvfi_rd_addr yInt)
       && ((rvfi_rd_addr xInt == 0) || (maskUpper is64 (rvfi_rd_wdata xInt) == maskUpper is64 (rvfi_rd_wdata yInt)))
-      && (rvfi_mem_wmask xMem == rvfi_mem_wmask yMem)
-      && ((rvfi_mem_wmask xMem == 0) || (maskUpper is64 (rvfi_mem_addr xMem) == maskUpper is64 (rvfi_mem_addr yMem)))
+      && compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata
       && (maskUpper is64 (rvfi_pc_wdata x) == maskUpper is64 (rvfi_pc_wdata y))
-      && (maskWith (rvfi_mem_wdata xMem) (rvfi_mem_wmask xMem) == maskWith (rvfi_mem_wdata yMem) (rvfi_mem_wmask yMem))
   where
     maskUpper _is64 _x = if _is64 then _x else _x Data.Bits..&. 0x00000000FFFFFFFF
-    byteMask2bitMask mask = BW.fromListLE $ concatMap (replicate 8) (BW.toListLE mask)
-    maskWith a b = a Data.Bits..&. byteMask2bitMask b
     xInt = fromMaybe rvfiEmptyIntData (rvfi_int_data x)
     yInt = fromMaybe rvfiEmptyIntData (rvfi_int_data y)
-    xMem = fromMaybe rvfiEmptyMemData (rvfi_mem_data x)
-    yMem = fromMaybe rvfiEmptyMemData (rvfi_mem_data y)
 
 -- | Compare 2 'RVFI_Packet's and produce a 'String' output displaying the
 --   the content of the packet once only for equal inputs or the content of
