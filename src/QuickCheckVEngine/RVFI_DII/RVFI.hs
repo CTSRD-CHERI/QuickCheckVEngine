@@ -456,13 +456,17 @@ compareMemData :: Bool -> RVFI_Packet -> RVFI_Packet -> (RVFI_MemAccessData -> W
 compareMemData is64 x y getMask getData = do
   let xMem = fromMaybe rvfiEmptyMemData (rvfi_mem_data x)
   let yMem = fromMaybe rvfiEmptyMemData (rvfi_mem_data y)
-  let xMask = (getMask xMem)
-  let yMask = (getMask yMem)
+  -- If one of the implementations is reporting V1 traces, we can only compare
+  -- the low 64 bits of the memory packet rather than the full 256.
+  let compareV1BitsOnly = rvfi_trace_version x < 2 || rvfi_trace_version y < 2
+  let clampAddr a = if is64 then a else a .&. 0x00000000FFFFFFFF
+  let clampMask m = if compareV1BitsOnly then m .&. 0xff else m
+  let xMask = clampMask (getMask xMem)
+  let yMask = clampMask (getMask yMem)
   (xMask == yMask)
-    && ((xMask == 0) || (maskUpper (rvfi_mem_addr xMem) == maskUpper (rvfi_mem_addr yMem)))
+    && ((xMask == 0) || (clampAddr (rvfi_mem_addr xMem) == clampAddr (rvfi_mem_addr yMem)))
     && (maskWith (getData xMem) xMask == maskWith (getData yMem) yMask)
   where
-    maskUpper _x = if is64 then _x else _x Data.Bits..&. 0x00000000FFFFFFFF
     byteMask2bitMask mask = BW.fromListLE $ concatMap (replicate 8) (BW.toListLE mask)
     maskWith a b = a Data.Bits..&. byteMask2bitMask b
 
