@@ -93,8 +93,11 @@ type RV_XL = Word8
 
 -- | The 'RVFI_Packet' type captures (a subset of) the RISC-V Formal Interface
 data RVFI_Packet = RVFI_Packet {
+-- The trace version used to decode this packet. This is used to ignore parts
+-- of fields that are only present in version 2 (or newer).
+  rvfi_trace_version :: Int
 -- Metadata
-  rvfi_valid :: Word8
+, rvfi_valid :: Word8
 , rvfi_order :: Word64
 , rvfi_insn  :: Word64
 , rvfi_trap  :: Word8
@@ -253,7 +256,8 @@ rvfiDecodeV2Header = do
   pc_wdata <- getWord64le
   availableFeatures <- getWord64le
   return $ (RVFI_Packet {
-      rvfi_valid = valid
+      rvfi_trace_version = 2
+    , rvfi_valid = valid
     , rvfi_order = order
     , rvfi_insn = insn
     , rvfi_trap = trap
@@ -352,8 +356,10 @@ rvfiDecodeV1Response = do
   pc_wdata <- getWord64be
   pc_rdata <- getWord64be
   order <- getWord64be
-  return $ RVFI_Packet { rvfi_valid = 1,
-      rvfi_order = order
+  return $ RVFI_Packet {
+      rvfi_trace_version = 1
+    , rvfi_valid = 1
+    , rvfi_order = order
     , rvfi_insn = insn
     , rvfi_trap = trap
     , rvfi_halt = halt
@@ -381,20 +387,20 @@ rvfiDecodeV1Response = do
 
 -- | An otherwise empty halt token for padding
 rvfiEmptyHaltPacket :: RVFI_Packet
-rvfiEmptyHaltPacket =
-  RVFI_Packet
-    { rvfi_halt = 1,
-      rvfi_valid = 0,
-      rvfi_order = 0,
-      rvfi_insn = 0,
-      rvfi_trap = 0,
-      rvfi_intr = 0,
-      rvfi_mode = Nothing,
-      rvfi_ixl = Nothing,
-      rvfi_pc_rdata = 0,
-      rvfi_pc_wdata = 0,
-      rvfi_int_data = Nothing,
-      rvfi_mem_data = Nothing
+rvfiEmptyHaltPacket = RVFI_Packet {
+      rvfi_trace_version = 0
+    , rvfi_halt = 1
+    , rvfi_valid = 0
+    , rvfi_order = 0
+    , rvfi_insn = 0
+    , rvfi_trap = 0
+    , rvfi_intr = 0
+    , rvfi_mode = Nothing
+    , rvfi_ixl = Nothing
+    , rvfi_pc_rdata = 0
+    , rvfi_pc_wdata = 0
+    , rvfi_int_data = Nothing
+    , rvfi_mem_data = Nothing
     }
 
 prvString :: Maybe RV_PrivMode -> String
