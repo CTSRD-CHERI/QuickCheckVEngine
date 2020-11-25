@@ -332,7 +332,7 @@ rvfiDecodeMemData = do
 rvfiReadV1Response :: (Int64 -> IO BS.ByteString, String, Int) -> IO RVFI_Packet
 rvfiReadV1Response (reader, name, verbosity) = do
   msg <- reader 88
-  connectionDebugMessage 2 (name, verbosity) ("read packet: " ++ hexStr msg)
+  connectionDebugMessage 3 (name, verbosity) ("read packet: " ++ hexStr msg)
   -- Note: BS.reverse since the decode was written in BE order
   return $ runGet (isolate 88 rvfiDecodeV1Response) (BS.reverse msg)
 
