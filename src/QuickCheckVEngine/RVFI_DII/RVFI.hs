@@ -136,11 +136,11 @@ rvfiGetFromString "rd_addr"   = Just $ toInteger . rvfi_rd_addr . (fromMaybe rvf
 rvfiGetFromString "rd_wdata"  = Just $ toInteger . rvfi_rd_wdata . (fromMaybe rvfiEmptyIntData) . rvfi_int_data
 rvfiGetFromString "pc_rdata"  = Just $ toInteger . rvfi_pc_rdata
 rvfiGetFromString "pc_wdata"  = Just $ toInteger . rvfi_pc_wdata
-rvfiGetFromString "mem_addr"  = Just $ toInteger . rvfi_mem_addr . (fromMaybe rvfiEmptyMemData) . rvfi_mem_data
-rvfiGetFromString "mem_rmask" = Just $ toInteger . rvfi_mem_rmask . (fromMaybe rvfiEmptyMemData) . rvfi_mem_data
-rvfiGetFromString "mem_wmask" = Just $ toInteger . rvfi_mem_wmask . (fromMaybe rvfiEmptyMemData) . rvfi_mem_data
-rvfiGetFromString "mem_rdata" = Just $ toInteger . toNatural . rvfi_mem_rdata . (fromMaybe rvfiEmptyMemData) . rvfi_mem_data
-rvfiGetFromString "mem_wdata" = Just $ toInteger . toNatural . rvfi_mem_wdata . (fromMaybe rvfiEmptyMemData) . rvfi_mem_data
+rvfiGetFromString "mem_addr"  = Just $ (maybe 0 (toInteger . rvfi_mem_addr)) . rvfi_mem_data
+rvfiGetFromString "mem_rmask" = Just $ (maybe 0 (toInteger . rvfi_mem_rmask)) . rvfi_mem_data
+rvfiGetFromString "mem_wmask" = Just $ (maybe 0 (toInteger . rvfi_mem_wmask)) . rvfi_mem_data
+rvfiGetFromString "mem_rdata" = Just $ (maybe 0 (toInteger . toNatural . rvfi_mem_rdata)) . rvfi_mem_data
+rvfiGetFromString "mem_wdata" = Just $ (maybe 0 (toInteger . toNatural . rvfi_mem_wdata)) . rvfi_mem_data
 rvfiGetFromString _           = Nothing
 
 rvfi_rd_wdata_or_zero :: RVFI_Packet -> Word64
@@ -172,15 +172,6 @@ data RVFI_MemAccessData = RVFI_MemAccessData {
 , rvfi_mem_wmask :: {-# UNPACK #-} !Word32
 , rvfi_mem_rdata :: {-# UNPACK #-} !Basement.Types.Word256.Word256
 , rvfi_mem_wdata :: {-# UNPACK #-} !Basement.Types.Word256.Word256
-}
-
-rvfiEmptyMemData :: RVFI_MemAccessData
-rvfiEmptyMemData = RVFI_MemAccessData {
-  rvfi_mem_addr = 0
-, rvfi_mem_rmask = 0
-, rvfi_mem_wmask = 0
-, rvfi_mem_rdata = 0
-, rvfi_mem_wdata = 0
 }
 
 hexStr :: BS.ByteString -> String
@@ -422,18 +413,15 @@ instance Show RVFI_Packet where
         "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, MA: 0x%016x, MWD: 0x%016x, MWM: 0b%08b, I: 0x%016x %s XL:%s (%s)"
         (show $ rvfi_trap tok /= 0) -- Trap
         (rvfi_pc_wdata tok) -- PCWD
-        (rvfi_rd_addr intData) -- RD
-        (rvfi_rd_wdata intData) -- RWD
-        (rvfi_mem_addr memData) -- MA
-        (toNatural (rvfi_mem_wdata memData)) -- MWD
-        (rvfi_mem_wmask memData) -- MWM
+        (maybe 0 rvfi_rd_addr $ rvfi_int_data tok) -- RD
+        (maybe 0 rvfi_rd_wdata $ rvfi_int_data tok) -- RWD
+        (maybe 0 rvfi_mem_addr $ rvfi_mem_data tok) -- MA
+        (toNatural (maybe 0 rvfi_mem_wdata $ rvfi_mem_data tok)) -- MWD
+        (maybe 0 rvfi_mem_wmask $ rvfi_mem_data tok) -- MWM
         (rvfi_insn tok)
         (prvString (rvfi_mode tok))
         (ixlString (rvfi_ixl tok))
         (pretty (toInteger (rvfi_insn tok))) -- Inst
-    where
-      intData = fromMaybe rvfiEmptyIntData (rvfi_int_data tok)
-      memData = fromMaybe rvfiEmptyMemData (rvfi_mem_data tok)
 
 -- | Return 'True' for halt 'RVFI_Packet's
 rvfiIsHalt :: RVFI_Packet -> Bool
@@ -454,19 +442,18 @@ optionalFieldsSame x y = fromMaybe True (mzipWith (==) x y)
 compareMemData :: Bool -> RVFI_Packet -> RVFI_Packet -> (RVFI_MemAccessData -> Word32)
                -> (RVFI_MemAccessData -> Basement.Types.Word256.Word256) -> Bool
 compareMemData is64 x y getMask getData = do
-  let xMem = fromMaybe rvfiEmptyMemData (rvfi_mem_data x)
-  let yMem = fromMaybe rvfiEmptyMemData (rvfi_mem_data y)
   -- If one of the implementations is reporting V1 traces, we can only compare
   -- the low 64 bits of the memory packet rather than the full 256.
   let compareV1BitsOnly = rvfi_trace_version x < 2 || rvfi_trace_version y < 2
-  let clampAddr a = if is64 then a else a .&. 0x00000000FFFFFFFF
   let clampMask m = if compareV1BitsOnly then m .&. 0xff else m
-  let xMask = clampMask (getMask xMem)
-  let yMask = clampMask (getMask yMem)
-  (xMask == yMask)
-    && ((xMask == 0) || (clampAddr (rvfi_mem_addr xMem) == clampAddr (rvfi_mem_addr yMem)))
-    && (maskWith (getData xMem) xMask == maskWith (getData yMem) yMask)
+  let xMask = clampMask (getOrZero getMask x)
+  let yMask = clampMask (getOrZero getMask y)
+  (xMask == yMask) && ((xMask == 0) || (getMemAddr x == getMemAddr y))
+    && (maskWith (getOrZero getData x) xMask == maskWith (getOrZero getData y) yMask)
   where
+    clampAddr a = if is64 then a else a .&. 0x00000000FFFFFFFF
+    getOrZero getter pkt = (maybe 0 getter $ rvfi_mem_data pkt)
+    getMemAddr pkt = clampAddr (getOrZero rvfi_mem_addr pkt)
     byteMask2bitMask mask = BW.fromListLE $ concatMap (replicate 8) (BW.toListLE mask)
     maskWith a b = a Data.Bits..&. byteMask2bitMask b
 
