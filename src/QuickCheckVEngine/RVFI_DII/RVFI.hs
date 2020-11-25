@@ -128,23 +128,23 @@ rvfiGetFromString "insn"      = Just $ toInteger . rvfi_insn
 rvfiGetFromString "trap"      = Just $ toInteger . rvfi_trap
 rvfiGetFromString "halt"      = Just $ toInteger . rvfi_halt
 rvfiGetFromString "intr"      = Just $ toInteger . rvfi_intr
-rvfiGetFromString "rs1_addr"  = Just $ toInteger . rvfi_rs1_addr . (fromMaybe rvfiEmptyIntData) . rvfi_int_data
-rvfiGetFromString "rs2_addr"  = Just $ toInteger . rvfi_rs2_addr . (fromMaybe rvfiEmptyIntData) . rvfi_int_data
-rvfiGetFromString "rs1_rdata" = Just $ toInteger . rvfi_rs1_rdata . (fromMaybe rvfiEmptyIntData) . rvfi_int_data
-rvfiGetFromString "rs2_rdata" = Just $ toInteger . rvfi_rs2_rdata . (fromMaybe rvfiEmptyIntData) . rvfi_int_data
-rvfiGetFromString "rd_addr"   = Just $ toInteger . rvfi_rd_addr . (fromMaybe rvfiEmptyIntData) . rvfi_int_data
-rvfiGetFromString "rd_wdata"  = Just $ toInteger . rvfi_rd_wdata . (fromMaybe rvfiEmptyIntData) . rvfi_int_data
+rvfiGetFromString "rs1_addr"  = Just $ (maybe 0 $ toInteger . rvfi_rs1_addr) . rvfi_int_data
+rvfiGetFromString "rs2_addr"  = Just $ (maybe 0 $ toInteger . rvfi_rs2_addr) . rvfi_int_data
+rvfiGetFromString "rs1_rdata" = Just $ (maybe 0 $ toInteger . rvfi_rs1_rdata) . rvfi_int_data
+rvfiGetFromString "rs2_rdata" = Just $ (maybe 0 $ toInteger . rvfi_rs2_rdata) . rvfi_int_data
+rvfiGetFromString "rd_addr"   = Just $ (maybe 0 $ toInteger . rvfi_rd_addr) . rvfi_int_data
+rvfiGetFromString "rd_wdata"  = Just $ (maybe 0 $ toInteger . rvfi_rd_wdata) . rvfi_int_data
 rvfiGetFromString "pc_rdata"  = Just $ toInteger . rvfi_pc_rdata
 rvfiGetFromString "pc_wdata"  = Just $ toInteger . rvfi_pc_wdata
-rvfiGetFromString "mem_addr"  = Just $ (maybe 0 (toInteger . rvfi_mem_addr)) . rvfi_mem_data
-rvfiGetFromString "mem_rmask" = Just $ (maybe 0 (toInteger . rvfi_mem_rmask)) . rvfi_mem_data
-rvfiGetFromString "mem_wmask" = Just $ (maybe 0 (toInteger . rvfi_mem_wmask)) . rvfi_mem_data
-rvfiGetFromString "mem_rdata" = Just $ (maybe 0 (toInteger . toNatural . rvfi_mem_rdata)) . rvfi_mem_data
-rvfiGetFromString "mem_wdata" = Just $ (maybe 0 (toInteger . toNatural . rvfi_mem_wdata)) . rvfi_mem_data
+rvfiGetFromString "mem_addr"  = Just $ (maybe 0 $ toInteger . rvfi_mem_addr) . rvfi_mem_data
+rvfiGetFromString "mem_rmask" = Just $ (maybe 0 $ toInteger . rvfi_mem_rmask) . rvfi_mem_data
+rvfiGetFromString "mem_wmask" = Just $ (maybe 0 $ toInteger . rvfi_mem_wmask) . rvfi_mem_data
+rvfiGetFromString "mem_rdata" = Just $ (maybe 0 $ toInteger . toNatural . rvfi_mem_rdata) . rvfi_mem_data
+rvfiGetFromString "mem_wdata" = Just $ (maybe 0 $ toInteger . toNatural . rvfi_mem_wdata) . rvfi_mem_data
 rvfiGetFromString _           = Nothing
 
 rvfi_rd_wdata_or_zero :: RVFI_Packet -> Word64
-rvfi_rd_wdata_or_zero x = rvfi_rd_wdata (fromMaybe rvfiEmptyIntData (rvfi_int_data x))
+rvfi_rd_wdata_or_zero x = maybe 0 rvfi_rd_wdata $ rvfi_int_data x
 
 data RVFI_IntData = RVFI_IntData {
   rvfi_rs1_addr  :: {-# UNPACK #-} !RV_RegIdx
@@ -155,16 +155,6 @@ data RVFI_IntData = RVFI_IntData {
 , rvfi_rd_wdata  :: {-# UNPACK #-} !RV_WordXLEN
   }
   deriving (Show)
-
-rvfiEmptyIntData :: RVFI_IntData
-rvfiEmptyIntData = RVFI_IntData {
-rvfi_rs1_addr = 0
-, rvfi_rs2_addr = 0
-, rvfi_rs1_rdata = 0
-, rvfi_rs2_rdata = 0
-, rvfi_rd_addr = 0
-, rvfi_rd_wdata = 0
-}
 
 data RVFI_MemAccessData = RVFI_MemAccessData {
  rvfi_mem_addr   :: {-# UNPACK #-} !RV_WordXLEN
@@ -470,14 +460,14 @@ rvfiCheck is64 x y
       && (rvfi_halt x == rvfi_halt y)
       && (optionalFieldsSame (rvfi_mode x) (rvfi_mode y))
       && (optionalFieldsSame (rvfi_ixl x) (rvfi_ixl y))
-      && (rvfi_rd_addr xInt == rvfi_rd_addr yInt)
-      && ((rvfi_rd_addr xInt == 0) || (maskUpper is64 (rvfi_rd_wdata xInt) == maskUpper is64 (rvfi_rd_wdata yInt)))
+      && (getRDAddr x == getRDAddr y)
+      && ((getRDAddr x == 0) || (getRDWData x == getRDWData y))
       && compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata
       && (maskUpper is64 (rvfi_pc_wdata x) == maskUpper is64 (rvfi_pc_wdata y))
   where
     maskUpper _is64 _x = if _is64 then _x else _x Data.Bits..&. 0x00000000FFFFFFFF
-    xInt = fromMaybe rvfiEmptyIntData (rvfi_int_data x)
-    yInt = fromMaybe rvfiEmptyIntData (rvfi_int_data y)
+    getRDAddr pkt = maybe 0 rvfi_rd_addr $ rvfi_int_data pkt
+    getRDWData pkt = maskUpper is64 (maybe 0 rvfi_rd_wdata $ rvfi_int_data pkt)
 
 -- | Compare 2 'RVFI_Packet's and produce a 'String' output displaying the
 --   the content of the packet once only for equal inputs or the content of
