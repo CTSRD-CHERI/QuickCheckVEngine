@@ -84,6 +84,13 @@ writeHPMCounter :: HPMCounterIdx -> Integer -> Template
 writeHPMCounter idx rs1 = csrw csrIdx rs1
   where csrIdx = hpmcounter_idx_to_csr_idx idx 
 
+-- | Clear the provided HPM counter
+resetHPMCounter :: Integer -> HPMCounterIdx -> Template
+resetHPMCounter tmp idx = Sequence [ li32 tmpNonZero 0
+                                   , csrw csrIdx tmpNonZero ]
+  where csrIdx = hpmcounter_idx_to_csr_idx idx
+        tmpNonZero = max 1 tmp
+
 -- | 'surroundWithHPMAccess' wraps a 'Template' by setting up an HPM counter to
 --   count an event and before running the 'Template' and reading the HPM
 --   counter's value after
@@ -99,7 +106,7 @@ surroundWithHPMAccess_core shrink evt x = Random $ do
   tmpReg <- dest
   let prologue =    inhibitHPMCounter tmpReg hpmCntIdx
                  <> setupHPMEventSel tmpReg hpmCntIdx evt
-                 <> writeHPMCounter hpmCntIdx 0
+                 <> resetHPMCounter tmpReg hpmCntIdx
                  <> triggerHPMCounter tmpReg hpmCntIdx
   let epilogue = readHPMCounter tmpReg hpmCntIdx
   return $ if shrink then prologue <> x <> epilogue
