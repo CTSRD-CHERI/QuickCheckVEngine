@@ -49,9 +49,10 @@ import Data.Bits
 import Test.QuickCheck
 
 -- | Sets up the provided HPM counter to count the provided HPM event
---   (using the provided temporary) 
+--   (using the provided temporary)
 setupHPMEventSel :: Integer -> HPMEventSelCSRIdx -> HPMEventIdx -> Template
-setupHPMEventSel tmpReg sel evt = li32 tmpReg evt <> csrw sel tmpReg
+setupHPMEventSel tmpReg sel evt = li32 tmpReg evt <> csrw csrIdx tmpReg
+  where csrIdx = hpmcounter_idx_to_event_sel_csr_idx sel
 
 -- | Trigger the provided HPM counter
 triggerHPMCounter :: Integer -> HPMCounterIdx -> Template
@@ -75,20 +76,20 @@ disableHPMCounter tmpReg idx = csrBitSetOrClear False mcounteren idx tmpReg
 
 -- | Read the provided HPM counter into the provided destination register
 readHPMCounter :: Integer -> HPMCounterIdx -> Template
-readHPMCounter rd idx = csrr rd csrIdx 
-  where csrIdx = hpmcounter_idx_to_csr_idx idx 
+readHPMCounter rd idx = csrr rd csrIdx
+  where csrIdx = hpmcounter_idx_to_counter_csr_idx idx
 
 -- | Write the provided general purpose register's value into the provided
 --   HPM counter
 writeHPMCounter :: HPMCounterIdx -> Integer -> Template
 writeHPMCounter idx rs1 = csrw csrIdx rs1
-  where csrIdx = hpmcounter_idx_to_csr_idx idx 
+  where csrIdx = hpmcounter_idx_to_counter_csr_idx idx
 
 -- | Clear the provided HPM counter
 resetHPMCounter :: Integer -> HPMCounterIdx -> Template
 resetHPMCounter tmp idx = Sequence [ li32 tmpNonZero 0
                                    , csrw csrIdx tmpNonZero ]
-  where csrIdx = hpmcounter_idx_to_csr_idx idx
+  where csrIdx = hpmcounter_idx_to_counter_csr_idx idx
         tmpNonZero = max 1 tmp
 
 -- | 'surroundWithHPMAccess' wraps a 'Template' by setting up an HPM counter to

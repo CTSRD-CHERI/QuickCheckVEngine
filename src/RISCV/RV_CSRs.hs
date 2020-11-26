@@ -44,7 +44,8 @@ module RISCV.RV_CSRs (
 , HPMCounterIdx
 , HPMCounterCSRIdx
 , HPMEventSelCSRIdx
-, hpmcounter_idx_to_csr_idx
+, hpmcounter_idx_to_counter_csr_idx
+, hpmcounter_idx_to_event_sel_csr_idx
 , hpmcounter_indices
 , hpmcounter_csr_indices
 , hpmevent_csr_indices
@@ -71,9 +72,14 @@ type HPMEventSelCSRIdx = Integer
 nHPMCounters = 29
 
 -- | Turns an 'HPMCounterIdx' into an 'HPMCounterCSRIdx'
-hpmcounter_idx_to_csr_idx :: HPMCounterIdx -> HPMCounterCSRIdx
-hpmcounter_idx_to_csr_idx idx =
+hpmcounter_idx_to_counter_csr_idx :: HPMCounterIdx -> HPMCounterCSRIdx
+hpmcounter_idx_to_counter_csr_idx idx =
   hpmcounter_csr_indices !! fromInteger (idx - head hpmcounter_indices)
+
+-- | Turns an 'HPMCounterIdx' into an 'HPMEventSelCSRIdx'
+hpmcounter_idx_to_event_sel_csr_idx :: HPMCounterIdx -> HPMEventSelCSRIdx
+hpmcounter_idx_to_event_sel_csr_idx idx =
+  hpmevent_csr_indices !! fromInteger (idx - head hpmcounter_indices)
 
 -- | Return the list of available existing hpmcounter indices
 hpmcounter_indices :: [HPMCounterIdx]
