@@ -65,7 +65,7 @@ import Network.Socket.ByteString.Lazy
 import QuickCheckVEngine.RVFI_DII.DII
 import QuickCheckVEngine.RVFI_DII.RVFI
 
-data RvfiDiiConnection = RvfiDiiConnection Socket Int String Int
+data RvfiDiiConnection = RvfiDiiConnection Socket Int String
 
 -- | Send a single 'DII_Packet'
 sendDIIPacket :: Socket -> DII_Packet -> IO ()
@@ -73,23 +73,23 @@ sendDIIPacket sckt inst = sendAll sckt $ BS.reverse (encode inst)
 
 -- | Send an instruction trace (a '[DII_Packet]')
 sendDIITrace :: RvfiDiiConnection -> [DII_Packet] -> IO ()
-sendDIITrace (RvfiDiiConnection sckt _ _ _) trace = mapM_ (sendDIIPacket sckt) trace
+sendDIITrace (RvfiDiiConnection sckt _ _) trace = mapM_ (sendDIIPacket sckt) trace
 
 -- | Receive a single 'RVFI_Packet'
-recvRVFIPacket :: RvfiDiiConnection -> IO RVFI_Packet
-recvRVFIPacket (RvfiDiiConnection sock 1 name verbosity) = rvfiReadV1Response ((recvBlking sock), name, verbosity)
-recvRVFIPacket (RvfiDiiConnection sock 2 name verbosity) = rvfiReadV2Response ((recvBlking sock), name, verbosity)
-recvRVFIPacket (RvfiDiiConnection _ vers name _) = error (name ++ " invalid trace version" ++ show vers)
+recvRVFIPacket :: RvfiDiiConnection -> Int -> IO RVFI_Packet
+recvRVFIPacket (RvfiDiiConnection sock 1 name) verbosity = rvfiReadV1Response ((recvBlking sock), name, verbosity)
+recvRVFIPacket (RvfiDiiConnection sock 2 name) verbosity = rvfiReadV2Response ((recvBlking sock), name, verbosity)
+recvRVFIPacket (RvfiDiiConnection _ vers name) _ = error (name ++ " invalid trace version" ++ show vers)
 
 -- | Receive an execution trace (a '[RVFI_Packet]')
-recvRVFITrace :: RvfiDiiConnection -> Bool -> IO [RVFI_Packet]
-recvRVFITrace conn doLog = do
-  rvfiPkt <- recvRVFIPacket conn
-  when doLog $ putStrLn $ "\t" ++ show rvfiPkt
+recvRVFITrace :: RvfiDiiConnection -> Int -> IO [RVFI_Packet]
+recvRVFITrace conn verbosity = do
+  rvfiPkt <- recvRVFIPacket conn verbosity
+  when (verbosity > 1) $ putStrLn $ "\t" ++ show rvfiPkt
   if rvfiIsHalt rvfiPkt
     then return [rvfiPkt]
     else do
-      morePkts <- recvRVFITrace conn doLog
+      morePkts <- recvRVFITrace conn verbosity
       return (rvfiPkt : morePkts)
 
 -- | Perform a trace version negotiation with an implementation and return the
