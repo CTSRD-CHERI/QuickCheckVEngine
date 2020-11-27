@@ -74,6 +74,10 @@ dii_cmd_instruction = 1
 dii_cmd_end :: DII_Cmd
 dii_cmd_end = 0
 
+-- | A set-version command
+dii_cmd_set_version :: DII_Cmd
+dii_cmd_set_version = 0x76 -- 'v'
+
 -- | The 'DII_Packet' type captures the DII interface as defined in
 --   https://github.com/CTSRD-CHERI/TestRIG/blob/master/RVFI-DII.md
 data DII_Packet = DII_Packet { -- | the command (instruction/end packet)
@@ -122,11 +126,11 @@ diiEnd = DII_Packet { dii_cmd  = dii_cmd_end
 -- | Construct a version negotiation 'DII_Packet'
 diiVersNegotiate :: DII_Packet
 diiVersNegotiate = DII_Packet { dii_cmd  = dii_cmd_end
-                    , dii_time = 1
-                    , dii_insn = 0x56455253 } -- send 'V' 'E' 'R' 'S'
+                              , dii_time = 1
+                              , dii_insn = 0x56455253 } -- send 'V' 'E' 'R' 'S'
 
 -- | Construct a version request 'DII_Packet'
 diiRequestVers :: Word32 -> DII_Packet
-diiRequestVers vers = DII_Packet { dii_cmd  = 0x76 -- 'v'
-                                  , dii_time = 1
-                                  , dii_insn = vers }
+diiRequestVers vers = DII_Packet { dii_cmd  = dii_cmd_set_version
+                                 , dii_time = 1
+                                 , dii_insn = vers }
