@@ -59,19 +59,13 @@ import Control.Monad
 import Data.Binary
 import Data.Binary.Get
 import qualified Data.ByteString.Lazy as BS
-import qualified Data.ByteString.Lazy.Char8 as C8
 import Data.Int
 import Network.Socket
 import Network.Socket.ByteString.Lazy
 import QuickCheckVEngine.RVFI_DII.DII
 import QuickCheckVEngine.RVFI_DII.RVFI
 
-data RvfiDiiConnection = RvfiDiiConnection
-  { socket :: Socket,
-    traceVersion :: Int,
-    name :: String,
-    verbosity :: Int
-  }
+data RvfiDiiConnection = RvfiDiiConnection Socket Int String Int
 
 -- | Send a single 'DII_Packet'
 sendDIIPacket :: Socket -> DII_Packet -> IO ()
