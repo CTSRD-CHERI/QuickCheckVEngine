@@ -124,6 +124,12 @@ diiEnd = DII_Packet { dii_cmd  = dii_cmd_end
                     , dii_insn = 0 }
 
 -- | Construct a version negotiation 'DII_Packet'
+--   A version negotiation packet uses a 'dii_cmd_end' command with embedded
+--   metadata to guarantee that implementations that only support the version 1
+--   trace format continue to work unmodified. This is useful to avoid having
+--   to update legacy implementations and to support conmparing new versions
+--   of an implementation against an older version that does not yet include
+--   support for version 2 traces.
 diiVersNegotiate :: DII_Packet
 diiVersNegotiate = DII_Packet { dii_cmd  = dii_cmd_end
                               , dii_time = 1
