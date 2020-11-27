@@ -106,9 +106,9 @@ zipWithPadding a b f = go
 --   for equivalence. It receives among other things a callback function
 --   'TestCase -> IO ()' to be performed on failure that takes in the reduced
 --   'TestCase' which caused the failure
-prop :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool
-     -> (TestCase -> IO ()) -> ArchDesc -> Int -> Bool -> Gen TestCase -> Property
-prop connA connB alive onFail arch delay doLog gen =
+prop :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> (TestCase -> IO ())
+     -> ArchDesc -> Int -> Int -> Gen TestCase -> Property
+prop connA connB alive onFail arch delay verbosity gen =
   forAllShrink gen shrink mkProp
   where mkProp testCase = whenFail (onFail testCase) (doProp testCase)
         doProp testCase = monadicIO $ run $ do
@@ -117,13 +117,13 @@ prop connA connB alive onFail arch delay doLog gen =
           let insts = instTrace ++ [diiEnd]
           currentlyAlive <- readIORef alive
           if currentlyAlive then do
-            m_traces <- doRVFIDII connA connB alive delay doLog insts
+            m_traces <- doRVFIDII connA connB alive delay verbosity insts
             case m_traces of
               Just (traceA, traceB) -> do
                 let diff = zipWithPadding rvfiEmptyHaltPacket rvfiEmptyHaltPacket
                                           (rvfiCheckAndShow $ has_xlen_64 arch)
                                           traceA traceB
-                when doLog $ mapM_ (putStrLn . snd) diff
+                when (verbosity > 1) $ mapM_ (putStrLn . snd) diff
                 let implAAsserts = asserts (init traceA)
                 let implBAsserts = asserts (init traceB)
                 mapM_ (\s -> putStrLn ("Impl A failed assert: " ++ s)) implAAsserts
@@ -141,21 +141,22 @@ prop connA connB alive onFail arch delay doLog gen =
 --   'Just (traceA, traceB)', otherwise 'Nothing' and sets the provided
 --   'IORef Bool' for alive to 'False' indicating that further interaction with
 --   the implementations is futile
-doRVFIDII :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> Int -> Bool -> [DII_Packet]
-          -> IO (Maybe ([RVFI_Packet], [RVFI_Packet]))
-doRVFIDII connA connB alive delay doLog insts = do
+doRVFIDII :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> Int
+          -> Int -> [DII_Packet] -> IO (Maybe ([RVFI_Packet], [RVFI_Packet]))
+doRVFIDII connA connB alive delay verbosity insts = do
   currentlyAlive <- readIORef alive
   if currentlyAlive then do
     result <- try $ do
+      let doLog = verbosity > 1
       -- Send to implementations
       sendDIITrace connA insts
       when doLog $ putStrLn "Done sending instructions to implementation A"
       sendDIITrace connB insts
       when doLog $ putStrLn "Done sending instructions to implementation B"
       -- Receive from implementations
-      m_traceA <- timeout delay $ recvRVFITrace connA doLog
+      m_traceA <- timeout delay $ recvRVFITrace connA verbosity
       when doLog $ putStrLn "Done receiving reports from implementation A"
-      m_traceB <- timeout delay $ recvRVFITrace connB doLog
+      m_traceB <- timeout delay $ recvRVFITrace connB verbosity
       when doLog $ putStrLn "Done receiving reports from implementation B"
       --
       return (m_traceA, m_traceB)
