@@ -61,10 +61,13 @@ module RISCV (
 , module RISCV.RV_CSRs
 , module RISCV.HPMEvents
 , module RISCV.Shrinks
+, PrivMode
+, XLen
 ) where
 
 import RISCV.ArchDesc
 import RISCV.InstPretty
+import RISCV.Helpers (PrivMode, XLen)
 import RISCV.RV32_I
 import RISCV.RV32_M
 import RISCV.RV32_A
