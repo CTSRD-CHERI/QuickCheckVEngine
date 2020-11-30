@@ -74,13 +74,32 @@ module RISCV.Helpers (
 , reg
 , int
 , fpRoundingMode
+, PrivMode
+, privString
+, XLen
+, xlenString
 ) where
 
 import Numeric
 import Data.Maybe
+import Data.Word (Word8)
 import RISCV.RV_CSRs
 
+data PrivMode = PRV_U | PRV_S | PRV_Reserved | PRV_M deriving (Enum, Show, Eq)
+privString :: Maybe PrivMode -> String
+privString Nothing = "PRV_?"
+privString (Just x) = show x
+
+type XLen = Word8
+xlenString :: Maybe XLen -> String
+xlenString Nothing = "?"
+xlenString (Just 1) = "32"
+xlenString (Just 2) = "64"
+xlenString (Just 3) = "128"
+xlenString (Just _) = "Invalid"
+
 -- | Integer register pretty printer
+reg :: Integer -> String
 reg = intReg
 
 -- | Gives a RISCV register name 'String' when provided an 'Integer' index

@@ -77,6 +77,7 @@ import qualified Data.ByteString.Lazy.Char8 as C8
 import Data.Int
 import Data.Maybe
 import RISCV
+import RISCV.Helpers (privString, xlenString)
 import Text.Printf
 
 -- | Type synonym for a RISCV register index
@@ -84,10 +85,6 @@ type RV_RegIdx = Word8
 
 -- | Type synonym for a RISCV XLEN-bit word
 type RV_WordXLEN = Word64
-
-data RV_PrivMode = PRV_U | PRV_S | PRV_Reserved | PRV_M deriving (Enum, Show, Eq)
-
-type RV_XL = Word8
 
 -- * Definition of the RISC-V Formal Interface
 
@@ -103,8 +100,8 @@ data RVFI_Packet = RVFI_Packet {
 , rvfi_trap  :: Word8
 , rvfi_halt  :: Word8
 , rvfi_intr  :: Word8
-, rvfi_mode  :: Maybe RV_PrivMode
-, rvfi_ixl   :: Maybe RV_XL
+, rvfi_mode  :: Maybe RISCV.PrivMode
+, rvfi_ixl   :: Maybe RISCV.XLen
 -- Program Counter
 , rvfi_pc_rdata :: RV_WordXLEN
 , rvfi_pc_wdata :: RV_WordXLEN
@@ -384,17 +381,6 @@ rvfiEmptyHaltPacket = RVFI_Packet {
     , rvfi_mem_data = Nothing
     }
 
-prvString :: Maybe RV_PrivMode -> String
-prvString Nothing = "PRV_?"
-prvString (Just x) = show x
-
-ixlString :: Maybe RV_XL -> String
-ixlString Nothing = "?"
-ixlString (Just 1) = "32"
-ixlString (Just 2) = "64"
-ixlString (Just 3) = "128"
-ixlString (Just _) = "Invalid"
-
 instance Show RVFI_Packet where
   show tok
     | rvfiIsHalt tok = "halt token"
@@ -409,8 +395,8 @@ instance Show RVFI_Packet where
         (toNatural (maybe 0 rvfi_mem_wdata $ rvfi_mem_data tok)) -- MWD
         (maybe 0 rvfi_mem_wmask $ rvfi_mem_data tok) -- MWM
         (rvfi_insn tok)
-        (prvString (rvfi_mode tok))
-        (ixlString (rvfi_ixl tok))
+        (privString (rvfi_mode tok))
+        (xlenString (rvfi_ixl tok))
         (pretty (toInteger (rvfi_insn tok))) -- Inst
 
 -- | Return 'True' for halt 'RVFI_Packet's
