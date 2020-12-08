@@ -3,6 +3,7 @@
 --
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2019-2020 Alexandre Joannou
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -43,7 +44,7 @@
 
 module RISCV (
   module RISCV.ArchDesc
-, module RISCV.InstPretty
+, module RISCV.InstInspect
 , module RISCV.RV32_I
 , module RISCV.RV32_M
 , module RISCV.RV32_A
@@ -60,14 +61,13 @@ module RISCV (
 , module RISCV.RV_C
 , module RISCV.RV_CSRs
 , module RISCV.HPMEvents
-, module RISCV.Shrinks
 , PrivMode
 , XLen
 ) where
 
 import RISCV.ArchDesc
-import RISCV.InstPretty
 import RISCV.Helpers (PrivMode, XLen)
+import RISCV.InstInspect
 import RISCV.RV32_I
 import RISCV.RV32_M
 import RISCV.RV32_A
@@ -84,4 +84,3 @@ import RISCV.RV64_D
 import RISCV.RV_C
 import RISCV.RV_CSRs
 import RISCV.HPMEvents
-import RISCV.Shrinks

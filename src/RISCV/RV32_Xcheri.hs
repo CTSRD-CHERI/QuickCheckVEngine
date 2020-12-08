@@ -5,6 +5,7 @@
 -- Copyright (c) 2018 Hesham Almatary
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2019-2020 Alexandre Joannou
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -91,6 +92,8 @@ module RISCV.RV32_Xcheri (
 , sq
 -- * RISC-V CHERI, others
 , rv32_xcheri_disass
+, rv32_xcheri_extract
+, rv32_xcheri_shrink
 , rv32_xcheri
 , rv32_xcheri_inspection
 , rv32_xcheri_arithmetic
@@ -99,65 +102,109 @@ module RISCV.RV32_Xcheri (
 , rv32_xcheri_control
 ) where
 
-import RISCV.Helpers (reg, int, prettyR, prettyI, prettyL, prettyS, prettyR_2op)
+import RISCV.Helpers (reg, int, prettyR, prettyI, prettyL, prettyS, prettyR_2op, ExtractedRegs)
 import InstrCodec (DecodeBranch, (-->), encode)
+import RISCV.RV32_I
 
 -- Capability Inspection
-cgetperm                  = "1111111 00000 cs1[4:0] 000 rd[4:0] 1011011"
-cgettype                  = "1111111 00001 cs1[4:0] 000 rd[4:0] 1011011"
-cgetbase                  = "1111111 00010 cs1[4:0] 000 rd[4:0] 1011011"
-cgetlen                   = "1111111 00011 cs1[4:0] 000 rd[4:0] 1011011"
-cgettag                   = "1111111 00100 cs1[4:0] 000 rd[4:0] 1011011"
-cgetsealed                = "1111111 00101 cs1[4:0] 000 rd[4:0] 1011011"
-cgetoffset                = "1111111 00110 cs1[4:0] 000 rd[4:0] 1011011"
-cgetflags                 = "1111111 00111 cs1[4:0] 000 rd[4:0] 1011011"
-cgetaddr                  = "1111111 01111 cs1[4:0] 000 rd[4:0] 1011011"
+cgetperm_raw                       =                                        "1111111 00000 cs1[4:0] 000 rd[4:0] 1011011"
+cgetperm rd cs1                    = encode cgetperm_raw                                   cs1          rd
+cgettype_raw                       =                                        "1111111 00001 cs1[4:0] 000 rd[4:0] 1011011"
+cgettype rd cs1                    = encode cgettype_raw                                   cs1          rd
+cgetbase_raw                       =                                        "1111111 00010 cs1[4:0] 000 rd[4:0] 1011011"
+cgetbase rd cs1                    = encode cgetbase_raw                                   cs1          rd
+cgetlen_raw                        =                                        "1111111 00011 cs1[4:0] 000 rd[4:0] 1011011"
+cgetlen rd cs1                     = encode cgetlen_raw                                    cs1          rd
+cgettag_raw                        =                                        "1111111 00100 cs1[4:0] 000 rd[4:0] 1011011"
+cgettag rd cs1                     = encode cgettag_raw                                    cs1          rd
+cgetsealed_raw                     =                                        "1111111 00101 cs1[4:0] 000 rd[4:0] 1011011"
+cgetsealed rd cs1                  = encode cgetsealed_raw                                 cs1          rd
+cgetoffset_raw                     =                                        "1111111 00110 cs1[4:0] 000 rd[4:0] 1011011"
+cgetoffset rd cs1                  = encode cgetoffset_raw                                 cs1          rd
+cgetflags_raw                      =                                        "1111111 00111 cs1[4:0] 000 rd[4:0] 1011011"
+cgetflags rd cs1                   = encode cgetflags_raw                                  cs1          rd
+cgetaddr_raw                       =                                        "1111111 01111 cs1[4:0] 000 rd[4:0] 1011011"
+cgetaddr rd cs1                    = encode cgetaddr_raw                                   cs1          rd
 
 -- Capability Modification
-cseal                     = "0001011 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cunseal                   = "0001100 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-candperm                  = "0001101 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csetflags                 = "0001110 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csetoffset                = "0001111 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csetaddr                  = "0010000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cincoffset                = "0010001 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cincoffsetimmediate       = "imm[11:0] cs1[4:0] 001 cd[4:0] 1011011"
-csetbounds                = "0001000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csetboundsexact           = "0001001 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csetboundsimmediate       = "imm[11:0] cs1[4:0] 010 cd[4:0] 1011011"
-ccleartag                 = "1111111 01011 cs1[4:0] 000 cd[4:0] 1011011"
-cbuildcap                 = "0011101 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-ccopytype                 = "0011110 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-ccseal                    = "0011111 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csealentry                = "1111111 10001 cs1[4:0] 000 cd[4:0] 1011011"
+cseal_raw                          =                                        "0001011 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cseal cd cs1 cs2                   = encode cseal_raw                                cs2      cs1          cd
+cunseal_raw                        =                                        "0001100 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cunseal cd cs1 cs2                 = encode cunseal_raw                              cs2      cs1          cd
+candperm_raw                       =                                        "0001101 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+candperm cd cs1 rs2                = encode candperm_raw                             rs2      cs1          cd
+csetflags_raw                      =                                        "0001110 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csetflags cd cs1 rs2               = encode csetflags_raw                            rs2      cs1          cd
+csetoffset_raw                     =                                        "0001111 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csetoffset cd cs1 rs2              = encode csetoffset_raw                           rs2      cs1          cd
+csetaddr_raw                       =                                        "0010000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csetaddr cd cs1 rs2                = encode csetaddr_raw                             rs2      cs1          cd
+cincoffset_raw                     =                                        "0010001 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cincoffset cd cs1 rs2              = encode cincoffset_raw                           rs2      cs1          cd
+cincoffsetimmediate_raw            =                                        "imm[11:0] cs1[4:0] 001 cd[4:0] 1011011"
+cincoffsetimmediate imm cd cs1     = encode cincoffsetimmediate_raw          imm       cs1          cd
+csetbounds_raw                     =                                        "0001000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csetbounds cd cs1 rs2              = encode csetbounds_raw                           rs2      cs1          cd
+csetboundsexact_raw                =                                        "0001001 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csetboundsexact cd cs1 rs2         = encode csetboundsexact_raw                      rs2      cs1          cd
+csetboundsimmediate_raw            =                                        "imm[11:0] cs1[4:0] 010 cd[4:0] 1011011"
+csetboundsimmediate cd cs1 imm     = encode csetboundsimmediate_raw          imm       cs1          cd
+ccleartag_raw                      =                                        "1111111 01011 cs1[4:0] 000 cd[4:0] 1011011"
+ccleartag cd cs1                   = encode ccleartag_raw                                  cs1          cd
+cbuildcap_raw                      =                                        "0011101 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cbuildcap cd cs1 cs2               = encode cbuildcap_raw                            cs2      cs1          cd
+ccopytype_raw                      =                                        "0011110 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+ccopytype cd cs1 cs2               = encode ccopytype_raw                            cs2      cs1          cd
+ccseal_raw                         =                                        "0011111 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+ccseal cd cs1 cs2                  = encode ccseal_raw                               cs2      cs1          cd
+csealentry_raw                     =                                        "1111111 10001 cs1[4:0] 000 cd[4:0] 1011011"
+csealentry cd cs1                  = encode csealentry_raw                                 cs1          cd
+
 
 -- Capability Pointer Arithmetic
-ctoptr                    = "0010010 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cfromptr                  = "0010011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csub                      = "0010100 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cmove                     = "1111111 01010 cs1[4:0] 000 cd[4:0] 1011011"
-cspecialrw                = "0000001 cSP[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+ctoptr_raw                         =                                        "0010010 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+ctoptr cd cs1 cs2                  = encode ctoptr_raw                               cs2      cs1          cd
+cfromptr_raw                       =                                        "0010011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cfromptr cd cs1 rs2                = encode cfromptr_raw                             rs2      cs1          cd
+csub_raw                           =                                        "0010100 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csub cd cs1 cs2                    = encode csub_raw                                 cs2      cs1          cd
+cmove_raw                          =                                        "1111111 01010 cs1[4:0] 000 cd[4:0] 1011011"
+cmove cd cs1                       = encode cmove_raw                                      cs1          cd
+cspecialrw_raw                     =                                        "0000001 cSP[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cspecialrw cd cs1 cSP              = encode cspecialrw_raw                           cSP      cs1          cd
+
 
 -- Control Flow
-cjalr                     = "1111111 01100 cs1[4:0] 000 cd[4:0] 1011011"
-ccall                     = "1111110 pcc[4:0] idc[4:0] 000 00001 1011011"
+cjalr_raw                          =                                        "1111111 01100 cs1[4:0] 000 cd[4:0] 1011011"
+cjalr cd cs1                       = encode cjalr_raw                                      cs1          cd
+ccall_raw                          =                                        "1111110 pcc[4:0] idc[4:0] 000 00001 1011011"
+ccall pcc idc                      = encode ccall_raw                                pcc      idc
 
 -- Assertion
-ctestsubset               = "0100000 cs2[4:0] cs1[4:0] 000 rd[4:0] 1011011"
+ctestsubset_raw                    =                                        "0100000 cs2[4:0] cs1[4:0] 000 rd[4:0] 1011011"
+ctestsubset rd cs1 cs2             = encode ctestsubset_raw                          cs2      cs1          rd
 
 -- Register Clearing
-clear                     = "1111111 01101 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
-fpclear                   = "1111111 10000 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
+clear_raw                          =                                        "1111111 01101 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
+clear q imm                        = encode clear_raw                                      q      imm
+fpclear_raw                        =                                        "1111111 10000 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
+fpclear q imm                      = encode fpclear_raw                                    q      imm
 
 -- Adjusting to Compressed Capability Precision
-croundrepresentablelength   = "1111111 01000 rs1[4:0] 000 rd[4:0] 1011011"
-crepresentablealignmentmask = "1111111 01001 rs1[4:0] 000 rd[4:0] 1011011"
+croundrepresentablelength_raw      =                                        "1111111 01000 rs1[4:0] 000 rd[4:0] 1011011"
+croundrepresentablelength rd rs1   = encode croundrepresentablelength_raw                  rs1          rd
+crepresentablealignmentmask_raw    =                                        "1111111 01001 rs1[4:0] 000 rd[4:0] 1011011"
+crepresentablealignmentmask rd rs1 = encode crepresentablealignmentmask_raw                rs1          rd
 
 -- Memory -- Needs further refinement
-cload                      = "1111101 mop[4:0] cb[4:0] 000 cd[4:0] 1011011"
-cstore                     = "1111100 rs1[4:0] rs2[4:0] 000 mop[4:0] 1011011"
-lq                         = "imm[11:0] rs1[4:0] 010 cd[4:0] 0001111"
-sq                         = "imm[11:5] cs2[4:0] rs1[4:0] 100 imm[4:0] 0100011"
+cload_raw                          =                                        "1111101 mop[4:0] cb[4:0] 000 cd[4:0] 1011011"
+cload cd cb mop                    = encode cload_raw                                mop      cb          cd
+cstore_raw                         =                                        "1111100 rs1[4:0] rs2[4:0] 000 mop[4:0] 1011011"
+cstore rs1 rs2 mop                 = encode cstore_raw                               rs1      rs2          mop
+lq_raw                             =                                        "imm[11:0] rs1[4:0] 010 cd[4:0] 0001111"
+lq cd rs1 imm                      = encode lq_raw                           imm       rs1          cd
+sq_raw                             =                                        "imm[11:5] cs2[4:0] rs1[4:0] 100 imm[4:0] 0100011"
+sq rs1 cs2 imm                     = encode sq_raw                           imm       cs2      rs1
 
 -- | Pretty-print a capability load instruction
 prettyCLoad :: Integer -> Integer -> Integer -> String
@@ -250,105 +297,264 @@ pretty_cspecialrw instr idx cs1 cd =
 
 -- | Dissassembly of CHERI instructions
 rv32_xcheri_disass :: [DecodeBranch String]
-rv32_xcheri_disass = [ cgetperm            --> prettyR_2op "cgetperm"
-                     , cgettype            --> prettyR_2op "cgettype"
-                     , cgetbase            --> prettyR_2op "cgetbase"
-                     , cgetlen             --> prettyR_2op "cgetlen"
-                     , cgettag             --> prettyR_2op "cgettag"
-                     , cgetsealed          --> prettyR_2op "cgetsealed"
-                     , cgetoffset          --> prettyR_2op "cgetoffset"
-                     , cgetaddr            --> prettyR_2op "cgetaddr"
-                     , cseal               --> prettyR "cseal"
-                     , cunseal             --> prettyR "cunseal"
-                     , candperm            --> prettyR "candperm"
-                     , csetoffset          --> prettyR "csetoffset"
-                     , csetaddr            --> prettyR "csetaddr"
-                     , cincoffset          --> prettyR "cincoffset"
-                     , csetbounds          --> prettyR "csetbounds"
-                     , csetboundsexact     --> prettyR "csetboundsexact"
-                     , cbuildcap           --> prettyR "cbuildcap"
-                     , ccopytype           --> prettyR "ccopytype"
-                     , ccseal              --> prettyR "ccseal"
-                     , csealentry          --> prettyR_2op "csealentry"
-                     , ccleartag           --> prettyR_2op "ccleartag"
-                     , cincoffsetimmediate --> prettyI "cincoffsetimmediate"
-                     , csetboundsimmediate --> prettyI "csetboundsimmediate"
-                     , ctoptr              --> prettyR "ctoptr"
-                     , cfromptr            --> prettyR "cfromptr"
-                     , csub                --> prettyR "csub"
-                     , cspecialrw          --> pretty_cspecialrw "cspecialrw"
-                     , cmove               --> prettyR_2op "cmove"
-                     , cjalr               --> prettyR_2op "cjalr"
-                     , ccall               --> pretty_2src "ccall"
-                     , ctestsubset         --> prettyR "ctestsubset"
-                     , clear               --> pretty_reg_clear "clear"
-                     , fpclear             --> pretty_reg_clear "fpclear"
-                     , croundrepresentablelength   --> prettyR_2op "croundrepresentablelength"
-                     , crepresentablealignmentmask --> prettyR_2op "crepresentablealignmentmask"
-                     , cload               --> prettyCLoad
-                     , cstore              --> prettyCStore
-                     , cgetflags           --> prettyR_2op "cgetflags"
-                     , csetflags           --> prettyR "csetflags"
-                     , sq                  --> prettyS "sq"
-                     , lq                  --> prettyL "lq" ]
+rv32_xcheri_disass = [ cgetperm_raw                    --> prettyR_2op "cgetperm"
+                     , cgettype_raw                    --> prettyR_2op "cgettype"
+                     , cgetbase_raw                    --> prettyR_2op "cgetbase"
+                     , cgetlen_raw                     --> prettyR_2op "cgetlen"
+                     , cgettag_raw                     --> prettyR_2op "cgettag"
+                     , cgetsealed_raw                  --> prettyR_2op "cgetsealed"
+                     , cgetoffset_raw                  --> prettyR_2op "cgetoffset"
+                     , cgetaddr_raw                    --> prettyR_2op "cgetaddr"
+                     , cseal_raw                       --> prettyR "cseal"
+                     , cunseal_raw                     --> prettyR "cunseal"
+                     , candperm_raw                    --> prettyR "candperm"
+                     , csetoffset_raw                  --> prettyR "csetoffset"
+                     , csetaddr_raw                    --> prettyR "csetaddr"
+                     , cincoffset_raw                  --> prettyR "cincoffset"
+                     , csetbounds_raw                  --> prettyR "csetbounds"
+                     , csetboundsexact_raw             --> prettyR "csetboundsexact"
+                     , cbuildcap_raw                   --> prettyR "cbuildcap"
+                     , ccopytype_raw                   --> prettyR "ccopytype"
+                     , ccseal_raw                      --> prettyR "ccseal"
+                     , csealentry_raw                  --> prettyR_2op "csealentry"
+                     , ccleartag_raw                   --> prettyR_2op "ccleartag"
+                     , cincoffsetimmediate_raw         --> prettyI "cincoffsetimmediate"
+                     , csetboundsimmediate_raw         --> prettyI "csetboundsimmediate"
+                     , ctoptr_raw                      --> prettyR "ctoptr"
+                     , cfromptr_raw                    --> prettyR "cfromptr"
+                     , csub_raw                        --> prettyR "csub"
+                     , cspecialrw_raw                  --> pretty_cspecialrw "cspecialrw"
+                     , cmove_raw                       --> prettyR_2op "cmove"
+                     , cjalr_raw                       --> prettyR_2op "cjalr"
+                     , ccall_raw                       --> pretty_2src "ccall"
+                     , ctestsubset_raw                 --> prettyR "ctestsubset"
+                     , clear_raw                       --> pretty_reg_clear "clear"
+                     , fpclear_raw                     --> pretty_reg_clear "fpclear"
+                     , croundrepresentablelength_raw   --> prettyR_2op "croundrepresentablelength"
+                     , crepresentablealignmentmask_raw --> prettyR_2op "crepresentablealignmentmask"
+                     , cload_raw                       --> prettyCLoad
+                     , cstore_raw                      --> prettyCStore
+                     , cgetflags_raw                   --> prettyR_2op "cgetflags"
+                     , csetflags_raw                   --> prettyR "csetflags"
+                     , sq_raw                          --> prettyS "sq"
+                     , lq_raw                          --> prettyL "lq" ]
+
+extract_cspecialrw :: Integer -> Integer -> Integer -> ExtractedRegs
+extract_cspecialrw idx rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode cspecialrw_raw idx y z)
+
+extract_cmove :: Integer -> Integer -> ExtractedRegs
+extract_cmove rs1 rd = (True, Nothing, Just rs1, Just rd, \x y z -> encode cmove_raw y z)
+
+extract_ccall :: Integer -> Integer -> ExtractedRegs
+extract_ccall rs2 rs1 = (False, Just rs2, Just rs1, Just 31, \x y z -> encode ccall_raw x y)
+
+extract_cstore :: Integer -> Integer -> Integer -> ExtractedRegs
+extract_cstore imm rs2 rs1 = (False, Just rs2, Just rs1, Nothing, \x y z -> encode cstore_raw imm x y)
+
+rv32_xcheri_extract :: [DecodeBranch ExtractedRegs]
+rv32_xcheri_extract = [ cgetperm_raw                    --> extract_1op cgetperm_raw
+                      , cgettype_raw                    --> extract_1op cgettype_raw
+                      , cgetbase_raw                    --> extract_1op cgetbase_raw
+                      , cgetlen_raw                     --> extract_1op cgetlen_raw
+                      , cgettag_raw                     --> extract_1op cgettag_raw
+                      , cgetsealed_raw                  --> extract_1op cgetsealed_raw
+                      , cgetoffset_raw                  --> extract_1op cgetoffset_raw
+                      , cgetflags_raw                   --> extract_1op cgetflags_raw
+                      , cgetaddr_raw                    --> extract_1op cgetaddr_raw
+                      , cseal_raw                       --> extract_2op cseal_raw
+                      , cunseal_raw                     --> extract_2op cunseal_raw
+                      , candperm_raw                    --> extract_2op candperm_raw
+                      , csetoffset_raw                  --> extract_2op csetoffset_raw
+                      , csetaddr_raw                    --> extract_2op csetaddr_raw
+                      , cincoffset_raw                  --> extract_2op cincoffset_raw
+                      , csetbounds_raw                  --> extract_2op csetbounds_raw
+                      , csetboundsexact_raw             --> extract_2op csetboundsexact_raw
+                      , cbuildcap_raw                   --> extract_2op cbuildcap_raw
+                      , ccopytype_raw                   --> extract_2op ccopytype_raw
+                      , ccseal_raw                      --> extract_2op ccseal_raw
+                      , csealentry_raw                  --> extract_1op csealentry_raw
+                      , ccleartag_raw                   --> extract_1op ccleartag_raw
+                      , cincoffsetimmediate_raw         --> extract_imm cincoffsetimmediate_raw
+                      , csetboundsimmediate_raw         --> extract_imm csetboundsimmediate_raw
+                      , ctoptr_raw                      --> extract_2op ctoptr_raw
+                      , cfromptr_raw                    --> extract_2op cfromptr_raw
+                      , csub_raw                        --> extract_2op csub_raw
+                      , cspecialrw_raw                  --> extract_cspecialrw
+                      , cmove_raw                       --> extract_cmove
+                      , cjalr_raw                       --> extract_imm cjalr_raw
+                      , ccall_raw                       --> extract_ccall
+                      , ctestsubset_raw                 --> extract_2op ctestsubset_raw
+--                    , clear_raw                       --> noextract -- TODO
+--                    , fpclear_raw                     --> noextract -- TODO
+                      , croundrepresentablelength_raw   --> extract_1op croundrepresentablelength_raw
+                      , crepresentablealignmentmask_raw --> extract_1op crepresentablealignmentmask_raw
+                      , cload_raw                       --> extract_imm cload_raw
+                      , cstore_raw                      --> extract_cstore
+                      , csetflags_raw                   --> extract_2op csetflags_raw
+                      , sq_raw                          --> extract_nodst sq_raw
+                      , lq_raw                          --> extract_imm lq_raw
+                      ]
+
+shrink_cgetperm :: Integer -> Integer -> [Integer]
+shrink_cgetperm cs rd = [addi rd 0 0, addi rd 0 0x7ff]
+
+shrink_cgettype :: Integer -> Integer -> [Integer]
+shrink_cgettype cs rd = [addi rd 0 0, addi rd 0 6, addi rd 0 0xfff]
+
+shrink_cgetbase :: Integer -> Integer -> [Integer]
+shrink_cgetbase cs rd = [addi rd 0 0]
+
+shrink_cgetlen :: Integer -> Integer -> [Integer]
+shrink_cgetlen cs rd = [addi rd 0 0, addi rd 0 0xfff, cgetbase rd cs]
+
+shrink_cgettag :: Integer -> Integer -> [Integer]
+shrink_cgettag cs rd = [addi rd 0 1, addi rd 0 0]
+
+shrink_cgetsealed :: Integer -> Integer -> [Integer]
+shrink_cgetsealed cs rd = [addi rd 0 1, addi rd 0 0, cgettype rd cs]
+
+shrink_cgetoffset :: Integer -> Integer -> [Integer]
+shrink_cgetoffset cs rd = [addi rd 0 0, cgetaddr rd cs]
+
+shrink_cgetflags :: Integer -> Integer -> [Integer]
+shrink_cgetflags cs rd = [addi rd 0 0, addi rd 0 1]
+
+shrink_cgetaddr :: Integer -> Integer -> [Integer]
+shrink_cgetaddr cs rd = [addi rd cs 0]
+
+shrink_cap :: Integer -> Integer -> [Integer]
+shrink_cap cs cd = [ecall,
+                    cmove cd cs,
+                    cgetaddr cd cs,
+                    cgetperm cd cs,
+                    cgettype cd cs,
+                    cgetbase cd cs,
+                    cgetlen cd cs,
+                    cgettag cd cs,
+                    cgetoffset cd cs,
+                    cgetflags cd cs
+                   ]
+
+shrink_capcap :: Integer -> Integer -> Integer -> [Integer]
+shrink_capcap cs2 cs1 cd = (shrink_cap cs2 cd) ++ (shrink_cap cs1 cd)
+
+shrink_capint :: Integer -> Integer -> Integer -> [Integer]
+shrink_capint rs cs cd = shrink_cap cs cd
+
+shrink_capimm :: Integer -> Integer -> Integer -> [Integer]
+shrink_capimm imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
+
+shrink_cmove :: Integer -> Integer -> [Integer]
+shrink_cmove cs cd = [cgetaddr cd cs]
+
+shrink_ccall :: Integer -> Integer -> [Integer]
+shrink_ccall cs2 cs1 = shrink_capcap cs2 cs1 31
+
+shrink_ctestsubset cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
+
+shrink_cfromptr rs cs cd = [csetoffset cd cs rs] ++ shrink_capint rs cs cd
+
+rv32_xcheri_shrink :: [DecodeBranch [Integer]]
+rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
+                     , cgettype_raw                    --> shrink_cgettype
+                     , cgetbase_raw                    --> shrink_cgetbase
+                     , cgetlen_raw                     --> shrink_cgetlen
+                     , cgettag_raw                     --> shrink_cgettag
+                     , cgetsealed_raw                  --> shrink_cgetsealed
+                     , cgetoffset_raw                  --> shrink_cgetoffset
+                     , cgetflags_raw                   --> shrink_cgetflags
+                     , cgetaddr_raw                    --> shrink_cgetaddr
+                     , cseal_raw                       --> shrink_capcap
+                     , cunseal_raw                     --> shrink_capcap
+                     , candperm_raw                    --> shrink_capint
+                     , csetoffset_raw                  --> shrink_capint
+                     , csetaddr_raw                    --> shrink_capint
+                     , cincoffset_raw                  --> shrink_capint
+                     , csetbounds_raw                  --> shrink_capint
+                     , csetboundsexact_raw             --> shrink_capint
+                     , cbuildcap_raw                   --> shrink_capcap
+                     , ccopytype_raw                   --> shrink_capcap
+                     , ccseal_raw                      --> shrink_capcap
+                     , csealentry_raw                  --> shrink_cap
+                     , ccleartag_raw                   --> shrink_cap
+                     , cincoffsetimmediate_raw         --> shrink_capimm
+                     , csetboundsimmediate_raw         --> shrink_capimm
+                     , ctoptr_raw                      --> shrink_capcap
+                     , cfromptr_raw                    --> shrink_cfromptr
+                     , csub_raw                        --> shrink_capcap
+--                   , cspecialrw_raw                  --> noshrink
+                     , cmove_raw                       --> shrink_cmove
+--                   , cjalr_raw                       --> noshrink
+                     , ccall_raw                       --> shrink_ccall
+                     , ctestsubset_raw                 --> shrink_ctestsubset
+--                   , clear_raw                       --> noshrink
+--                   , fpclear_raw                     --> noshrink
+--                   , croundrepresentablelength_raw   --> noshrink
+--                   , crepresentablealignmentmask_raw --> noshrink
+--                   , cload_raw                       --> noshrink
+--                   , cstore_raw                      --> noshrink
+                     , csetflags_raw                   --> shrink_capcap
+--                   , sq_raw                          --> noshrink
+--                   , lq_raw                          --> noshrink
+                     ]
 
 -- | List of cheri inspection instructions
 rv32_xcheri_inspection :: Integer -> Integer -> [Integer]
-rv32_xcheri_inspection src dest = [ encode cgetperm src dest
-                                  ,  encode cgettype src dest
-                                  ,  encode cgetbase src dest
-                                  ,  encode cgetlen src dest
-                                  ,  encode cgettag src dest
-                                  ,  encode cgetsealed src dest
-                                  ,  encode cgetoffset src dest
-                                  ,  encode cgetaddr src dest
-                                  ,  encode cgetflags src dest
-                                  ,  encode croundrepresentablelength src dest
-                                  ,  encode crepresentablealignmentmask src dest]
+rv32_xcheri_inspection src dest = [ cgetperm                    dest src
+                                  , cgettype                    dest src
+                                  , cgetbase                    dest src
+                                  , cgetlen                     dest src
+                                  , cgettag                     dest src
+                                  , cgetsealed                  dest src
+                                  , cgetoffset                  dest src
+                                  , cgetaddr                    dest src
+                                  , cgetflags                   dest src
+                                  , croundrepresentablelength   dest src
+                                  , crepresentablealignmentmask dest src]
 
 -- | List of cheri arithmetic instructions
 rv32_xcheri_arithmetic :: Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_xcheri_arithmetic src1 src2 imm dest =
-  [ encode csetoffset src1 src2 dest
-  ,  encode csetaddr   src1 src2 dest
-  ,  encode cincoffset src1 src2 dest
-  ,  encode csetbounds src1 src2 dest
-  ,  encode csetboundsexact src1 src2 dest
-  ,  encode csetboundsimmediate imm src1 dest
-  ,  encode cincoffsetimmediate imm src1 dest
-  ,  encode ctoptr     src1 src2 dest
-  ,  encode cfromptr   src1 src2 dest
-  ,  encode csub       src1 src2 dest
-  ,  encode ctestsubset src1 src2 dest ]
+  [ csetoffset          dest src1 src2
+  , csetaddr            dest src1 src2
+  , cincoffset          dest src1 src2
+  , csetbounds          dest src1 src2
+  , csetboundsexact     dest src1 src2
+  , csetboundsimmediate dest src1      imm
+  , cincoffsetimmediate dest src1      imm
+  , ctoptr              dest src1 src2
+  , cfromptr            dest src1 src2
+  , csub                dest src1 src2
+  , ctestsubset         dest src1 src2 ]
 
 -- | List of cheri miscellaneous instructions
 rv32_xcheri_misc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_xcheri_misc src1 src2 srcScr imm dest =
-  [ encode cseal      src1 src2 dest
-  , encode cunseal    src1 src2 dest
-  , encode candperm   src1 src2 dest
-  , encode cbuildcap  src1 src2 dest
-  , encode csetflags  src1 src2 dest
-  , encode ccopytype  src1 src2 dest
-  , encode ccseal     src1 src2 dest
-  , encode csealentry src1 dest
-  , encode ccleartag  src1 dest
-  , encode cspecialrw srcScr src1 dest ]
+  [ cseal             dest src1 src2
+  , cunseal           dest src1 src2
+  , candperm          dest src1 src2
+  , cbuildcap         dest src1 src2
+  , csetflags         dest src1 src2
+  , ccopytype         dest src1 src2
+  , ccseal            dest src1 src2
+  , csealentry        dest src1
+  , ccleartag         dest src1
+  , cspecialrw srcScr dest src1      ]
 
 -- | List of cheri control instructions
 rv32_xcheri_control :: Integer -> Integer -> Integer -> [Integer]
-rv32_xcheri_control src1 src2 dest = [ encode cjalr src1 dest
-                                     , encode ccall src1 src2 ]
+rv32_xcheri_control src1 src2 dest = [ cjalr dest src1
+                                     , ccall      src1 src2 ]
 
 -- | List of cheri memory instructions
 rv32_xcheri_mem :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_xcheri_mem srcAddr srcData imm mop dest =
-  [ encode cload mop srcAddr dest
-  , encode cstore srcData srcAddr mop
-  -- , encode ld imm srcAddr dest
-  -- , encode sd imm srcAddr srcAddr
-  -- , encode lq imm srcAddr dest
-  -- , encode sq imm srcData srcAddr
+  [ cload  dest srcAddr         mop
+  , cstore      srcAddr srcData mop
+  --, ld     dest srcAddr dest        imm
+  --, sd          srcAddr srcData     imm
+  --, lq     dest srcAddr dest        imm
+  --, sq          srcAddr srcData     imm
   ]
 
 -- | List of cheri instructions

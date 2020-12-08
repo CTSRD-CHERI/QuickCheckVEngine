@@ -3,6 +3,7 @@
 --
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2019-2020 Alexandre Joannou
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -73,71 +74,86 @@ module RISCV.RV64_I (
 import RISCV.Helpers (prettyI, prettyR, prettyL, prettyS)
 import InstrCodec (DecodeBranch, (-->), encode)
 
-lwu    = "imm[11:0] rs1[4:0] 110 rd[4:0] 0000011"
-ld     = "imm[11:0] rs1[4:0] 011 rd[4:0] 0000011"
-sd     = "imm[11:5] rs2[4:0] rs1[4:0] 011 imm[4:0] 0100011"
-addiw  = "imm[11:0] rs1[4:0] 000 rd[4:0] 0011011"
-slli64 = "000000 imm[5:0] rs1[4:0] 001 rd[4:0] 0010011"
-srli64 = "000000 imm[5:0] rs1[4:0] 101 rd[4:0] 0010011"
-srai64 = "010000 imm[5:0] rs1[4:0] 101 rd[4:0] 0010011"
-slliw  = "0000000 shamt[4:0] rs1[4:0] 001 rd[4:0] 0011011"
-srliw  = "0000000 shamt[4:0] rs1[4:0] 101 rd[4:0] 0011011"
-sraiw  = "0100000 shamt[4:0] rs1[4:0] 101 rd[4:0] 0011011"
-addw   = "0000000 rs2[4:0] rs1[4:0] 000 rd[4:0] 0111011"
-subw   = "0100000 rs2[4:0] rs1[4:0] 000 rd[4:0] 0111011"
-sllw   = "0000000 rs2[4:0] rs1[4:0] 001 rd[4:0] 0111011"
-srlw   = "0000000 rs2[4:0] rs1[4:0] 101 rd[4:0] 0111011"
-sraw   = "0100000 rs2[4:0] rs1[4:0] 101 rd[4:0] 0111011"
+lwu_raw            =                   "imm[11:0] rs1[4:0] 110 rd[4:0] 0000011"
+lwu rd rs1 imm     = encode lwu_raw     imm       rs1          rd
+ld_raw             =                   "imm[11:0] rs1[4:0] 011 rd[4:0] 0000011"
+ld rd rs1 imm      = encode ld_raw      imm       rs1          rd
+sd_raw             =                   "imm[11:5] rs2[4:0] rs1[4:0] 011 imm[4:0] 0100011"
+sd rs1 rs2 imm     = encode sd_raw      imm       rs2      rs1          imm
+addiw_raw          =                   "imm[11:0] rs1[4:0] 000 rd[4:0] 0011011"
+addiw rd rs1 imm   = encode addiw_raw   imm       rs1          rd
+slli64_raw         =                   "000000 imm[5:0] rs1[4:0] 001 rd[4:0] 0010011"
+slli64 rd rs1 imm  = encode slli64_raw         imm      rs1          rd
+srli64_raw         =                   "000000 imm[5:0] rs1[4:0] 101 rd[4:0] 0010011"
+srli64 rd rs1 imm  = encode srli64_raw         imm      rs1          rd
+srai64_raw         =                   "010000 imm[5:0] rs1[4:0] 101 rd[4:0] 0010011"
+srai64 rd rs1 imm  = encode srai64_raw         imm      rs1          rd
+slliw_raw          =                   "0000000 shamt[4:0] rs1[4:0] 001 rd[4:0] 0011011"
+slliw rd rs1 shamt = encode slliw_raw           shamt      rs1          rd
+srliw_raw          =                   "0000000 shamt[4:0] rs1[4:0] 101 rd[4:0] 0011011"
+srliw rd rs1 shamt = encode srliw_raw           shamt      rs1          rd
+sraiw_raw          =                   "0100000 shamt[4:0] rs1[4:0] 101 rd[4:0] 0011011"
+sraiw rd rs1 shamt = encode sraiw_raw           shamt      rs1          rd
+addw_raw           =                   "0000000 rs2[4:0] rs1[4:0] 000 rd[4:0] 0111011"
+addw rd rs1 rs2    = encode addw_raw            rs2      rs1          rd
+subw_raw           =                   "0100000 rs2[4:0] rs1[4:0] 000 rd[4:0] 0111011"
+subw rd rs1 rs2    = encode subw_raw            rs2      rs1          rd
+sllw_raw           =                   "0000000 rs2[4:0] rs1[4:0] 001 rd[4:0] 0111011"
+sllw rd rs1 rs2    = encode sllw_raw            rs2      rs1          rd
+srlw_raw           =                   "0000000 rs2[4:0] rs1[4:0] 101 rd[4:0] 0111011"
+srlw rd rs1 rs2    = encode srlw_raw            rs2      rs1          rd
+sraw_raw           =                   "0100000 rs2[4:0] rs1[4:0] 101 rd[4:0] 0111011"
+sraw rd rs1 rs2    = encode sraw_raw            rs2      rs1          rd
 
 -- | Dissassembly of RV64 base integer instructions
 rv64_i_disass :: [DecodeBranch String]
-rv64_i_disass = [ lwu    --> prettyL "lwu"
-                , ld     --> prettyL "ld"
-                , sd     --> prettyS "sd"
-                , addiw  --> prettyI "addiw"
-                , slli64 --> prettyI "slli"
-                , srli64 --> prettyI "srli"
-                , srai64 --> prettyI "srai"
-                , slliw  --> prettyI "slliw"
-                , srliw  --> prettyI "srliw"
-                , sraiw  --> prettyI "sraiw"
-                , addw   --> prettyR "addw"
-                , subw   --> prettyR "subw"
-                , sllw   --> prettyR "sllw"
-                , srlw   --> prettyR "srlw"
-                , sraw   --> prettyR "sraw"
+rv64_i_disass = [ lwu_raw    --> prettyL "lwu"
+                , ld_raw     --> prettyL "ld"
+                , sd_raw     --> prettyS "sd"
+                , addiw_raw  --> prettyI "addiw"
+                , slli64_raw --> prettyI "slli"
+                , srli64_raw --> prettyI "srli"
+                , srai64_raw --> prettyI "srai"
+                , slliw_raw  --> prettyI "slliw"
+                , srliw_raw  --> prettyI "srliw"
+                , sraiw_raw  --> prettyI "sraiw"
+                , addw_raw   --> prettyR "addw"
+                , subw_raw   --> prettyR "subw"
+                , sllw_raw   --> prettyR "sllw"
+                , srlw_raw   --> prettyR "srlw"
+                , sraw_raw   --> prettyR "sraw"
                 ]
 
 -- | List of RV64 base integer arithmetic instructions
 rv64_i_arith :: Integer -> Integer -> Integer -> Integer -> [Integer]
-rv64_i_arith src1 src2 dest imm = [ encode addiw  imm src1 dest
-                                  , encode slli64 imm src1 dest
-                                  , encode srli64 imm src1 dest
-                                  , encode srai64 imm src1 dest
-                                  , encode slliw  imm src1 dest
-                                  , encode srliw  imm src1 dest
-                                  , encode sraiw  imm src1 dest
-                                  , encode addw  src1 src2 dest
-                                  , encode subw  src1 src2 dest
-                                  , encode sllw  src1 src2 dest
-                                  , encode srlw  src1 src2 dest
-                                  , encode sraw  src1 src2 dest
+rv64_i_arith src1 src2 dest imm = [ addiw  dest src1      imm
+                                  , slli64 dest src1      imm
+                                  , srli64 dest src1      imm
+                                  , srai64 dest src1      imm
+                                  , slliw  dest src1      imm
+                                  , srliw  dest src1      imm
+                                  , sraiw  dest src1      imm
+                                  , addw   dest src1 src2
+                                  , subw   dest src1 src2
+                                  , sllw   dest src1 src2
+                                  , srlw   dest src1 src2
+                                  , sraw   dest src1 src2
                                   ]
 
 -- | List of RV64 base integer load instructions
 rv64_i_load :: Integer -> Integer -> Integer -> [Integer]
-rv64_i_load src dest imm = [ encode lwu  imm src dest
-                           , encode ld imm src dest
+rv64_i_load src dest imm = [ lwu dest src imm
+                           , ld  dest src imm
                            ]
 
 -- | List of RV64 base integer store instructions
 rv64_i_store :: Integer -> Integer -> Integer -> [Integer]
-rv64_i_store srcAddr srcData imm = [encode sd imm srcData srcAddr]
+rv64_i_store srcAddr srcData imm = [sd srcAddr srcData imm]
 
 -- | List of RV64 base integer memory instructions
 rv64_i_mem :: Integer -> Integer -> Integer -> Integer -> [Integer] --TODO alignment
 rv64_i_mem srcAddr srcData dest imm =
-  (rv64_i_load srcAddr dest imm) ++ (rv64_i_store srcAddr srcData imm)
+  (rv64_i_load srcAddr dest imm) ++ (rv64_i_store srcData srcAddr imm)
 
 -- | List of RV64 base integer instructions
 rv64_i :: Integer -> Integer -> Integer -> Integer -> [Integer]

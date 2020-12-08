@@ -3,7 +3,7 @@
 --
 -- Copyright (c) 2018 Jonathan Woodruff
 -- Copyright (c) 2018 Matthew Naylor
--- Copyright (c) 2019 Peter Rugg
+-- Copyright (c) 2019-2020 Peter Rugg
 -- Copyright (c) 2019, 2020 Alexandre Joannou
 -- All rights reserved.
 --
@@ -99,9 +99,9 @@ li arch reg imm =
 -- | 'li32' returns a 'Template' that loads a 32-bit immediate into a register
 li32 :: Integer -> Integer -> Template
 li32 reg imm = instSeq $ doHi20 ++ doLo12
-  where doHi20 = [ encode lui (toInteger hi20) reg | hi20 /= 0]
+  where doHi20 = [ lui reg (toInteger hi20) | hi20 /= 0]
         doLo12 = if (lo12 /= 0 || hi20 == 0)
-                    then [encode addi (toInteger lo12) (if hi20 /= 0 then reg else 0) reg] else []
+                    then [addi reg (if hi20 /= 0 then reg else 0) (toInteger lo12)] else []
         imm32 :: Word32 = fromInteger imm
         hi20  :: Word32 = ((imm32 + 0x800) `shiftR` 12) .&. 0xfffff
         lo12  :: Word32 = if testBit imm32 12 then imm32 .|. 0xfffff000
@@ -109,50 +109,50 @@ li32 reg imm = instSeq $ doHi20 ++ doLo12
 
 -- | 'li64' returns a 'Template' that loads a 64-bit immediate into a register
 li64 :: Integer -> Integer -> Template
-li64 reg imm = instSeq [ encode addi (shiftAndMask imm 52 0xfff)   0 reg
-                       , encode slli 11 reg reg
-                       , encode addi (shiftAndMask imm 41 0x7ff) reg reg
-                       , encode slli 11 reg reg
-                       , encode addi (shiftAndMask imm 30 0x7ff) reg reg
-                       , encode slli 11 reg reg
-                       , encode addi (shiftAndMask imm 19 0x7ff) reg reg
-                       , encode slli 11 reg reg
-                       , encode addi (shiftAndMask imm  8 0x7ff) reg reg
-                       , encode slli 8 reg reg
-                       , encode addi (shiftAndMask imm  0 0x0ff) reg reg ]
+li64 reg imm = instSeq [ addi reg   0 (shiftAndMask imm 52 0xfff)
+                       , slli reg reg 11
+                       , addi reg reg (shiftAndMask imm 41 0x7ff)
+                       , slli reg reg 11
+                       , addi reg reg (shiftAndMask imm 30 0x7ff)
+                       , slli reg reg 11
+                       , addi reg reg (shiftAndMask imm 19 0x7ff)
+                       , slli reg reg 11
+                       , addi reg reg (shiftAndMask imm  8 0x7ff)
+                       , slli reg reg 8
+                       , addi reg reg (shiftAndMask imm  0 0x0ff) ]
   where shiftAndMask i shamt msk = toInteger $ ((fromInteger i :: Word64) `shiftR` shamt) .&. msk
 
 -- | 'csrr' pseudo-instruction to read a CSR
 csrr :: Integer -> Integer -> Template
-csrr rd csr_idx = Single $ encode csrrs csr_idx 0 rd
+csrr rd csr_idx = Single $ csrrs rd 0 csr_idx
 
 -- | 'csrw' pseudo-instruction to write a general purpose register's value to a CSR
 csrw :: Integer -> Integer -> Template
-csrw csr_idx rs1 = Single $ encode csrrw csr_idx rs1 0
+csrw csr_idx rs1 = Single $ csrrw 0 rs1 csr_idx
 
 -- | 'csrwi' pseudo-instruction to write an immediate value to a CSR
 csrwi :: Integer -> Integer -> Template
-csrwi csr_idx uimm = Single $ encode csrrwi csr_idx uimm 0
+csrwi csr_idx uimm = Single $ csrrwi 0 csr_idx uimm
 
 -- | 'csrs' pseudo-instruction to set the bits in a CSR corresponding to the
 --   set bits of a mask value in a general purpose register
 csrs :: Integer -> Integer -> Template
-csrs csr_idx rs1 = Single $ encode csrrs csr_idx rs1 0
+csrs csr_idx rs1 = Single $ csrrs 0 rs1 csr_idx
 
 -- | 'csrc' pseudo-instruction to clear the bits in a CSR corresponding to the
 --   set bits of a mask value in a general purpose register
 csrc :: Integer -> Integer -> Template
-csrc csr_idx rs1 = Single $ encode csrrc csr_idx rs1 0
+csrc csr_idx rs1 = Single $ csrrc 0 rs1 csr_idx
 
 -- | 'csrsi' pseudo-instruction to set the bits in a CSR corresponding to the
 --   set bits of a mask value obtained by zero extending the 5-bit uimm
 csrsi :: Integer -> Integer -> Template
-csrsi csr_idx uimm = Single $ encode csrrsi csr_idx uimm 0
+csrsi csr_idx uimm = Single $ csrrsi 0 csr_idx uimm
 
 -- | 'csrci' pseudo-instruction to clear the bits in a CSR corresponding to the
 --   set bits of a mask value obtained by zero extending the 5-bit uimm
 csrci :: Integer -> Integer -> Template
-csrci csr_idx uimm = Single $ encode csrrci csr_idx uimm 0
+csrci csr_idx uimm = Single $ csrrci 0 csr_idx uimm
 
 -- * Arbitrary value generators
 --------------------------------------------------------------------------------
@@ -249,7 +249,7 @@ storeOp arch rs1 rs2 = Random $ oneof $ map (return . uniformTemplate) $
 writeData :: Integer -> [Integer] -> Template
 writeData addr ws = li64 1 addr <> Sequence (map writeWord ws)
   where writeWord w =  li32 2 (byteSwap w)
-                    <> instSeq [ encode sw 0 2 1, encode addi 4 1 1 ]
+                    <> instSeq [ sw 1 2 0, addi 1 1 4 ]
         byteSwap w = swpHlp ((fromInteger w) :: Word32)
         swpHlp = BW.fromListLE . concat . reverse . chunksOf 8 . BW.toListLE
 
@@ -262,10 +262,10 @@ legalLoad arch = Random $ do
   tmpReg    <- src
   addrReg   <- src
   targetReg <- dest
-  return $ instSeq [ encode andi 0xff addrReg addrReg
-                   , encode lui 0x40004 tmpReg
-                   , encode slli 1 tmpReg tmpReg
-                   , encode add addrReg tmpReg addrReg ]
+  return $ instSeq [ andi addrReg addrReg 0xff
+                   , lui tmpReg 0x40004
+                   , slli tmpReg tmpReg 1
+                   , add addrReg tmpReg addrReg ]
            <> loadOp arch addrReg targetReg
 
 -- | 'legalStore' provides a 'Template' for a store operation from an arbitrary
@@ -275,10 +275,10 @@ legalStore arch = Random $ do
   tmpReg  <- src
   addrReg <- src
   dataReg <- dest
-  return $ instSeq [ encode andi 0xff addrReg addrReg
-                   , encode lui 0x40004 tmpReg
-                   , encode slli 1 tmpReg tmpReg
-                   , encode add addrReg tmpReg addrReg ]
+  return $ instSeq [ andi addrReg addrReg 0xff
+                   , lui tmpReg 0x40004
+                   , slli tmpReg tmpReg 1
+                   , add addrReg tmpReg addrReg ]
            <> storeOp arch dataReg addrReg
 
 -- | 'surroundWithMemAccess' wraps a 'Template' by performing a store operation
@@ -295,16 +295,16 @@ surroundWithMemAccess arch x = Random $ do
            <> x
            <> loadFromAddress regAddr offset regData
   where loadFromAddress reg offset dest =
-          instSeq [ encode lui 0x40004 reg
-                  , encode slli 1 reg reg
-                  , encode addi offset reg reg ]
+          instSeq [ lui reg 0x40004
+                  , slli reg reg 1
+                  , addi reg reg offset ]
           <> loadOp arch reg dest
         storeToAddress regAddr regData offset value shift =
-          instSeq [ encode addi value 0 regData
-                  , encode slli shift regData regData
-                  , encode lui 0x40004 regAddr
-                  , encode slli 1 regAddr regAddr
-                  , encode addi offset regAddr regAddr ]
+          instSeq [ addi regData 0 value
+                  , slli regData regData shift
+                  , lui regAddr 0x40004
+                  , slli regAddr regAddr 1
+                  , addi regAddr regAddr offset ]
           <> storeOp arch regAddr regData
 
 -- * Other helpers
@@ -322,11 +322,11 @@ csrBitSetOrClear set csrIdx bitIdx tmpReg
 {- No longer used, use 'li32' instead
 -- | 'loadImm32' initializes the given register with the given value
 loadImm32 dst imm =
-  instSeq [ encode addi ((shift imm (-21)) Data.Bits..&. 0x7FF) 0 dst
-          , encode slli 11 dst dst
-          , encode addi ((shift imm (-10)) Data.Bits..&. 0x7FF) dst dst
-          , encode slli 10 dst dst
-          , encode addi (imm Data.Bits..&. 0x3FF) dst dst]
+  instSeq [ addi dst 0 ((shift imm (-21)) Data.Bits..&. 0x7FF)
+          , slli dst dst 11
+          , addi dst dst ((shift imm (-10)) Data.Bits..&. 0x7FF)
+          , slli dst dst 10
+          , addi dst dst (imm Data.Bits..&. 0x3FF)]
 -}
 
 -- | 'prepReg' provides a 'Template' to initialize a given register to an
@@ -348,5 +348,5 @@ prepReg32 dst = Random $ do imm <- bits 32
 prepReg64 :: Integer -> Template
 prepReg64 dst = replicateTemplate 6 $ Random $ do
   val <- bits 12
-  return $ instSeq [ encode slli  12 dst dst
-                   , encode xori val dst dst ]
+  return $ instSeq [ slli dst dst 12
+                   , xori dst dst val ]

@@ -4,7 +4,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Peter Rugg
+-- Copyright (c) 2019-2020 Peter Rugg
 -- Copyright (c) 2020 Alexandre Joannou
 -- All rights reserved.
 --
@@ -164,12 +164,12 @@ substitute [] _ _ = []
 substitute ((b,x):xs) new old = (if b && m_rs2 == Just old then [(b,reencode new (fromMaybe 0 m_rs1) (fromMaybe 0 m_rd)):xs] else [])
                              ++ (if b && m_rs1 == Just old then [(b,reencode (fromMaybe 0 m_rs2) new (fromMaybe 0 m_rd)):xs] else [])
                              ++ (if (m_rd == Just old) || (m_rd == Just new) then [] else prepend_all (b,x) (substitute xs new old))
-                                where (_, m_rs2, m_rs1, m_rd, reencode) = extract_regs x
+                                where (_, m_rs2, m_rs1, m_rd, reencode) = rv_extract x
 
 shrink_bypass :: [(Bool, Integer)] -> [[(Bool, Integer)]]
 shrink_bypass [] = []
 shrink_bypass ((b,x):xs) = prepend_all (b,x) ((if is_bypass && not (m_rd == m_rs1) then substitute xs (fromMaybe 0 m_rs1) (fromMaybe 0 m_rd) else []) ++ (shrink_bypass xs))
-                           where (is_bypass, _, m_rs1, m_rd, _) = extract_regs x
+                           where (is_bypass, _, m_rs1, m_rd, _) = rv_extract x
 
 coalesce [] = []
 coalesce [s] = [s]
@@ -194,7 +194,7 @@ instance Show TestStrand where
            , testStrandInsts  = insts }) = showShrink ++ "\n" ++ showInsts
     where showShrink = if shrink then ".shrink" else ".noshrink"
           showInsts  = intercalate "\n" (map showInst insts)
-          showInst inst = printf ".4byte 0x%08x # %s" inst (pretty inst)
+          showInst inst = printf ".4byte 0x%08x # %s" inst (rv_pretty inst)
 instance Arbitrary TestStrand where
   arbitrary = return $ TS True []
   shrink (TS False x) = []

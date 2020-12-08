@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Peter Rugg
+-- Copyright (c) 2019-2020 Peter Rugg
 -- Copyright (c) 2020 Alexandre Joannou
 -- All rights reserved.
 --
@@ -52,27 +52,27 @@ capDecodeTest arch = Random $ do
                 foldM bitAppend 0 [(bits,16),(bits,3),(const $ elements [0x00000,0x00001,0x00002,0x00003],18),(bits,27),(bits,64)], -- reserved otypes
                 choose(40,63) >>= \exp -> foldM bitAppend 0 [(bits,16),(bits,3),(bits,18),(const $ return 1,1),(bits,9),(const $ return $ shift exp (-3),3),(bits,11),(const $ return $ exp Data.Bits..&. 0x3,3),(bits,64)] -- tricky exponents
                 ]
-  return $ Sequence [Single $ encode lui 0x40004 1,
-                     Single $ encode slli 1 1 1,
+  return $ Sequence [Single $ lui 1 0x40004,
+                     Single $ slli 1 1 1,
                      li32 2 (cap Data.Bits..&. 0xffffffff),
-                     Single $ encode sw 0 2 1,
+                     Single $ sw 1 2 0,
                      li32 2 ((shift cap (-32)) Data.Bits..&. 0xffffffff),
-                     Single $ encode sw 4 2 1,
+                     Single $ sw 1 2 4,
                      li32 2 ((shift cap (-64)) Data.Bits..&. 0xffffffff),
-                     Single $ encode sw 8 2 1,
+                     Single $ sw 1 2 8,
                      li32 2 ((shift cap (-96)) Data.Bits..&. 0xffffffff),
-                     Single $ encode sw 12 2 1,
-                     Single $ encode lq 0 1 2,
-                     Single $ encode cgetlen 2 6,
-                     Single $ encode cgetoffset 2 6,
-                     Single $ encode cgetbase 2 6,
-                     Single $ encode cgetaddr 2 6,
-                     Single $ encode cgettype 2 6,
-                     Single $ encode cgetflags 2 6,
-                     Single $ encode cgetperm 2 6,
-                     Single $ encode cbuildcap 2 3 2,
-                     Single $ encode cgettype 2 4,
-                     Single $ encode cgettag 2 5]
+                     Single $ sw 1 2 12,
+                     Single $ lq 2 1 0,
+                     Single $ cgetlen 6 2,
+                     Single $ cgetoffset 6 2,
+                     Single $ cgetbase 6 2,
+                     Single $ cgetaddr 6 2,
+                     Single $ cgettype 6 2,
+                     Single $ cgetflags 6 2,
+                     Single $ cgetperm 6 2,
+                     Single $ cbuildcap 2 3 2,
+                     Single $ cgettype 4 2,
+                     Single $ cgettag 5 2]
 
 
 genRandomCHERITest :: ArchDesc -> Template
@@ -100,7 +100,7 @@ genRandomCHERITest arch = Random $ do
                         , (5, legalCapStore srcAddr)
                         , (10, uniformTemplate $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) -- TODO add csr
                         , (10, uniformTemplate $ rv32_xcheri srcAddr srcData srcScr imm mop dest)
-                        , (10, Single $ encode cspecialrw srcScr srcAddr dest)
+                        , (10, Single $ cspecialrw dest srcAddr srcScr)
                         , (10, uniformTemplate $ rv32_zicsr srcData dest srcCsr mop)
                         , (10, switchEncodingMode)
                         , (10, cspecialRWChain)

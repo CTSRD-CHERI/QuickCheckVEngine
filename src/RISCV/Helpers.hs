@@ -4,6 +4,7 @@
 -- Copyright (c) 2018 Jonathan Woodruff
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2019-2020 Alexandre Joannou
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -78,6 +79,7 @@ module RISCV.Helpers (
 , privString
 , XLen
 , xlenString
+, ExtractedRegs
 ) where
 
 import Numeric
@@ -299,3 +301,5 @@ prettyR4_rm instr rs3 rs2 rs1 rm rd =
 
 prettyS_F instr imm rs2 rs1 =
   concat [instr, " ", fpReg rs2, ", ", reg rs1, "(", int imm, ")"]
+
+type ExtractedRegs = (Bool, Maybe Integer, Maybe Integer, Maybe Integer, Integer -> Integer -> Integer -> Integer)

@@ -2,6 +2,7 @@
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 -- Copyright (c) 2019-2020 Alexandre Joannou
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -53,23 +54,27 @@ module RISCV.RV64_F (
 import RISCV.Helpers (prettyR_IF_1op_rm, prettyR_FI_1op_rm)
 import InstrCodec (DecodeBranch, (-->), encode)
 
-fcvt_l_s  = "1100000 00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
-fcvt_lu_s = "1100000 00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
-fcvt_s_l  = "1101000 00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
-fcvt_s_lu = "1101000 00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_l_s_raw                             =                       "1100000 00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_l_s rd rs1 rm                       = encode fcvt_l_s_raw                  rs1      rm      rd
+fcvt_lu_s_raw                            =                       "1100000 00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_lu_s rd rs1 rm                      = encode fcvt_lu_s_raw                 rs1      rm      rd
+fcvt_s_l_raw                             =                       "1101000 00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_s_l rd rs1 rm                       = encode fcvt_s_l_raw                  rs1      rm      rd
+fcvt_s_lu_raw                            =                       "1101000 00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_s_lu rd rs1 rm                      = encode fcvt_s_lu_raw                 rs1      rm      rd
 
 -- | Dissassembly of RV64 floating-point instructions
 rv64_f_disass :: [DecodeBranch String]
-rv64_f_disass = [ fcvt_l_s  --> prettyR_IF_1op_rm "fcvt.l.s"
-                , fcvt_lu_s --> prettyR_IF_1op_rm "fcvt.lu.s"
-                , fcvt_s_l  --> prettyR_FI_1op_rm "fcvt.s.l"
-                , fcvt_s_lu --> prettyR_FI_1op_rm "fcvt.s.lu"
+rv64_f_disass = [ fcvt_l_s_raw  --> prettyR_IF_1op_rm "fcvt.l.s"
+                , fcvt_lu_s_raw --> prettyR_IF_1op_rm "fcvt.lu.s"
+                , fcvt_s_l_raw  --> prettyR_FI_1op_rm "fcvt.s.l"
+                , fcvt_s_lu_raw --> prettyR_FI_1op_rm "fcvt.s.lu"
                 ]
 
 -- | List of RV64 floating-point arithmetic instructions
 rv64_f :: Integer -> Integer -> Integer -> [Integer]
-rv64_f src1 dest rm = [ encode fcvt_l_s  src1 rm dest
-                      , encode fcvt_lu_s src1 rm dest
-                      , encode fcvt_s_l  src1 rm dest
-                      , encode fcvt_s_lu src1 rm dest
+rv64_f src1 dest rm = [ fcvt_l_s  dest src1 rm
+                      , fcvt_lu_s dest src1 rm
+                      , fcvt_s_l  dest src1 rm
+                      , fcvt_s_lu dest src1 rm
                       ]

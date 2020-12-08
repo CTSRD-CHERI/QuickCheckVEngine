@@ -4,6 +4,7 @@
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2018 Jonathan Woodruff
 -- Copyright (c) 2018-2020 Alexandre Joannou
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -85,7 +86,7 @@ readDataFile inFile = do
   where readData ss = genTemplateUnsized $
           Sequence (map (\(addr:ws) -> writeData addr ws) write_args)
           <> (li64 1 0x80000000)
-          <> (Single $ InstrCodec.encode jalr 0 1 0)
+          <> (Single $ jalr 0 1 0)
           where write_args = map (map (fst . head . readHex) . words) ss
 
 -- | Retrieve an instruction from 'Socket' to an external instruction server

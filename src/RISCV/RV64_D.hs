@@ -2,6 +2,7 @@
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 -- Copyright (c) 2019-2020 Alexandre Joannou
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -55,29 +56,35 @@ module RISCV.RV64_D (
 import RISCV.Helpers (prettyR_FI_1op_rm, prettyR_IF_1op_rm, prettyR_FI_1op, prettyR_IF_1op)
 import InstrCodec (DecodeBranch, (-->), encode)
 
-fcvt_l_d  = "1100001    00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
-fcvt_lu_d = "1100001    00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
-fmv_x_d   = "1110001    00000 rs1[4:0]     000 rd[4:0] 1010011"
-fcvt_d_l  = "1101001    00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
-fcvt_d_lu = "1101001    00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
-fmv_d_x   = "1111001    00000 rs1[4:0]     000 rd[4:0] 1010011"
+fcvt_l_d_raw        =                      "1100001    00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_l_d rd rs1 rm  = encode fcvt_l_d_raw                    rs1      rm      rd
+fcvt_lu_d_raw       =                      "1100001    00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_lu_d rd rs1 rm = encode fcvt_lu_d_raw                   rs1      rm      rd
+fmv_x_d_raw         =                      "1110001    00000 rs1[4:0]     000 rd[4:0] 1010011"
+fmv_x_d rd rs1      = encode fmv_x_d_raw                     rs1              rd
+fcvt_d_l_raw        =                      "1101001    00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_d_l rd rs1 rm  = encode fcvt_d_l_raw                    rs1      rm      rd
+fcvt_d_lu_raw       =                      "1101001    00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_d_lu rd rs1 rm = encode fcvt_d_lu_raw                   rs1      rm      rd
+fmv_d_x_raw         =                      "1111001    00000 rs1[4:0]     000 rd[4:0] 1010011"
+fmv_d_x rd rs1      = encode fmv_d_x_raw                     rs1              rd
 
 -- | Dissassembly of RV64 double-precision floating-point instructions
 rv64_d_disass :: [DecodeBranch String]
-rv64_d_disass = [ fcvt_l_d  --> prettyR_FI_1op_rm "fcvt.l.d"
-                , fcvt_lu_d --> prettyR_IF_1op_rm "fcvt.lu.d"
-                , fmv_x_d   --> prettyR_IF_1op    "fmv.x.d"
-                , fcvt_d_l  --> prettyR_FI_1op_rm "fcvt.d.l"
-                , fcvt_d_lu --> prettyR_FI_1op_rm "fcvt.d.lu"
-                , fmv_d_x   --> prettyR_FI_1op    "fmv.d.x"
+rv64_d_disass = [ fcvt_l_d_raw  --> prettyR_FI_1op_rm "fcvt.l.d"
+                , fcvt_lu_d_raw --> prettyR_IF_1op_rm "fcvt.lu.d"
+                , fmv_x_d_raw   --> prettyR_IF_1op    "fmv.x.d"
+                , fcvt_d_l_raw  --> prettyR_FI_1op_rm "fcvt.d.l"
+                , fcvt_d_lu_raw --> prettyR_FI_1op_rm "fcvt.d.lu"
+                , fmv_d_x_raw   --> prettyR_FI_1op    "fmv.d.x"
                 ]
 
 -- | List of RV64 double-precision floating-point instructions
 rv64_d :: Integer -> Integer -> Integer -> [Integer]
-rv64_d src1 dest rm = [ encode fcvt_l_d  src1 rm dest
-                      , encode fcvt_lu_d src1 rm dest
-                      , encode fmv_x_d   src1    dest
-                      , encode fcvt_d_l  src1 rm dest
-                      , encode fcvt_d_lu src1 rm dest
-                      , encode fmv_d_x   src1    dest
+rv64_d src1 dest rm = [ fcvt_l_d  dest src1 rm
+                      , fcvt_lu_d dest src1 rm
+                      , fmv_x_d   dest src1
+                      , fcvt_d_l  dest src1 rm
+                      , fcvt_d_lu dest src1 rm
+                      , fmv_d_x   dest src1
                       ]

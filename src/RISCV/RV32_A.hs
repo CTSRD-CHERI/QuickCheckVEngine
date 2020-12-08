@@ -2,6 +2,7 @@
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 -- Copyright (c) 2019-2020 Alexandre Joannou
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -60,42 +61,53 @@ module RISCV.RV32_A (
 import RISCV.Helpers (prettyR_A_1op, prettyR_A)
 import InstrCodec (DecodeBranch, (-->), encode)
 
-lr_w      = "00010 aq[0] rl[0]    00000 rs1[4:0] 010 rd[4:0] 0101111"
-sc_w      = "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
-amoswap_w = "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
-amoadd_w  = "00000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
-amoxor_w  = "00100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
-amoand_w  = "01100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
-amoor_w   = "01000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
-amomin_w  = "10000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
-amomax_w  = "10100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
-amominu_w = "11000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
-amomaxu_w = "11100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+lr_w_raw                   =                      "00010 aq[0] rl[0]    00000 rs1[4:0] 010 rd[4:0] 0101111"
+lr_w rd rs1 aq rl          = encode lr_w_raw             aq    rl             rs1          rd
+sc_w_raw                   =                      "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+sc_w rd rs1 rs2 aq rl      = encode sc_w_raw             aq    rl    rs2      rs1          rd
+amoswap_w_raw              =                      "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amoswap_w rd rs1 rs2 aq rl = encode amoswap_w_raw        aq    rl    rs2      rs1          rd
+amoadd_w_raw               =                      "00000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amoadd_w rd rs1 rs2 aq rl  = encode amoadd_w_raw         aq    rl    rs2      rs1          rd
+amoxor_w_raw               =                      "00100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amoxor_w rd rs1 rs2 aq rl  = encode amoxor_w_raw         aq    rl    rs2      rs1          rd
+amoand_w_raw               =                      "01100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amoand_w rd rs1 rs2 aq rl  = encode amoand_w_raw         aq    rl    rs2      rs1          rd
+amoor_w_raw                =                      "01000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amoor_w rd rs1 rs2 aq rl   = encode amoor_w_raw          aq    rl    rs2      rs1          rd
+amomin_w_raw               =                      "10000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amomin_w rd rs1 rs2 aq rl  = encode amomin_w_raw         aq    rl    rs2      rs1          rd
+amomax_w_raw               =                      "10100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amomax_w rd rs1 rs2 aq rl  = encode amomax_w_raw         aq    rl    rs2      rs1          rd
+amominu_w_raw              =                      "11000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amominu_w rd rs1 rs2 aq rl = encode amominu_w_raw        aq    rl    rs2      rs1          rd
+amomaxu_w_raw              =                      "11100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amomaxu_w rd rs1 rs2 aq rl = encode amomaxu_w_raw        aq    rl    rs2      rs1          rd
 
 -- | Dissassembly of RV32 atomic instructions
 rv32_a_disass :: [DecodeBranch String]
-rv32_a_disass = [ lr_w      --> prettyR_A_1op "lr.w"
-                , sc_w      --> prettyR_A     "sc.w"
-                , amoswap_w --> prettyR_A     "amoswap.w"
-                , amoadd_w  --> prettyR_A     "amoadd.w"
-                , amoxor_w  --> prettyR_A     "amoxor.w"
-                , amoand_w  --> prettyR_A     "amoand.w"
-                , amoor_w   --> prettyR_A     "amoor.w"
-                , amomin_w  --> prettyR_A     "amomin.w"
-                , amomax_w  --> prettyR_A     "amomax.w"
-                , amominu_w --> prettyR_A     "amominu.w"
-                , amomaxu_w --> prettyR_A     "amomaxu.w" ]
+rv32_a_disass = [ lr_w_raw      --> prettyR_A_1op "lr.w"
+                , sc_w_raw      --> prettyR_A     "sc.w"
+                , amoswap_w_raw --> prettyR_A     "amoswap.w"
+                , amoadd_w_raw  --> prettyR_A     "amoadd.w"
+                , amoxor_w_raw  --> prettyR_A     "amoxor.w"
+                , amoand_w_raw  --> prettyR_A     "amoand.w"
+                , amoor_w_raw   --> prettyR_A     "amoor.w"
+                , amomin_w_raw  --> prettyR_A     "amomin.w"
+                , amomax_w_raw  --> prettyR_A     "amomax.w"
+                , amominu_w_raw --> prettyR_A     "amominu.w"
+                , amomaxu_w_raw --> prettyR_A     "amomaxu.w" ]
 
 -- | List of RV32 atomic instructions
 rv32_a :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
-rv32_a src1 src2 dest aq rl = [ encode lr_w      aq rl src2 src1 dest
-                              , encode sc_w      aq rl src2 src1 dest
-                              , encode amoswap_w aq rl src2 src1 dest
-                              , encode amoadd_w  aq rl src2 src1 dest
-                              , encode amoxor_w  aq rl src2 src1 dest
-                              , encode amoand_w  aq rl src2 src1 dest
-                              , encode amoor_w   aq rl src2 src1 dest
-                              , encode amomin_w  aq rl src2 src1 dest
-                              , encode amomax_w  aq rl src2 src1 dest
-                              , encode amominu_w aq rl src2 src1 dest
-                              , encode amomaxu_w aq rl src2 src1 dest ]
+rv32_a src1 src2 dest aq rl = [ lr_w      dest src1      aq rl
+                              , sc_w      dest src1 src2 aq rl
+                              , amoswap_w dest src1 src2 aq rl
+                              , amoadd_w  dest src1 src2 aq rl
+                              , amoxor_w  dest src1 src2 aq rl
+                              , amoand_w  dest src1 src2 aq rl
+                              , amoor_w   dest src1 src2 aq rl
+                              , amomin_w  dest src1 src2 aq rl
+                              , amomax_w  dest src1 src2 aq rl
+                              , amominu_w dest src1 src2 aq rl
+                              , amomaxu_w dest src1 src2 aq rl ]

@@ -1,8 +1,8 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Peter Rugg
--- Copyright (c) 2019, 2020 Alexandre Joannou
+-- Copyright (c) 2019-2020 Peter Rugg
+-- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -63,7 +63,7 @@ genAll desc = Random $ do
   let insts = [[ (8, uniformTemplate (rv32_i_arith src1 src2 dest imm longImm))
                , (8, uniformTemplate (rv32_i_ctrl src1 src2 dest imm longImm))
                , (8, uniformTemplate (rv32_i_mem src1 src2 dest offset fOp1 fOp2))
-               , (32, Single $ encode lui 0x80008 dest)
+               , (32, Single $ lui dest 0x80008)
                ]]
            ++ [[ (8, uniformTemplate (rv64_i_arith src1 src2 dest imm))
                , (8, uniformTemplate (rv64_i_mem src1 src2 dest offset))

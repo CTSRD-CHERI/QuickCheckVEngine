@@ -3,6 +3,7 @@
 --
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2019-2020 Alexandre Joannou
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -54,12 +55,13 @@ module RISCV.RV32_Zifencei (
 
 import InstrCodec (DecodeBranch, (-->), encode)
 
-fence_i = "0000 0000 0000 00000 001 00000 0001111"
+fence_i_raw =                    "0000 0000 0000 00000 001 00000 0001111"
+fence_i     = encode fence_i_raw
 
 -- | Dissassembly of RISC-V instruction-fetch fence instructions
 rv32_zifencei_disass :: [DecodeBranch String]
-rv32_zifencei_disass = [fence_i --> "fence.i"]
+rv32_zifencei_disass = [fence_i_raw --> "fence.i"]
 
 -- | List of RISC-V instruction-fetch fence instructions
 rv32_zifencei :: [Integer]
-rv32_zifencei = [encode fence_i]
+rv32_zifencei = [fence_i]

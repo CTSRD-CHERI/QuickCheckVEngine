@@ -2,6 +2,7 @@
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 -- Copyright (c) 2019, 2020 Alexandre Joannou
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -77,7 +78,7 @@ genFP has_f has_d has_xlen_64 = Random $ do
               ++ [ rv32_d src1 src2 src3 dest rm imm | has_d ]
               ++ [ rv64_f src1 dest rm | has_f && has_xlen_64 ]
               ++ [ rv64_d src1 dest rm | has_d && has_xlen_64 ]
-  let epilogue = Single $ encode csrrs 0x003 0 dest
+  let epilogue = Single $ csrrs dest 0 0x003
   let arch = archDesc_null { has_xlen_32 = True
                            , has_xlen_64 = has_xlen_64
                            , has_f       = has_f

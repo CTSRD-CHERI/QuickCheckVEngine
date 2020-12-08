@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Peter Rugg
+-- Copyright (c) 2019-2020 Peter Rugg
 -- Copyright (c) 2019, 2020 Alexandre Joannou
 -- All rights reserved.
 --
@@ -53,12 +53,12 @@ genControlFlow = Random $ do
   dest    <- dest
   longImm <- bits 20
   offset  <- geomBits 11 2
-  return $ instDist [ (8, encode addi  offset src1 dest)
-                    , (8, encode ori   offset src1 dest)
-                    , (8, encode auipc longImm dest)
-                    , (8, encode jal   longImm dest)
-                    , (8, encode jalr  imm src1 dest)
-                    , (8, encode beq   imm src1 src2)
-                    , (8, encode bne   imm src1 src2)
-                    , (8, encode bge   imm src1 src2)
-                    , (8, encode bgeu  imm src1 src2) ]
+  return $ instDist [ (8, addi  dest src1 offset)
+                    , (8, ori   dest src1 offset)
+                    , (8, auipc dest longImm)
+                    , (8, jal   dest longImm)
+                    , (8, jalr  src1 dest imm)
+                    , (8, beq   src1 src2 imm)
+                    , (8, bne   src1 src2 imm)
+                    , (8, bge   src1 src2 imm)
+                    , (8, bgeu  src1 src2 imm) ]

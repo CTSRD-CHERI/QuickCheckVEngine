@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Peter Rugg
+-- Copyright (c) 2019-2020 Peter Rugg
 -- Copyright (c) 2020 Alexandre Joannou
 -- All rights reserved.
 --
@@ -56,31 +56,31 @@ import QuickCheckVEngine.Templates.Utils.General
 
 randomCCall :: Integer -> Integer -> Integer -> Integer -> Template
 randomCCall pccReg idcReg typeReg tmpReg =
-     Distribution [ (1, instSeq [ encode addi 0xffd 0 tmpReg
-                                , encode candperm tmpReg pccReg pccReg ])
+     Distribution [ (1, instSeq [ addi 0 tmpReg 0xffd
+                                , candperm pccReg pccReg tmpReg ])
                   , (9, Empty) ] -- clear X perm?
-  <> Distribution [ (9, instSeq [ encode addi 0xffd 0 tmpReg
-                                , encode candperm tmpReg idcReg idcReg ])
+  <> Distribution [ (9, instSeq [ addi tmpReg 0 0xffd
+                                , candperm idcReg idcReg tmpReg ])
                   , (1, Empty) ]
-  <> Distribution [ (1, instSeq [ encode addi 0xeff 0 tmpReg
-                                , encode candperm tmpReg pccReg pccReg ])
+  <> Distribution [ (1, instSeq [ addi tmpReg 0 0xeff
+                                , candperm pccReg pccReg tmpReg ])
                   , (9, Empty) ] -- clear CCall perm?
-  <> Distribution [ (1, instSeq [ encode addi 0xeff 0 tmpReg
-                                , encode candperm tmpReg idcReg idcReg ])
+  <> Distribution [ (1, instSeq [ addi tmpReg 0 0xeff
+                                , candperm idcReg idcReg tmpReg ])
                   , (9, Empty) ]
-  <> Distribution [ (9, Single $ encode cseal typeReg pccReg pccReg)
+  <> Distribution [ (9, Single $ cseal pccReg pccReg typeReg)
                   , (1, Empty) ] -- seal?
-  <> Distribution [ (9, Single $ encode cseal typeReg idcReg idcReg)
+  <> Distribution [ (9, Single $ cseal idcReg idcReg typeReg)
                   , (1, Empty) ]
-  <> instSeq [ encode ccall idcReg pccReg
-             , encode cmove 31 1 ]
+  <> instSeq [ ccall pccReg idcReg
+             , cmove 31 1 ]
 
 clearASR :: Integer -> Integer -> Template
-clearASR tmp1 tmp2 = instSeq [ encode cspecialrw 0 0 tmp1, -- Get PCC
-                               encode addi 0xbff 0 tmp2, -- Load immediate without ASR set
-                               encode candperm tmp2 tmp1 tmp1, -- Mask out ASR
-                               encode cspecialrw 28 tmp1 0, -- Clear ASR in trap vector
-                               encode cjalr tmp1 0 ]
+clearASR tmp1 tmp2 = instSeq [ cspecialrw tmp1 0 0, -- Get PCC
+                               addi tmp2 0 0xbff, -- Load immediate without ASR set
+                               candperm tmp1 tmp1 tmp2, -- Mask out ASR
+                               cspecialrw 0 tmp1 28, -- Clear ASR in trap vector
+                               cjalr tmp1 0 ]
 
 makeShortCap :: Template
 makeShortCap = Random $ do
@@ -89,41 +89,41 @@ makeShortCap = Random $ do
   tmp <- src
   len <- choose (0, 32)
   offset <- oneof [choose (0,32), bits 14]
-  return $ instSeq [ encode csetboundsimmediate len source dst,
-                     encode addi (Data.Bits.shift offset (-12)) 0 tmp,
-                     encode slli 12 tmp tmp,
-                     encode csetoffset tmp dst dst,
-                     encode cincoffsetimmediate (offset Data.Bits..&. 0xfff) dst dst]
+  return $ instSeq [ csetboundsimmediate dst source len,
+                     addi tmp 0 (Data.Bits.shift offset (-12)),
+                     slli tmp tmp 12,
+                     csetoffset dst dst tmp,
+                     cincoffsetimmediate dst dst (offset Data.Bits..&. 0xfff)]
 
 legalCapLoad :: Integer -> Integer -> Template
 legalCapLoad addrReg targetReg = Random $ do
   tmpReg <- src
-  return $ instSeq [ encode andi 0xff addrReg addrReg
-                   , encode lui 0x40004 tmpReg
-                   , encode slli 1 tmpReg tmpReg
-                   , encode add addrReg tmpReg addrReg
-                   , encode cload 0x17 addrReg targetReg ]
+  return $ instSeq [ andi addrReg addrReg 0xff
+                   , lui tmpReg 0x40004
+                   , slli tmpReg tmpReg 1
+                   , add addrReg tmpReg addrReg
+                   , cload targetReg addrReg 0x17 ]
 
 legalCapStore :: Integer -> Template
 legalCapStore addrReg = Random $ do
   tmpReg  <- src
   dataReg <- dest
-  return $ instSeq [ encode andi 0xff addrReg addrReg
-                   , encode lui 0x40004 tmpReg
-                   , encode slli 1 tmpReg tmpReg
-                   , encode add addrReg tmpReg addrReg
-                   , encode cstore dataReg addrReg 0x4 ]
+  return $ instSeq [ andi addrReg addrReg 0xff
+                   , lui tmpReg 0x40004
+                   , slli tmpReg tmpReg 1
+                   , add addrReg tmpReg addrReg
+                   , cstore addrReg dataReg 0x4 ]
 
 switchEncodingMode :: Template
 switchEncodingMode = Random $ do
   tmpReg1 <- src
   tmpReg2 <- src
   mode    <- elements [0, 1]
-  return $ instSeq [ encode cspecialrw 0 0 tmpReg1
-                   , encode addi mode 0 tmpReg2
-                   , encode csetflags tmpReg2 tmpReg1 tmpReg1
-                   , encode cspecialrw 28 tmpReg1 0 --Also write trap vector so we stay in cap mode
-                   , encode cjalr tmpReg1 0 ]
+  return $ instSeq [ cspecialrw tmpReg1 0 0
+                   , addi mode tmpReg2 0
+                   , csetflags tmpReg1 tmpReg1 tmpReg2
+                   , cspecialrw 0 tmpReg1 28 --Also write trap vector so we stay in cap mode
+                   , cjalr tmpReg1 0 ]
 
 cspecialRWChain :: Template
 cspecialRWChain = Random $ do
@@ -133,10 +133,10 @@ cspecialRWChain = Random $ do
   tmpReg4 <- src
   tmpReg5 <- src
   tmpReg6 <- src
-  return $ instSeq [ encode cspecialrw 30 tmpReg1 tmpReg2
-                   , encode cjalr      tmpReg2 0
-                   , encode cspecialrw 30 tmpReg3 tmpReg4
-                   , encode cspecialrw 30 tmpReg5 tmpReg6 ]
+  return $ instSeq [ cspecialrw tmpReg2 tmpReg1 30
+                   , cjalr      tmpReg2 0
+                   , cspecialrw tmpReg4 tmpReg3 30
+                   , cspecialrw tmpReg6 tmpReg5 30 ]
 
 tagCacheTest :: Template
 tagCacheTest = Random $ do
@@ -144,7 +144,7 @@ tagCacheTest = Random $ do
   targetReg <- dest
   return $     legalCapStore addrReg
             <> legalCapLoad addrReg targetReg
-            <> Single (encode cgettag targetReg targetReg)
+            <> Single (cgettag targetReg targetReg)
 
 genCHERIinspection :: Template
 genCHERIinspection = Random $ do
@@ -197,5 +197,5 @@ genCHERIcontrol = Random $ do
   fenceOp2 <- bits 3
   csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
   return $ Distribution [ (2, uniformTemplate $ rv32_xcheri_control srcAddr srcData dest)
-                        , (1, Single (encode csetbounds srcAddr srcData dest))
+                        , (1, Single (csetbounds dest srcData srcAddr))
                         , (2, uniformTemplate $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr

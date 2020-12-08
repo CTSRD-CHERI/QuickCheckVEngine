@@ -2,6 +2,7 @@
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 -- Copyright (c) 2019-2020 Alexandre Joannou
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -59,33 +60,41 @@ import Prelude hiding (rem, div)
 import RISCV.Helpers (prettyR)
 import InstrCodec (DecodeBranch, (-->), encode)
 
-mul    = "0000001 rs2[4:0] rs1[4:0] 000 rd[4:0] 0110011"
-mulh   = "0000001 rs2[4:0] rs1[4:0] 001 rd[4:0] 0110011"
-mulhsu = "0000001 rs2[4:0] rs1[4:0] 010 rd[4:0] 0110011"
-mulhu  = "0000001 rs2[4:0] rs1[4:0] 011 rd[4:0] 0110011"
-div    = "0000001 rs2[4:0] rs1[4:0] 100 rd[4:0] 0110011"
-divu   = "0000001 rs2[4:0] rs1[4:0] 101 rd[4:0] 0110011"
-rem    = "0000001 rs2[4:0] rs1[4:0] 110 rd[4:0] 0110011"
-remu   = "0000001 rs2[4:0] rs1[4:0] 111 rd[4:0] 0110011"
+mul_raw           =                   "0000001 rs2[4:0] rs1[4:0] 000 rd[4:0] 0110011"
+mul rd rs1 rs2    = encode mul_raw             rs2      rs1          rd
+mulh_raw          =                   "0000001 rs2[4:0] rs1[4:0] 001 rd[4:0] 0110011"
+mulh rd rs1 rs2   = encode mulh_raw            rs2      rs1          rd
+mulhsu_raw        =                   "0000001 rs2[4:0] rs1[4:0] 010 rd[4:0] 0110011"
+mulhsu rd rs1 rs2 = encode mulhsu_raw          rs2      rs1          rd
+mulhu_raw         =                   "0000001 rs2[4:0] rs1[4:0] 011 rd[4:0] 0110011"
+mulhu rd rs1 rs2  = encode mulhu_raw           rs2      rs1          rd
+div_raw           =                   "0000001 rs2[4:0] rs1[4:0] 100 rd[4:0] 0110011"
+div rd rs1 rs2    = encode div_raw             rs2      rs1          rd
+divu_raw          =                   "0000001 rs2[4:0] rs1[4:0] 101 rd[4:0] 0110011"
+divu rd rs1 rs2   = encode divu_raw            rs2      rs1          rd
+rem_raw           =                   "0000001 rs2[4:0] rs1[4:0] 110 rd[4:0] 0110011"
+rem rd rs1 rs2    = encode rem_raw             rs2      rs1          rd
+remu_raw          =                   "0000001 rs2[4:0] rs1[4:0] 111 rd[4:0] 0110011"
+remu rd rs1 rs2   = encode remu_raw            rs2      rs1          rd
 
 -- | Dissassembly of RV32 multiply/divide instructions
 rv32_m_disass :: [DecodeBranch String]
-rv32_m_disass = [ mul    --> prettyR "mul"
-                , mulh   --> prettyR "mulh"
-                , mulhsu --> prettyR "mulhsu"
-                , mulhu  --> prettyR "mulhu"
-                , div    --> prettyR "div"
-                , divu   --> prettyR "divu"
-                , rem    --> prettyR "rem"
-                , remu   --> prettyR "remu" ]
+rv32_m_disass = [ mul_raw    --> prettyR "mul"
+                , mulh_raw   --> prettyR "mulh"
+                , mulhsu_raw --> prettyR "mulhsu"
+                , mulhu_raw  --> prettyR "mulhu"
+                , div_raw    --> prettyR "div"
+                , divu_raw   --> prettyR "divu"
+                , rem_raw    --> prettyR "rem"
+                , remu_raw   --> prettyR "remu" ]
 
 -- | List of RV32 multiply/divide instructions
 rv32_m :: Integer -> Integer -> Integer -> [Integer]
-rv32_m src1 src2 dest = [ encode mul    src2 src1 dest
-                        , encode mulh   src2 src1 dest
-                        , encode mulhsu src2 src1 dest
-                        , encode mulhu  src2 src1 dest
-                        , encode div    src2 src1 dest
-                        , encode divu   src2 src1 dest
-                        , encode rem    src2 src1 dest
-                        , encode remu   src2 src1 dest ]
+rv32_m src1 src2 dest = [ mul    dest src1 src2
+                        , mulh   dest src1 src2
+                        , mulhsu dest src1 src2
+                        , mulhu  dest src1 src2
+                        , div    dest src1 src2
+                        , divu   dest src1 src2
+                        , rem    dest src1 src2
+                        , remu   dest src1 src2 ]

@@ -5,6 +5,7 @@
 -- Copyright (c) 2018 Jonathan Woodruff
 -- Copyright (c) 2018-2020 Alexandre Joannou
 -- Copyright (c) 2020 Alex Richardson
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -397,7 +398,7 @@ instance Show RVFI_Packet where
         (rvfi_insn tok)
         (privString (rvfi_mode tok))
         (xlenString (rvfi_ixl tok))
-        (pretty (toInteger (rvfi_insn tok))) -- Inst
+        (rv_pretty (toInteger (rvfi_insn tok))) -- Inst
 
 -- | Return 'True' for halt 'RVFI_Packet's
 rvfiIsHalt :: RVFI_Packet -> Bool

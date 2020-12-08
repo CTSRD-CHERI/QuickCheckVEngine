@@ -4,6 +4,7 @@
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2018 Jonathan Woodruff
 -- Copyright (c) 2019-2020 Alexandre Joannou
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -38,14 +39,19 @@
 --
 
 {-|
-    Module      : RISCV.InstPretty
-    Description : Pretty printing helper for RISC-V instructions
+    Module      : RISCV.InstInspect
+    Description : Inspection helper for RISC-V instructions
 
-    The 'RISCV.InstPretty' module provides a function for RISC-V instruction
-    pretty-printing
+    The 'RISCV.InstInspect' module provides a function for RISC-V instruction
+    pretty-printing, extracting encoded fields, and providing shrunk versions
+    of the instructions.
 -}
 
-module RISCV.InstPretty (pretty) where
+module RISCV.InstInspect (
+  rv_pretty,
+  rv_shrink,
+  rv_extract
+) where
 
 import InstrCodec
 
@@ -62,12 +68,10 @@ import RISCV.RV64_M
 import RISCV.RV64_A
 import RISCV.RV64_F
 import RISCV.RV64_D
---import RISCV.RV64_Xcheri -- TODO
-
 
 -- | RISC-V instruction pretty printer
-pretty :: Integer -> String
-pretty instr = case decode 32 instr instList of
+rv_pretty :: Integer -> String
+rv_pretty instr = case decode 32 instr instList of
   Nothing -> "Unknown instruction"
   Just i -> i
   where instList =    rv32_i_disass ++ rv64_i_disass
@@ -77,4 +81,14 @@ pretty instr = case decode 32 instr instList of
                    ++ rv32_d_disass ++ rv64_d_disass
                    ++ rv32_zicsr_disass
                    ++ rv32_zifencei_disass
-                   ++ rv32_xcheri_disass -- TODO ++ rv64_cheri_disass
+                   ++ rv32_xcheri_disass
+
+rv_extract instr = case decode 32 instr extractList of
+  Nothing -> (False, Nothing, Nothing, Nothing, (\a b c -> instr))
+  Just i -> i
+  where extractList = rv32_i_extract ++ rv32_xcheri_extract
+
+rv_shrink instr = case decode 32 instr shrinkList of
+  Nothing -> []
+  Just i -> i
+  where shrinkList = rv32_i_shrink ++ rv32_xcheri_shrink

@@ -2,6 +2,7 @@
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 -- Copyright (c) 2019-2020 Alexandre Joannou
+-- Copyright (c) 2020 Peter Rugg
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -82,100 +83,127 @@ import RISCV.Helpers (prettyR, prettyS, prettyR4_rm, prettyR_rm,
                       prettyS_F)
 import InstrCodec (DecodeBranch, (-->), encode)
 
-flw       = "imm[11:0]            rs1[4:0]     010  rd[4:0] 0000111"
-fsw       = "imm[11:5]   rs2[4:0] rs1[4:0]     010 imm[4:0] 0100111"
-fmadd_s   = "rs3[4:0] 00 rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1000011"
-fmsub_s   = "rs3[4:0] 00 rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1000111"
-fnmsub_s  = "rs3[4:0] 00 rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1001011"
-fnmadd_s  = "rs3[4:0] 00 rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1001111"
-fadd_s    = "0000000     rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1010011"
-fsub_s    = "0000100     rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1010011"
-fmul_s    = "0001000     rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1010011"
-fdiv_s    = "0001100     rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1010011"
-fsqrt_s   = "0101100        00000 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
-fsgnj_s   = "0010000     rs2[4:0] rs1[4:0]     000  rd[4:0] 1010011"
-fsgnjn_s  = "0010000     rs2[4:0] rs1[4:0]     001  rd[4:0] 1010011"
-fsgnjx_s  = "0010000     rs2[4:0] rs1[4:0]     010  rd[4:0] 1010011"
-fmin_s    = "0010100     rs2[4:0] rs1[4:0]     000  rd[4:0] 1010011"
-fmax_s    = "0010100     rs2[4:0] rs1[4:0]     001  rd[4:0] 1010011"
-fcvt_w_s  = "1100000        00000 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
-fcvt_wu_s = "1100000        00001 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
-fmv_x_w   = "1110000        00000 rs1[4:0]     000  rd[4:0] 1010011"
-feq_s     = "1010000     rs2[4:0] rs1[4:0]     010  rd[4:0] 1010011"
-flt_s     = "1010000     rs2[4:0] rs1[4:0]     001  rd[4:0] 1010011"
-fle_s     = "1010000     rs2[4:0] rs1[4:0]     000  rd[4:0] 1010011"
-fclass_s  = "1110000        00000 rs1[4:0]     001  rd[4:0] 1010011"
-fcvt_s_w  = "1101000        00000 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
-fcvt_s_wu = "1101000        00001 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
-fmv_w_x   = "1111000        00000 rs1[4:0]     000  rd[4:0] 1010011"
+flw_raw                    =                      "imm[11:0]            rs1[4:0]     010  rd[4:0] 0000111"
+flw rd rs1 imm             = encode flw_raw        imm                  rs1               rd
+fsw_raw                    =                      "imm[11:5]   rs2[4:0] rs1[4:0]     010 imm[4:0] 0100111"
+fsw rs1 rs2 imm            = encode fsw_raw        imm         rs2      rs1
+fmadd_s_raw                =                      "rs3[4:0] 00 rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1000011"
+fmadd_s rd rs1 rs2 rs3 rm  = encode fmadd_s_raw    rs3         rs2      rs1      rm       rd
+fmsub_s_raw                =                      "rs3[4:0] 00 rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1000111"
+fmsub_s rd rs1 rs2 rs3 rm  = encode fmsub_s_raw    rs3         rs2      rs1      rm       rd
+fnmsub_s_raw               =                      "rs3[4:0] 00 rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1001011"
+fnmsub_s rd rs1 rs2 rs3 rm = encode fnmsub_s_raw   rs3         rs2      rs1      rm       rd
+fnmadd_s_raw               =                      "rs3[4:0] 00 rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1001111"
+fnmadd_s rd rs1 rs2 rs3 rm = encode fnmadd_s_raw   rs3         rs2      rs1      rm       rd
+fadd_s_raw                 =                      "0000000     rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fadd_s rs2 rd rs1 rm       = encode fadd_s_raw                 rs2      rs1      rm       rd
+fsub_s_raw                 =                      "0000100     rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fsub_s rs2 rd rs1 rm       = encode fsub_s_raw                 rs2      rs1      rm       rd
+fmul_s_raw                 =                      "0001000     rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fmul_s rs2 rd rs1 rm       = encode fmul_s_raw                 rs2      rs1      rm       rd
+fdiv_s_raw                 =                      "0001100     rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fdiv_s rs2 rd rs1 rm       = encode fdiv_s_raw                 rs2      rs1      rm       rd
+fsqrt_s_raw                =                      "0101100        00000 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fsqrt_s rs1 rd rm          = encode fsqrt_s_raw                         rs1      rm       rd
+fsgnj_s_raw                =                      "0010000     rs2[4:0] rs1[4:0]     000  rd[4:0] 1010011"
+fsgnj_s rs2 rd rs1         = encode fsgnj_s_raw                rs2      rs1               rd
+fsgnjn_s_raw               =                      "0010000     rs2[4:0] rs1[4:0]     001  rd[4:0] 1010011"
+fsgnjn_s rs2 rd rs1        = encode fsgnjn_s_raw               rs2      rs1               rd
+fsgnjx_s_raw               =                      "0010000     rs2[4:0] rs1[4:0]     010  rd[4:0] 1010011"
+fsgnjx_s rs2 rd rs1        = encode fsgnjx_s_raw               rs2      rs1               rd
+fmin_s_raw                 =                      "0010100     rs2[4:0] rs1[4:0]     000  rd[4:0] 1010011"
+fmin_s rs2 rd rs1          = encode fmin_s_raw                 rs2      rs1               rd
+fmax_s_raw                 =                      "0010100     rs2[4:0] rs1[4:0]     001  rd[4:0] 1010011"
+fmax_s rs2 rd rs1          = encode fmax_s_raw                 rs2      rs1               rd
+fcvt_w_s_raw               =                      "1100000        00000 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fcvt_w_s rd rs1 rm         = encode fcvt_w_s_raw                        rs1      rm       rd
+fcvt_wu_s_raw              =                      "1100000        00001 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fcvt_wu_s rd rs1 rm        = encode fcvt_wu_s_raw                       rs1      rm       rd
+fmv_x_w_raw                =                      "1110000        00000 rs1[4:0]     000  rd[4:0] 1010011"
+fmv_x_w rd rs1             = encode fmv_x_w_raw                         rs1               rd
+feq_s_raw                  =                      "1010000     rs2[4:0] rs1[4:0]     010  rd[4:0] 1010011"
+feq_s rd rs1 rs2           = encode feq_s_raw                  rs2      rs1               rd
+flt_s_raw                  =                      "1010000     rs2[4:0] rs1[4:0]     001  rd[4:0] 1010011"
+flt_s rd rs1 rs2           = encode flt_s_raw                  rs2      rs1               rd
+fle_s_raw                  =                      "1010000     rs2[4:0] rs1[4:0]     000  rd[4:0] 1010011"
+fle_s rd rs1 rs2           = encode fle_s_raw                  rs2      rs1               rd
+fclass_s_raw               =                      "1110000        00000 rs1[4:0]     001  rd[4:0] 1010011"
+fclass_s rd rs1            = encode fclass_s_raw                        rs1               rd
+fcvt_s_w_raw               =                      "1101000        00000 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fcvt_s_w rd rs1 rm         = encode fcvt_s_w_raw                        rs1      rm       rd
+fcvt_s_wu_raw              =                      "1101000        00001 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fcvt_s_wu rd rs1 rm        = encode fcvt_s_wu_raw                       rs1      rm       rd
+fmv_w_x_raw                =                      "1111000        00000 rs1[4:0]     000  rd[4:0] 1010011"
+fmv_w_x rd rs1             = encode fmv_w_x_raw                         rs1               rd
+
 
 -- | Dissassembly of RV32 floating-point instructions
 rv32_f_disass :: [DecodeBranch String]
-rv32_f_disass = [ flw       --> prettyR           "flw"
-                , fsw       --> prettyS_F         "fsw"
-                , fmadd_s   --> prettyR4_rm       "fmadd.s"
-                , fmsub_s   --> prettyR4_rm       "fmsub.s"
-                , fnmsub_s  --> prettyR4_rm       "fnmsub.s"
-                , fnmadd_s  --> prettyR4_rm       "fnmadd.s"
-                , fadd_s    --> prettyR_rm        "fadd.s"
-                , fsub_s    --> prettyR_rm        "fsub.s"
-                , fmul_s    --> prettyR_rm        "fmul.s"
-                , fdiv_s    --> prettyR_rm        "fdiv.s"
-                , fsqrt_s   --> prettyR_FF_1op_rm "fsqrt.s"
-                , fsgnj_s   --> prettyR           "fsgnj.s"
-                , fsgnjn_s  --> prettyR           "fsgnjn.s"
-                , fsgnjx_s  --> prettyR           "fsgnjx.s"
-                , fmin_s    --> prettyR           "fmin.s"
-                , fmax_s    --> prettyR           "fmax.s"
-                , fcvt_w_s  --> prettyR_IF_1op_rm "fcvt.w.s"
-                , fcvt_wu_s --> prettyR_FI_1op_rm "fcvt.wu.s"
-                , fmv_x_w   --> prettyR_IF_1op    "fmv.x.w"
-                , feq_s     --> prettyR           "feq.s"
-                , flt_s     --> prettyR           "flt.s"
-                , fle_s     --> prettyR           "fle.s"
-                , fclass_s  --> prettyR_IF_1op    "fclass.s"
-                , fcvt_s_w  --> prettyR_FI_1op_rm "fcvt.s.w"
-                , fcvt_s_wu --> prettyR_FI_1op_rm "fcvt.s.wu"
-                , fmv_w_x   --> prettyR_FI_1op    "fmv.w.x"
+rv32_f_disass = [ flw_raw       --> prettyR           "flw"
+                , fsw_raw       --> prettyS_F         "fsw"
+                , fmadd_s_raw   --> prettyR4_rm       "fmadd.s"
+                , fmsub_s_raw   --> prettyR4_rm       "fmsub.s"
+                , fnmsub_s_raw  --> prettyR4_rm       "fnmsub.s"
+                , fnmadd_s_raw  --> prettyR4_rm       "fnmadd.s"
+                , fadd_s_raw    --> prettyR_rm        "fadd.s"
+                , fsub_s_raw    --> prettyR_rm        "fsub.s"
+                , fmul_s_raw    --> prettyR_rm        "fmul.s"
+                , fdiv_s_raw    --> prettyR_rm        "fdiv.s"
+                , fsqrt_s_raw   --> prettyR_FF_1op_rm "fsqrt.s"
+                , fsgnj_s_raw   --> prettyR           "fsgnj.s"
+                , fsgnjn_s_raw  --> prettyR           "fsgnjn.s"
+                , fsgnjx_s_raw  --> prettyR           "fsgnjx.s"
+                , fmin_s_raw    --> prettyR           "fmin.s"
+                , fmax_s_raw    --> prettyR           "fmax.s"
+                , fcvt_w_s_raw  --> prettyR_IF_1op_rm "fcvt.w.s"
+                , fcvt_wu_s_raw --> prettyR_FI_1op_rm "fcvt.wu.s"
+                , fmv_x_w_raw   --> prettyR_IF_1op    "fmv.x.w"
+                , feq_s_raw     --> prettyR           "feq.s"
+                , flt_s_raw     --> prettyR           "flt.s"
+                , fle_s_raw     --> prettyR           "fle.s"
+                , fclass_s_raw  --> prettyR_IF_1op    "fclass.s"
+                , fcvt_s_w_raw  --> prettyR_FI_1op_rm "fcvt.s.w"
+                , fcvt_s_wu_raw --> prettyR_FI_1op_rm "fcvt.s.wu"
+                , fmv_w_x_raw   --> prettyR_FI_1op    "fmv.w.x"
                 ]
 
 -- | List of RV32 floating-point load instructions
 rv32_f_load :: Integer -> Integer -> Integer -> [Integer]
-rv32_f_load src1 dest imm = [ encode flw imm src1 dest ]
+rv32_f_load src1 dest imm = [ flw dest src1 imm ]
 
 -- | List of RV32 floating-point store instructions
 rv32_f_store :: Integer -> Integer -> Integer -> [Integer]
-rv32_f_store src1 src2 imm = [ encode fsw imm src2 src1 ]
+rv32_f_store src1 src2 imm = [ fsw src1 src2 imm ]
 
 -- | List of RV32 floating-point multiply-accumulate instructions
 rv32_f_macc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
-rv32_f_macc src1 src2 src3 dest rm = [ encode fmadd_s  src3 src2 src1 rm dest
-                                     , encode fmsub_s  src3 src2 src1 rm dest
-                                     , encode fnmsub_s src3 src2 src1 rm dest
-                                     , encode fnmadd_s src3 src2 src1 rm dest ]
+rv32_f_macc src1 src2 src3 dest rm = [ fmadd_s  dest src1 src2 src3 rm
+                                     , fmsub_s  dest src1 src2 src3 rm
+                                     , fnmsub_s dest src1 src2 src3 rm
+                                     , fnmadd_s dest src1 src2 src3 rm ]
 
 -- | List of RV32 floating-point arithmetic instructions
 rv32_f_arith :: Integer -> Integer -> Integer -> Integer -> [Integer]
-rv32_f_arith src1 src2 dest rm = [ encode fadd_s    src2 src1 rm dest
-                                 , encode fsub_s    src2 src1 rm dest
-                                 , encode fmul_s    src2 src1 rm dest
-                                 , encode fdiv_s    src2 src1 rm dest
-                                 , encode fsqrt_s        src1 rm dest
-                                 , encode fsgnj_s   src2 src1    dest
-                                 , encode fsgnjn_s  src2 src1    dest
-                                 , encode fsgnjx_s  src2 src1    dest
-                                 , encode fmin_s    src2 src1    dest
-                                 , encode fmax_s    src2 src1    dest
-                                 , encode fcvt_w_s       src1 rm dest
-                                 , encode fcvt_wu_s      src1 rm dest
-                                 , encode fmv_x_w        src1    dest
-                                 , encode feq_s     src2 src1    dest
-                                 , encode flt_s     src2 src1    dest
-                                 , encode fle_s     src2 src1    dest
-                                 , encode fclass_s       src1    dest
-                                 , encode fcvt_s_w       src1 rm dest
-                                 , encode fcvt_s_wu      src1 rm dest
-                                 , encode fmv_w_x        src1    dest ]
+rv32_f_arith src1 src2 dest rm = [ fadd_s    dest src1 src2 rm
+                                 , fsub_s    dest src1 src2 rm
+                                 , fmul_s    dest src1 src2 rm
+                                 , fdiv_s    dest src1 src2 rm
+                                 , fsqrt_s   dest src1      rm
+                                 , fsgnj_s   dest src1 src2
+                                 , fsgnjn_s  dest src1 src2
+                                 , fsgnjx_s  dest src1 src2
+                                 , fmin_s    dest src1 src2
+                                 , fmax_s    dest src1 src2
+                                 , fcvt_w_s  dest src1      rm
+                                 , fcvt_wu_s dest src1      rm
+                                 , fmv_x_w   dest src1
+                                 , feq_s     dest src1 src2
+                                 , flt_s     dest src1 src2
+                                 , fle_s     dest src1 src2
+                                 , fclass_s  dest src1
+                                 , fcvt_s_w  dest src1      rm
+                                 , fcvt_s_wu dest src1      rm
+                                 , fmv_w_x   dest src1         ]
 
 -- | List of RV32 floating-point arithmetic instructions
 rv32_f :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer

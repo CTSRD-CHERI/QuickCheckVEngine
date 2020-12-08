@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019 Peter Rugg
+-- Copyright (c) 2019-2020 Peter Rugg
 -- Copyright (c) 2019-2020 Alexandre Joannou
 -- All rights reserved.
 --
@@ -56,27 +56,33 @@ module RISCV.RV32_Zicsr (
 import RISCV.Helpers (prettyCSR, prettyCSR_imm)
 import InstrCodec (DecodeBranch, (-->), encode)
 
-csrrw  = "imm[11:0]  rs1[4:0] 001 rd[4:0] 1110011"
-csrrs  = "imm[11:0]  rs1[4:0] 010 rd[4:0] 1110011"
-csrrc  = "imm[11:0]  rs1[4:0] 011 rd[4:0] 1110011"
-csrrwi = "imm[11:0] uimm[4:0] 101 rd[4:0] 1110011"
-csrrsi = "imm[11:0] uimm[4:0] 110 rd[4:0] 1110011"
-csrrci = "imm[11:0] uimm[4:0] 111 rd[4:0] 1110011"
+csrrw_raw          =                   "imm[11:0]  rs1[4:0] 001 rd[4:0] 1110011"
+csrrw rd rs1 imm   = encode csrrw_raw   imm        rs1          rd
+csrrs_raw          =                   "imm[11:0]  rs1[4:0] 010 rd[4:0] 1110011"
+csrrs rd rs1 imm   = encode csrrs_raw   imm        rs1          rd
+csrrc_raw          =                   "imm[11:0]  rs1[4:0] 011 rd[4:0] 1110011"
+csrrc rd rs1 imm   = encode csrrc_raw   imm        rs1          rd
+csrrwi_raw         =                   "imm[11:0] uimm[4:0] 101 rd[4:0] 1110011"
+csrrwi rd uimm imm = encode csrrwi_raw  imm       uimm          rd
+csrrsi_raw         =                   "imm[11:0] uimm[4:0] 110 rd[4:0] 1110011"
+csrrsi rd uimm imm = encode csrrsi_raw  imm       uimm          rd
+csrrci_raw         =                   "imm[11:0] uimm[4:0] 111 rd[4:0] 1110011"
+csrrci rd uimm imm = encode csrrci_raw  imm       uimm          rd
 
 -- | Dissassembly of RISC-V control and status register instructions
 rv32_zicsr_disass :: [DecodeBranch String]
-rv32_zicsr_disass = [ csrrw  --> prettyCSR     "csrrw"
-                    , csrrs  --> prettyCSR     "csrrs"
-                    , csrrc  --> prettyCSR     "csrrc"
-                    , csrrwi --> prettyCSR_imm "csrrwi"
-                    , csrrsi --> prettyCSR_imm "csrrsi"
-                    , csrrci --> prettyCSR_imm "csrrci" ]
+rv32_zicsr_disass = [ csrrw_raw  --> prettyCSR     "csrrw"
+                    , csrrs_raw  --> prettyCSR     "csrrs"
+                    , csrrc_raw  --> prettyCSR     "csrrc"
+                    , csrrwi_raw --> prettyCSR_imm "csrrwi"
+                    , csrrsi_raw --> prettyCSR_imm "csrrsi"
+                    , csrrci_raw --> prettyCSR_imm "csrrci" ]
 
 -- | List of RISC-V control and status register instructions
 rv32_zicsr :: Integer -> Integer -> Integer -> Integer -> [Integer]
-rv32_zicsr src dest imm uimm = [ encode csrrw  imm  src dest
-                               , encode csrrs  imm  src dest
-                               , encode csrrc  imm  src dest
-                               , encode csrrwi imm uimm dest
-                               , encode csrrsi imm uimm dest
-                               , encode csrrci imm uimm dest ]
+rv32_zicsr src dest imm uimm = [ csrrw  dest src  imm
+                               , csrrs  dest src  imm
+                               , csrrc  dest src  imm
+                               , csrrwi dest uimm imm
+                               , csrrsi dest uimm imm
+                               , csrrci dest uimm imm ]
