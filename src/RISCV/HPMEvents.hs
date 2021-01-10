@@ -81,8 +81,8 @@ hpmevent_map :: [(HPMEventIdx, HPMEventName)]
 hpmevent_map = -- Architecturally defined events
                [ (0, "noEvent") ]
             ++ -- Architectural events
-               [ (1,  "pcRedirect")
-               , (3,  "branchInst")
+               [ --(1,  "pcRedirect") // XXX which redirections exactly should be counted?
+                 (3,  "branchInst")
                , (4,  "jalInst")
                , (5,  "jalrInst")
                , (6,  "auipcInst")
@@ -95,19 +95,19 @@ hpmevent_map = -- Architecturally defined events
                , (13, "mulDivInst")
                , (14, "fpInst")
                , (18, "fenceInst") ]
-            ++ -- Architectural CHERI events 
-               [ (24, "cheriSetBoundsImprecise")
-               , (25, "cheriUnrepCap")
-               , (26, "cheriWideLoad")
-               , (27, "cheriWideStore")
-               , (28, "cheriCapLoad")
-               , (29, "cheriCapStore") ]
-            ++ -- Flute core specific events
-               [ (15, "scSuccess")
-               , (16, "loadWaitCycle")
-               , (17, "storeWaitCycle")
-               , (19, "FBusyNoConsume")
-               , (20, "DBusyNoConsume")
-               , (21, "1BusyNoConsume")
-               , (22, "2BusyNoConsume")
-               , (23, "3BusyNoConsume") ]
+--          ++ -- Architectural CHERI events
+--             [ (24, "cheriSetBoundsImprecise")
+--             , (25, "cheriUnrepCap")
+--             , (26, "cheriWideLoad")
+--             , (27, "cheriWideStore")
+--             , (28, "cheriCapLoad")
+--             , (29, "cheriCapStore") ]
+--          ++ -- Flute core specific events
+--             [ (15, "scSuccess")
+--             , (16, "loadWaitCycle")
+--             , (17, "storeWaitCycle")
+--             , (19, "FBusyNoConsume")
+--             , (20, "DBusyNoConsume")
+--             , (21, "1BusyNoConsume")
+--             , (22, "2BusyNoConsume")
+--             , (23, "3BusyNoConsume") ]
