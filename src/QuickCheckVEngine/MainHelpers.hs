@@ -78,7 +78,7 @@ readDataFile inFile = do
   return testCase
   where readData ss = genTemplateUnsized $
              (writeData addr ws)
-          <> (li32 1 0x80000000)
+          <> (li64 1 0x80000000)
           <> (Single $ InstrCodec.encode jalr 0 1 0)
           where (addr:ws) = map (fst . head . readHex . head . words) ss
 

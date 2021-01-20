@@ -109,7 +109,18 @@ li32 reg imm = instSeq $ doHi20 ++ doLo12
 
 -- | 'li64' returns a 'Template' that loads a 64-bit immediate into a register
 li64 :: Integer -> Integer -> Template
-li64 reg imm = error "li64 is not yet supported"
+li64 reg imm = instSeq [ encode addi (shiftAndMask imm 52 0xfff)   0 reg
+                       , encode slli 11 reg reg
+                       , encode addi (shiftAndMask imm 41 0x7ff) reg reg
+                       , encode slli 11 reg reg
+                       , encode addi (shiftAndMask imm 30 0x7ff) reg reg
+                       , encode slli 11 reg reg
+                       , encode addi (shiftAndMask imm 19 0x7ff) reg reg
+                       , encode slli 11 reg reg
+                       , encode addi (shiftAndMask imm  8 0x7ff) reg reg
+                       , encode slli 8 reg reg
+                       , encode addi (shiftAndMask imm  0 0x0ff) reg reg ]
+  where shiftAndMask i shamt msk = toInteger $ ((fromInteger i :: Word64) `shiftR` shamt) .&. msk
 
 -- | 'csrr' pseudo-instruction to read a CSR
 csrr :: Integer -> Integer -> Template
@@ -233,10 +244,10 @@ storeOp arch rs1 rs2 = Random $ oneof $ map (return . uniformTemplate) $
 -- | Write provided list of 32-bit 'Integer's in memory starting at the provided
 --   address by deriving a sequence initializing register 1 with that address,
 --   register 2 with a 32-bit immediate value of each word, storing the content
---   of register 2 at the address contrained in register 1, and incrementing
+--   of register 2 at the address contained in register 1, and incrementing
 --   that address by 4 each time
 writeData :: Integer -> [Integer] -> Template
-writeData addr ws = li32 1 addr <> Sequence (map writeWord ws)
+writeData addr ws = li64 1 addr <> Sequence (map writeWord ws)
   where writeWord w =  li32 2 (byteSwap w)
                     <> instSeq [ encode sw 0 2 1, encode addi 4 1 1 ]
         byteSwap w = swpHlp ((fromInteger w) :: Word32)
