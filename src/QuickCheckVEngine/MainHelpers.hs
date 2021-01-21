@@ -68,7 +68,13 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
 -- | Turns a file representation of some data into a 'TestCase' that initializes
---   memory with that data
+--   memory with that data.
+--   Format:
+--   0xADDR0 0xDATA 0xDATA 0xDATA...
+--   0xADDR1 0xDATA 0xDATA 0xDATA...
+--   Example:
+--   80000000 13050000 ef008014 13051000 ef000014
+--   80000010 13052000 ef008013 13053000 ef000013
 readDataFile :: FilePath -> IO TestCase
 readDataFile inFile = do
   handle <- openFile inFile ReadMode
@@ -77,10 +83,10 @@ readDataFile inFile = do
   putStrLn $ show (testCaseInstCount testCase)
   return testCase
   where readData ss = genTemplateUnsized $
-             (writeData addr ws)
+          Sequence (map (\(addr:ws) -> writeData addr ws) write_args)
           <> (li64 1 0x80000000)
           <> (Single $ InstrCodec.encode jalr 0 1 0)
-          where (addr:ws) = map (fst . head . readHex . head . words) ss
+          where write_args = map (map (fst . head . readHex) . words) ss
 
 -- | Retrieve an instruction from 'Socket' to an external instruction server
 genInstrServer :: Socket -> Gen Integer
