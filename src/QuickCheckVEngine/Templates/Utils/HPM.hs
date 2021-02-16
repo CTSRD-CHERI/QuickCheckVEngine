@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2020 Alexandre Joannou
+-- Copyright (c) 2020-2021 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -35,10 +35,13 @@ module QuickCheckVEngine.Templates.Utils.HPM (
   setupHPMEventSel
 , triggerHPMCounter
 , inhibitHPMCounter
-, enableHPMCounter
-, disableHPMCounter
+, enableHPMCounterM
+, disableHPMCounterM
+, enableHPMCounterS
+, disableHPMCounterS
 , readHPMCounter
-, writeHPMCounter
+, readHPMCounterM
+, writeHPMCounterM
 , surroundWithHPMAccess
 ) where
 
@@ -52,7 +55,7 @@ import Test.QuickCheck
 --   (using the provided temporary)
 setupHPMEventSel :: Integer -> HPMEventSelCSRIdx -> HPMEventIdx -> Template
 setupHPMEventSel tmpReg sel evt = li32 tmpReg evt <> csrw csrIdx tmpReg
-  where csrIdx = hpmcounter_idx_to_event_sel_csr_idx sel
+  where csrIdx = hpmcounter_idx_to_mevent_sel_csr_idx sel
 
 -- | Trigger the provided HPM counter
 triggerHPMCounter :: Integer -> HPMCounterIdx -> Template
@@ -65,31 +68,50 @@ inhibitHPMCounter tmpReg idx = csrBitSetOrClear True mcountinhibit idx tmpReg
   where mcountinhibit = unsafe_csrs_indexFromName "mcountinhibit"
 
 -- | Enable the provided HPM counter's accessibility from less privileged modes
-enableHPMCounter :: Integer -> HPMCounterIdx -> Template
-enableHPMCounter tmpReg idx = csrBitSetOrClear True mcounteren idx tmpReg
+--   than M
+enableHPMCounterM :: Integer -> HPMCounterIdx -> Template
+enableHPMCounterM tmpReg idx = csrBitSetOrClear True mcounteren idx tmpReg
   where mcounteren = unsafe_csrs_indexFromName "mcounteren"
 
 -- | Disable the provided HPM counter's accessibility from less privileged modes
-disableHPMCounter :: Integer -> HPMCounterIdx -> Template
-disableHPMCounter tmpReg idx = csrBitSetOrClear False mcounteren idx tmpReg
+--   than M
+disableHPMCounterM :: Integer -> HPMCounterIdx -> Template
+disableHPMCounterM tmpReg idx = csrBitSetOrClear False mcounteren idx tmpReg
   where mcounteren = unsafe_csrs_indexFromName "mcounteren"
+
+-- | Enable the provided HPM counter's accessibility from less privileged modes
+--   than S
+enableHPMCounterS :: Integer -> HPMCounterIdx -> Template
+enableHPMCounterS tmpReg idx = csrBitSetOrClear True mcounteren idx tmpReg
+  where mcounteren = unsafe_csrs_indexFromName "scounteren"
+
+-- | Disable the provided HPM counter's accessibility from less privileged modes
+--   than S
+disableHPMCounterS :: Integer -> HPMCounterIdx -> Template
+disableHPMCounterS tmpReg idx = csrBitSetOrClear False mcounteren idx tmpReg
+  where mcounteren = unsafe_csrs_indexFromName "scounteren"
 
 -- | Read the provided HPM counter into the provided destination register
 readHPMCounter :: Integer -> HPMCounterIdx -> Template
 readHPMCounter rd idx = csrr rd csrIdx
   where csrIdx = hpmcounter_idx_to_counter_csr_idx idx
 
+-- | Read the provided HPM counter into the provided destination register
+readHPMCounterM :: Integer -> HPMCounterIdx -> Template
+readHPMCounterM rd idx = csrr rd csrIdx
+  where csrIdx = hpmcounter_idx_to_mcounter_csr_idx idx
+
 -- | Write the provided general purpose register's value into the provided
 --   HPM counter
-writeHPMCounter :: HPMCounterIdx -> Integer -> Template
-writeHPMCounter idx rs1 = csrw csrIdx rs1
-  where csrIdx = hpmcounter_idx_to_counter_csr_idx idx
+writeHPMCounterM :: HPMCounterIdx -> Integer -> Template
+writeHPMCounterM idx rs1 = csrw csrIdx rs1
+  where csrIdx = hpmcounter_idx_to_mcounter_csr_idx idx
 
 -- | Clear the provided HPM counter
 resetHPMCounter :: Integer -> HPMCounterIdx -> Template
 resetHPMCounter tmp idx = Sequence [ li32 tmpNonZero 0
                                    , csrw csrIdx tmpNonZero ]
-  where csrIdx = hpmcounter_idx_to_counter_csr_idx idx
+  where csrIdx = hpmcounter_idx_to_mcounter_csr_idx idx
         tmpNonZero = max 1 tmp
 
 -- | 'surroundWithHPMAccess' wraps a 'Template' by setting up an HPM counter to
@@ -108,7 +130,10 @@ surroundWithHPMAccess_core shrink evt x = Random $ do
   let prologue =    inhibitHPMCounter tmpReg hpmCntIdx
                  <> setupHPMEventSel tmpReg hpmCntIdx evt
                  <> resetHPMCounter tmpReg hpmCntIdx
+                 <> uniformTemplate [enableHPMCounterM tmpReg hpmCntIdx, Empty]
+                 <> uniformTemplate [enableHPMCounterS tmpReg hpmCntIdx, Empty]
                  <> triggerHPMCounter tmpReg hpmCntIdx
-  let epilogue = readHPMCounter tmpReg hpmCntIdx
+  let epilogue = uniformTemplate [ readHPMCounter  tmpReg hpmCntIdx
+                                 , readHPMCounterM tmpReg hpmCntIdx ]
   return $ if shrink then prologue <> x <> epilogue
                      else NoShrink prologue <> x <> NoShrink epilogue

@@ -1,7 +1,7 @@
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright (c) 2019-2020 Alexandre Joannou
+-- Copyright (c) 2019-2021 Alexandre Joannou
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -45,10 +45,12 @@ module RISCV.RV_CSRs (
 , HPMCounterCSRIdx
 , HPMEventSelCSRIdx
 , hpmcounter_idx_to_counter_csr_idx
-, hpmcounter_idx_to_event_sel_csr_idx
+, hpmcounter_idx_to_mcounter_csr_idx
+, hpmcounter_idx_to_mevent_sel_csr_idx
 , hpmcounter_indices
 , hpmcounter_csr_indices
-, hpmevent_csr_indices
+, mhpmcounter_csr_indices
+, mhpmevent_csr_indices
 , csrs_map
 , csrs_indexFromName
 , unsafe_csrs_indexFromName
@@ -71,15 +73,20 @@ type HPMEventSelCSRIdx = Integer
 -- | the number of supported HPM counters
 nHPMCounters = 29
 
--- | Turns an 'HPMCounterIdx' into an 'HPMCounterCSRIdx'
+-- | Turns an 'HPMCounterIdx' into an 'HPMCounterCSRIdx' for hpmcounter
 hpmcounter_idx_to_counter_csr_idx :: HPMCounterIdx -> HPMCounterCSRIdx
 hpmcounter_idx_to_counter_csr_idx idx =
   hpmcounter_csr_indices !! fromInteger (idx - head hpmcounter_indices)
 
+-- | Turns an 'HPMCounterIdx' into an 'HPMCounterCSRIdx' for mhpmcounter
+hpmcounter_idx_to_mcounter_csr_idx :: HPMCounterIdx -> HPMCounterCSRIdx
+hpmcounter_idx_to_mcounter_csr_idx idx =
+  mhpmcounter_csr_indices !! fromInteger (idx - head hpmcounter_indices)
+
 -- | Turns an 'HPMCounterIdx' into an 'HPMEventSelCSRIdx'
-hpmcounter_idx_to_event_sel_csr_idx :: HPMCounterIdx -> HPMEventSelCSRIdx
-hpmcounter_idx_to_event_sel_csr_idx idx =
-  hpmevent_csr_indices !! fromInteger (idx - head hpmcounter_indices)
+hpmcounter_idx_to_mevent_sel_csr_idx :: HPMCounterIdx -> HPMEventSelCSRIdx
+hpmcounter_idx_to_mevent_sel_csr_idx idx =
+  mhpmevent_csr_indices !! fromInteger (idx - head hpmcounter_indices)
 
 -- | Return the list of available existing hpmcounter indices
 hpmcounter_indices :: [HPMCounterIdx]
@@ -87,11 +94,15 @@ hpmcounter_indices = take nHPMCounters [ 3 .. ]
 
 -- | Return the list of available existing hpmcounter CSR indices
 hpmcounter_csr_indices :: [HPMCounterCSRIdx]
-hpmcounter_csr_indices = take nHPMCounters [ 0xB03 .. ]
+hpmcounter_csr_indices = take nHPMCounters [ 0xC03 .. ]
+
+-- | Return the list of available existing mhpmcounter CSR indices
+mhpmcounter_csr_indices :: [HPMCounterCSRIdx]
+mhpmcounter_csr_indices = take nHPMCounters [ 0xB03 .. ]
 
 -- | Return the list of available existing hpmevent selector CSR indices
-hpmevent_csr_indices :: [HPMEventSelCSRIdx]
-hpmevent_csr_indices = take nHPMCounters [ 0x323 .. ]
+mhpmevent_csr_indices :: [HPMEventSelCSRIdx]
+mhpmevent_csr_indices = take nHPMCounters [ 0x323 .. ]
 
 -- | Return 'Just' a CSR index for a known CSR name or 'Nothing'
 csrs_indexFromName :: CSRName -> Maybe CSRIdx
@@ -173,8 +184,8 @@ csrs_map = -- User Trap Setup
         ++ -- Machine Counters/Timers
            [ (0xB00, "mcycle")
            , (0xB02, "minstret") ]
-        ++ map (\x -> (x, "mhpmcounter" ++ show (x - (head hpmcounter_csr_indices) + 3)))
-               hpmcounter_csr_indices
+        ++ map (\x -> (x, "mhpmcounter" ++ show (x - (head mhpmcounter_csr_indices) + 3)))
+               mhpmcounter_csr_indices
         ++ [ (0xB80, "mcycleh")
            , (0xB82, "minstreth") ]
         ++ [ (0xB80 + x, "mhpmcounter" ++ show x ++ "h") | x <- hpmcounter_indices ]
@@ -184,8 +195,8 @@ csrs_map = -- User Trap Setup
            [ (0x8C0, "uccsr")
            , (0x9C0, "sccsr")
            , (0xBC0, "mccsr") ]
-        ++ map (\x -> (x, "mhpmevent" ++ show (x - (head hpmevent_csr_indices) + 3)))
-               hpmevent_csr_indices
+        ++ map (\x -> (x, "mhpmevent" ++ show (x - (head mhpmevent_csr_indices) + 3)))
+               mhpmevent_csr_indices
         -- TODO Debug/Trace Registers (shared with Debug Mode)
         -- TODO Debug Mode Registers
         -- List last checked from:

@@ -3,7 +3,7 @@
 --
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2018 Jonathan Woodruff
--- Copyright (c) 2018-2020 Alexandre Joannou
+-- Copyright (c) 2018-2021 Alexandre Joannou
 -- Copyright (c) 2018-2020 Peter Rugg
 -- All rights reserved.
 --
@@ -327,9 +327,9 @@ main = withSocketsDo $ do
                 do putStrLn "PTE template:"
                    doCheck (genTemplate $ gen_pte) (nTests flags)
 
-              --when (has_icsr archDesc) $
-              --  do putStrLn "HPM Template:"
-              --     doCheck (genTemplate $ repeatTemplateTillEnd (genHPM archDesc)) (nTests flags)
+              when (has_icsr archDesc) $
+                do putStrLn "HPM Template:"
+                   doCheck (genTemplate $ repeatTemplateTillEnd (genHPM archDesc)) (nTests flags)
 
               when (has_cheri archDesc) $
                 do putStrLn "Xcheri extension Capability Inspection Verification:"
