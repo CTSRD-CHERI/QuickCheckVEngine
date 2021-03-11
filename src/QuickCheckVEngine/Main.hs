@@ -52,6 +52,7 @@ import Data.Time.Clock
 import Control.Monad
 import Network.Socket
 import Test.QuickCheck
+import Text.Regex.TDFA
 
 import RISCV hiding (or)
 import InstrCodec
@@ -75,42 +76,44 @@ import QuickCheckVEngine.Templates.GenHPM
 -- command line arguments
 --------------------------------------------------------------------------------
 data Options = Options
-    { optVerbosity   :: Int
-    , nTests         :: Int
-    , impAPort       :: String
-    , impAIP         :: String
-    , impBPort       :: String
-    , impBIP         :: String
-    , instTraceFile  :: Maybe FilePath
-    , instDirectory  :: Maybe FilePath
-    , memoryInitFile :: Maybe FilePath
-    , arch           :: ArchDesc
-    , instrPort      :: Maybe String
-    , saveDir        :: Maybe FilePath
-    , timeoutDelay   :: Int
-    , testLen        :: Int
-    , optShrink      :: Bool
-    , optSave        :: Bool
+    { optVerbosity    :: Int
+    , nTests          :: Int
+    , impAPort        :: String
+    , impAIP          :: String
+    , impBPort        :: String
+    , impBIP          :: String
+    , instTraceFile   :: Maybe FilePath
+    , instDirectory   :: Maybe FilePath
+    , memoryInitFile  :: Maybe FilePath
+    , arch            :: ArchDesc
+    , testSelectRegex :: String
+    , instrPort       :: Maybe String
+    , saveDir         :: Maybe FilePath
+    , timeoutDelay    :: Int
+    , testLen         :: Int
+    , optShrink       :: Bool
+    , optSave         :: Bool
     } deriving Show
 
 defaultOptions :: Options
 defaultOptions = Options
-    { optVerbosity   = 1
-    , nTests         = 100
-    , impAPort       = "5000"
-    , impAIP         = "127.0.0.1"
-    , impBPort       = "5001"
-    , impBIP         = "127.0.0.1"
-    , instTraceFile  = Nothing
-    , instDirectory  = Nothing
-    , memoryInitFile = Nothing
-    , arch           = archDesc_rv32i
-    , instrPort      = Nothing
-    , saveDir        = Nothing
-    , timeoutDelay   = 6000000000 -- 60 seconds
-    , testLen        = 2048
-    , optShrink      = True
-    , optSave        = True
+    { optVerbosity    = 1
+    , nTests          = 100
+    , impAPort        = "5000"
+    , impAIP          = "127.0.0.1"
+    , impBPort        = "5001"
+    , impBIP          = "127.0.0.1"
+    , instTraceFile   = Nothing
+    , instDirectory   = Nothing
+    , memoryInitFile  = Nothing
+    , arch            = archDesc_rv32i
+    , testSelectRegex = ".*"
+    , instrPort       = Nothing
+    , saveDir         = Nothing
+    , timeoutDelay    = 6000000000 -- 60 seconds
+    , testLen         = 2048
+    , optShrink       = True
+    , optSave         = True
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -145,7 +148,10 @@ options =
   , Option ['r']     ["architecture"]
       (ReqArg (\ f opts -> opts { arch = fromString f }) "ARCHITECTURE")
         "Specify ARCHITECTURE to be verified (e.g. rv32i)"
-  , Option ['i']     ["instruction generator port"]
+  , Option ['R']     ["test-select-regex"]
+      (ReqArg (\ f opts -> opts { testSelectRegex = f }) "REGEX")
+        "Specify REGEX to run a subset of tests"
+  , Option ['i']     ["instruction-generator-port"]
       (ReqArg (\ f opts -> opts { instrPort = Just f }) "PORT")
         "Connect to an external instruction generator on PORT"
   , Option ['s']     ["save-dir"]
@@ -171,6 +177,44 @@ commandOpts argv =
       (o,n,[]  ) -> return (foldl (flip id) defaultOptions o, n)
       (_,_,errs) -> ioError (userError (concat errs ++ usageInfo header options))
   where header = "Usage: QCVEngine [OPTION...] files..."
+
+allTests :: [(String, String, ArchDesc -> Bool, ArchDesc -> Template)]
+allTests = [
+             ("arith",      "Arithmetic Verification",                                const True,                       const $ repeatTemplateTillEnd gen_rv32_i_arithmetic)
+           , ("mem",        "Memory Verification",                                    const True,                       const $ repeatTemplateTillEnd gen_rv32_i_memory)
+           , ("control",    "Control Flow Verification",                              const True,                       const $ repeatTemplateTillEnd gen_rv32_i_controlflow)
+           , ("cache",      "Cache Verification",                                     const True,                       const $ repeatTemplateTillEnd gen_rv32_i_cache)
+           , ("arith64",    "RV64 Arithmetic Verification",                           has_xlen_64,                      const $ repeatTemplateTillEnd gen_rv64_i_arithmetic)
+           , ("mem64",      "RV64 Memory Verification",                               has_xlen_64,                      const $ repeatTemplateTillEnd gen_rv64_i_memory)
+           , ("cache64",    "RV64 Cache Verification",                                has_xlen_64,                      const $ repeatTemplateTillEnd gen_rv64_i_cache)
+           -- Note: no rv64 specific control flow instructions
+           , ("muldiv",     "M Extension Verification",                               has_m,                            const $ repeatTemplateTillEnd gen_rv32_m)
+           , ("muldiv64",   "RV64 M Extension Verification",                          andPs [has_m, has_xlen_64],       const $ repeatTemplateTillEnd gen_rv64_m)
+           , ("atomic",     "A Extension Verification",                               has_a,                            const $ repeatTemplateTillEnd gen_rv32_a)
+           , ("memAmo",     "AMO Memory Verification",                                has_a,                            const $ repeatTemplateTillEnd gen_rv32_i_a_memory)
+           , ("atomic64",   "RV64 A Extension Verification",                          andPs [has_a, has_xlen_64],       const $ repeatTemplateTillEnd gen_rv64_a)
+           , ("memAmo64",   "RV64 AMO Memory Verification",                           andPs [has_a, has_xlen_64],       const $ repeatTemplateTillEnd gen_rv64_i_a_memory)
+           , ("compressed", "C Extension Verification",                               has_c,                            const $ repeatTemplateTillEnd gen_rv_c)
+           , ("float",      "F Extension Verification",                               has_f,                            const $ repeatTemplateTillEnd gen_rv32_f)
+           , ("float64",    "RV64 F Extension Verification",                          andPs [has_f, has_xlen_64],       const $ repeatTemplateTillEnd gen_rv64_f)
+           , ("double",     "D Extension Verification",                               has_d,                            const $ repeatTemplateTillEnd gen_rv32_d)
+           , ("double64",   "RV64 D Extension Verification",                          andPs [has_d, has_xlen_64],       const $ repeatTemplateTillEnd gen_rv64_d)
+           , ("csr",        "Zicsr Extension Verification",                           has_icsr,                         const $ repeatTemplateTillEnd gen_rv32_i_zicsr)
+           , ("fencei",     "Zifencei Extension Verification",                        has_ifencei,                      const $ repeatTemplateTillEnd gen_rv32_i_zifencei_memory)
+           , ("fencei64",   "RV64 Zifencei Extension Verification",                   andPs [has_ifencei, has_xlen_64], const $ repeatTemplateTillEnd gen_rv64_i_zifencei_memory)
+           , ("pte",        "PTE Verification",                                       has_s,                            const $ gen_pte)
+           , ("hpm",        "HPM Verification",                                       has_icsr,                         repeatTemplateTillEnd . genHPM)
+           , ("capinspect", "Xcheri Extension Capability Inspection Verification",    has_cheri,                        const $ repeatTemplateTillEnd genCHERIinspection)
+           , ("caparith",   "Xcheri Extension Capability Arithmetic Verification",    has_cheri,                        const $ repeatTemplateTillEnd genCHERIarithmetic)
+           , ("capmisc",    "Xcheri Extension Capability Miscellaneous Verification", has_cheri,                        const $ repeatTemplateTillEnd genCHERImisc)
+           , ("capcontrol", "Xcheri Extension Capability Control Flow Verification",  has_cheri,                        const $ repeatTemplateTillEnd genCHERIcontrol)
+           , ("capcache",   "Xcheri Extension Cache Verification",                    has_cheri,                        const $ repeatTemplateTillEnd gen_rv64_Xcheri_cache)
+           , ("capdecode",  "Xcheri Extension Capability Decode Template",            has_cheri,                        repeatTemplateTillEnd . capDecodeTest)
+           , ("caprandom",  "Xcheri Extension Random Template",                       has_cheri,                        randomCHERITest)
+           , ("all",        "All Verification",                                       const True,                       genAll)
+           , ("random",     "Random Template",                                        const True,                       randomTest)
+           ]
+  where andPs = foldl (\k p -> (\x -> p x && k x)) (const True)
 
 --------------------------------------------------------------------------------
 main :: IO ()
@@ -265,92 +309,14 @@ main = withSocketsDo $ do
           when (skipped > 1) $ putStrLn $ "Warning: skipped " ++ show (skipped - 1) ++ " tests due to dead implementations"
         Nothing -> do
           case instrSoc of
-            Nothing -> do
-              when (has_i archDesc) $
-                do putStrLn "rv32 I Arithmetic Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_i_arithmetic) (nTests flags)
-                   putStrLn "rv32 I Memory Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_i_memory) (nTests flags)
-                   putStrLn "rv32 I Control Flow Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_i_controlflow) (nTests flags)
-                   putStrLn "rv32 I Cache Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_i_cache) (nTests flags)
-              when (has_i archDesc && has_xlen_64 archDesc) $
-                do putStrLn "rv64 I Arithmetic Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_i_arithmetic) (nTests flags)
-                   putStrLn "rv64 I Memory Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_i_memory) (nTests flags)
-                   putStrLn "rv64 I Cache Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_i_cache) (nTests flags)
-                   -- Note: no rv64 specific control flow instructions
-              when (has_m archDesc) $
-                do putStrLn "rv32 M extension Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_m) (nTests flags)
-              when (has_m archDesc && has_xlen_64 archDesc) $
-                do putStrLn "rv64 M extension Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_m) (nTests flags)
-              when (has_a archDesc) $
-                do putStrLn "rv32 A extension Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_a) (nTests flags)
-                   putStrLn "rv32 A Memory Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_i_a_memory) (nTests flags)
-              when (has_a archDesc && has_xlen_64 archDesc) $
-                do putStrLn "rv64 A extension Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_a) (nTests flags)
-                   putStrLn "rv64 A Memory Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_i_a_memory) (nTests flags)
-              when (has_c archDesc) $
-                do putStrLn "rv C extension Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv_c) (nTests flags)
-              when (has_f archDesc) $
-                do putStrLn "rv32 F extension Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_f) (nTests flags)
-              when (has_f archDesc && has_xlen_64 archDesc) $
-                do putStrLn "rv64 F extension Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_f) (nTests flags)
-              when (has_d archDesc) $
-                do putStrLn "rv32 D extension Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_d) (nTests flags)
-              when (has_d archDesc && has_xlen_64 archDesc) $
-                do putStrLn "rv64 D extension Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_d) (nTests flags)
-              when (has_icsr archDesc) $
-                do putStrLn "rv32 Zicsr extension Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_i_zicsr) (nTests flags)
-              when (has_ifencei archDesc) $
-                do putStrLn "rv32 Zifencei extension Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv32_i_zifencei_memory) (nTests flags)
-              when (has_ifencei archDesc && has_xlen_64 archDesc) $
-                do putStrLn "rv64 Zifencei extension Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_i_zifencei_memory) (nTests flags)
-              when (has_s archDesc) $
-                do putStrLn "PTE template:"
-                   doCheck (genTemplate $ gen_pte) (nTests flags)
-
-              when (has_icsr archDesc) $
-                do putStrLn "HPM Template:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd (genHPM archDesc)) (nTests flags)
-
-              when (has_cheri archDesc) $
-                do putStrLn "Xcheri extension Capability Inspection Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd genCHERIinspection) (nTests flags)
-                   putStrLn "Xcheri extension Capability Arithmetic Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd genCHERIarithmetic) (nTests flags)
-                   putStrLn "Xcheri extension Capability Miscellaneous Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd genCHERImisc) (nTests flags)
-                   putStrLn "Xcheri extension Capability Control Flow Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd genCHERIcontrol) (nTests flags)
-                   putStrLn "Xcheri extensions Cache Verification:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd gen_rv64_Xcheri_cache) (nTests flags)
-                   putStrLn "Xcheri extension Capability Decode Template:"
-                   doCheck (genTemplate $ repeatTemplateTillEnd $ capDecodeTest archDesc) (nTests flags)
-                   putStrLn "Xcheri extension Random Template:"
-                   doCheck (genTemplate $ randomCHERITest archDesc) (nTests flags)
-
-              putStrLn "All Verification:"
-              doCheck (genTemplate $ genAll archDesc) (nTests flags)
-              putStrLn "Random Template:"
-              doCheck (genTemplate $ randomTest archDesc) (nTests flags)
+            Nothing -> mapM_ attemptTest [template | template@(label,_,_,_) <- allTests
+                                                   , label =~ (testSelectRegex flags) ]
+              where attemptTest (label, description, archReqs, template) =
+                      if archReqs archDesc then do
+                        putStrLn $ label ++ " -- " ++ description ++ ":"
+                        doCheck (genTemplate $ template archDesc) (nTests flags)
+                      else
+                        putStrLn $ "Warning: skipping " ++ label ++ " since architecture requirements not met"
             Just sock -> do
               doCheck (liftM toTestCase $ listOf $ liftM (\x -> TS False x) $ listOf $ genInstrServer sock) (nTests flags)
   --
