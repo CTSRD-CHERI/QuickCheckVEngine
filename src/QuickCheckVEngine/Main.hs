@@ -76,44 +76,46 @@ import QuickCheckVEngine.Templates.GenHPM
 -- command line arguments
 --------------------------------------------------------------------------------
 data Options = Options
-    { optVerbosity    :: Int
-    , nTests          :: Int
-    , impAPort        :: String
-    , impAIP          :: String
-    , impBPort        :: String
-    , impBIP          :: String
-    , instTraceFile   :: Maybe FilePath
-    , instDirectory   :: Maybe FilePath
-    , memoryInitFile  :: Maybe FilePath
-    , arch            :: ArchDesc
-    , testSelectRegex :: String
-    , instrPort       :: Maybe String
-    , saveDir         :: Maybe FilePath
-    , timeoutDelay    :: Int
-    , testLen         :: Int
-    , optShrink       :: Bool
-    , optSave         :: Bool
+    { optVerbosity     :: Int
+    , nTests           :: Int
+    , impAPort         :: String
+    , impAIP           :: String
+    , impBPort         :: String
+    , impBIP           :: String
+    , instTraceFile    :: Maybe FilePath
+    , instDirectory    :: Maybe FilePath
+    , memoryInitFile   :: Maybe FilePath
+    , arch             :: ArchDesc
+    , testIncludeRegex :: Maybe String
+    , testExcludeRegex :: Maybe String
+    , instrPort        :: Maybe String
+    , saveDir          :: Maybe FilePath
+    , timeoutDelay     :: Int
+    , testLen          :: Int
+    , optShrink        :: Bool
+    , optSave          :: Bool
     } deriving Show
 
 defaultOptions :: Options
 defaultOptions = Options
-    { optVerbosity    = 1
-    , nTests          = 100
-    , impAPort        = "5000"
-    , impAIP          = "127.0.0.1"
-    , impBPort        = "5001"
-    , impBIP          = "127.0.0.1"
-    , instTraceFile   = Nothing
-    , instDirectory   = Nothing
-    , memoryInitFile  = Nothing
-    , arch            = archDesc_rv32i
-    , testSelectRegex = ".*"
-    , instrPort       = Nothing
-    , saveDir         = Nothing
-    , timeoutDelay    = 6000000000 -- 60 seconds
-    , testLen         = 2048
-    , optShrink       = True
-    , optSave         = True
+    { optVerbosity     = 1
+    , nTests           = 100
+    , impAPort         = "5000"
+    , impAIP           = "127.0.0.1"
+    , impBPort         = "5001"
+    , impBIP           = "127.0.0.1"
+    , instTraceFile    = Nothing
+    , instDirectory    = Nothing
+    , memoryInitFile   = Nothing
+    , arch             = archDesc_rv32i
+    , testIncludeRegex = Nothing
+    , testExcludeRegex = Nothing
+    , instrPort        = Nothing
+    , saveDir          = Nothing
+    , timeoutDelay     = 6000000000 -- 60 seconds
+    , testLen          = 2048
+    , optShrink        = True
+    , optSave          = True
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -148,9 +150,12 @@ options =
   , Option ['r']     ["architecture"]
       (ReqArg (\ f opts -> opts { arch = fromString f }) "ARCHITECTURE")
         "Specify ARCHITECTURE to be verified (e.g. rv32i)"
-  , Option ['R']     ["test-select-regex"]
-      (ReqArg (\ f opts -> opts { testSelectRegex = f }) "REGEX")
-        "Specify REGEX to run a subset of tests"
+  , Option ['I']     ["test-include-regex"]
+      (ReqArg (\ f opts -> opts { testIncludeRegex = Just f }) "REGEX")
+        "Specify REGEX to include only a subset of tests"
+  , Option ['x']     ["test-exclude-regex"]
+      (ReqArg (\ f opts -> opts { testExcludeRegex = Just f }) "REGEX")
+        "Specify REGEX to exclude a subset of tests"
   , Option ['i']     ["instruction-generator-port"]
       (ReqArg (\ f opts -> opts { instrPort = Just f }) "PORT")
         "Connect to an external instruction generator on PORT"
@@ -310,7 +315,8 @@ main = withSocketsDo $ do
         Nothing -> do
           case instrSoc of
             Nothing -> mapM_ attemptTest [template | template@(label,_,_,_) <- allTests
-                                                   , label =~ (testSelectRegex flags) ]
+                                                   , label =~ (fromMaybe ".*" (testIncludeRegex flags))
+                                                   , not(label =~ (fromMaybe "a^" (testExcludeRegex flags)))]
               where attemptTest (label, description, archReqs, template) =
                       if archReqs archDesc then do
                         putStrLn $ label ++ " -- " ++ description ++ ":"
