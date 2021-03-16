@@ -530,16 +530,16 @@ rv32_xcheri_arithmetic src1 src2 imm dest =
 -- | List of cheri miscellaneous instructions
 rv32_xcheri_misc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_xcheri_misc src1 src2 srcScr imm dest =
-  [ cseal             dest src1 src2
-  , cunseal           dest src1 src2
-  , candperm          dest src1 src2
-  , cbuildcap         dest src1 src2
-  , csetflags         dest src1 src2
-  , ccopytype         dest src1 src2
-  , ccseal            dest src1 src2
-  , csealentry        dest src1
-  , ccleartag         dest src1
-  , cspecialrw srcScr dest src1      ]
+  [ cseal       dest src1 src2
+  , cunseal     dest src1 src2
+  , candperm    dest src1 src2
+  , cbuildcap   dest src1 src2
+  , csetflags   dest src1 src2
+  , ccopytype   dest src1 src2
+  , ccseal      dest src1 src2
+  , csealentry  dest src1
+  , ccleartag   dest src1
+  , cspecialrw  dest src1 srcScr ]
 
 -- | List of cheri control instructions
 rv32_xcheri_control :: Integer -> Integer -> Integer -> [Integer]
