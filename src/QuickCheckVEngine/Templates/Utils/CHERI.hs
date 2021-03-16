@@ -79,7 +79,7 @@ clearASR :: Integer -> Integer -> Template
 clearASR tmp1 tmp2 = instSeq [ cspecialrw tmp1 0 0, -- Get PCC
                                addi tmp2 0 0xbff, -- Load immediate without ASR set
                                candperm tmp1 tmp1 tmp2, -- Mask out ASR
-                               cspecialrw 0 tmp1 28, -- Clear ASR in trap vector
+                               cspecialrw 0 28 tmp1, -- Clear ASR in trap vector
                                cjalr tmp1 0 ]
 
 makeShortCap :: Template
@@ -122,7 +122,7 @@ switchEncodingMode = Random $ do
   return $ instSeq [ cspecialrw tmpReg1 0 0
                    , addi mode tmpReg2 0
                    , csetflags tmpReg1 tmpReg1 tmpReg2
-                   , cspecialrw 0 tmpReg1 28 --Also write trap vector so we stay in cap mode
+                   , cspecialrw 0 28 tmpReg1 --Also write trap vector so we stay in cap mode
                    , cjalr tmpReg1 0 ]
 
 cspecialRWChain :: Template
@@ -133,10 +133,10 @@ cspecialRWChain = Random $ do
   tmpReg4 <- src
   tmpReg5 <- src
   tmpReg6 <- src
-  return $ instSeq [ cspecialrw tmpReg2 tmpReg1 30
+  return $ instSeq [ cspecialrw tmpReg2 30 tmpReg1
                    , cjalr      tmpReg2 0
-                   , cspecialrw tmpReg4 tmpReg3 30
-                   , cspecialrw tmpReg6 tmpReg5 30 ]
+                   , cspecialrw tmpReg4 30 tmpReg3
+                   , cspecialrw tmpReg6 30 tmpReg5 ]
 
 tagCacheTest :: Template
 tagCacheTest = Random $ do

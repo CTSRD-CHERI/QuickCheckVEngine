@@ -171,7 +171,7 @@ csub cd cs1 cs2                    = encode csub_raw                            
 cmove_raw                          =                                        "1111111 01010 cs1[4:0] 000 cd[4:0] 1011011"
 cmove cd cs1                       = encode cmove_raw                                      cs1          cd
 cspecialrw_raw                     =                                        "0000001 cSP[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cspecialrw cd cs1 cSP              = encode cspecialrw_raw                           cSP      cs1          cd
+cspecialrw cd cSP cs1              = encode cspecialrw_raw                           cSP      cs1          cd
 
 
 -- Control Flow
@@ -539,7 +539,7 @@ rv32_xcheri_misc src1 src2 srcScr imm dest =
   , ccseal      dest src1 src2
   , csealentry  dest src1
   , ccleartag   dest src1
-  , cspecialrw  dest src1 srcScr ]
+  , cspecialrw  dest srcScr src1 ]
 
 -- | List of cheri control instructions
 rv32_xcheri_control :: Integer -> Integer -> Integer -> [Integer]
