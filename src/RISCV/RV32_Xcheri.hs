@@ -349,7 +349,7 @@ extract_ccall :: Integer -> Integer -> ExtractedRegs
 extract_ccall rs2 rs1 = (False, Just rs2, Just rs1, Just 31, \x y z -> encode ccall_raw x y)
 
 extract_cstore :: Integer -> Integer -> Integer -> ExtractedRegs
-extract_cstore imm rs2 rs1 = (False, Just rs2, Just rs1, Nothing, \x y z -> encode cstore_raw imm x y)
+extract_cstore rs2 rs1 mop = (False, Just rs2, Just rs1, Nothing, \x y z -> encode cstore_raw x y mop)
 
 rv32_xcheri_extract :: [DecodeBranch ExtractedRegs]
 rv32_xcheri_extract = [ cgetperm_raw                    --> extract_1op cgetperm_raw
