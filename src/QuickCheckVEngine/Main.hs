@@ -274,7 +274,7 @@ main = withSocketsDo $ do
                              ("# " ++ comment ++ "\n" ++ show tc)
                Just dir -> do
                  t <- getCurrentTime
-                 let tstamp = [if x == ' ' then '_' else x | x <- (show t)]
+                 let tstamp = [if x == ' ' then '_' else if x == ':' then '-' else x | x <- (show t)]
                  writeFile (dir ++ "/failure-" ++ tstamp ++ ".S")
                            ("# Automatically generated failing test case" ++ "\n" ++ show tc)
   let checkTrapAndSave tc = saveOnFail tc check_mcause_on_trap
