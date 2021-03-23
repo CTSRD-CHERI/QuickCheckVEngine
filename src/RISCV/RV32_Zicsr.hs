@@ -57,17 +57,17 @@ import RISCV.Helpers (prettyCSR, prettyCSR_imm)
 import InstrCodec (DecodeBranch, (-->), encode)
 
 csrrw_raw          =                   "imm[11:0]  rs1[4:0] 001 rd[4:0] 1110011"
-csrrw rd rs1 imm   = encode csrrw_raw   imm        rs1          rd
+csrrw rd csr rs1   = encode csrrw_raw   csr        rs1          rd
 csrrs_raw          =                   "imm[11:0]  rs1[4:0] 010 rd[4:0] 1110011"
-csrrs rd rs1 imm   = encode csrrs_raw   imm        rs1          rd
+csrrs rd csr rs1   = encode csrrs_raw   csr        rs1          rd
 csrrc_raw          =                   "imm[11:0]  rs1[4:0] 011 rd[4:0] 1110011"
-csrrc rd rs1 imm   = encode csrrc_raw   imm        rs1          rd
+csrrc rd csr rs1   = encode csrrc_raw   csr        rs1          rd
 csrrwi_raw         =                   "imm[11:0] uimm[4:0] 101 rd[4:0] 1110011"
-csrrwi rd uimm imm = encode csrrwi_raw  imm       uimm          rd
+csrrwi rd csr uimm = encode csrrwi_raw  csr       uimm          rd
 csrrsi_raw         =                   "imm[11:0] uimm[4:0] 110 rd[4:0] 1110011"
-csrrsi rd uimm imm = encode csrrsi_raw  imm       uimm          rd
+csrrsi rd csr uimm = encode csrrsi_raw  csr       uimm          rd
 csrrci_raw         =                   "imm[11:0] uimm[4:0] 111 rd[4:0] 1110011"
-csrrci rd uimm imm = encode csrrci_raw  imm       uimm          rd
+csrrci rd csr uimm = encode csrrci_raw  csr       uimm          rd
 
 -- | Dissassembly of RISC-V control and status register instructions
 rv32_zicsr_disass :: [DecodeBranch String]
@@ -80,9 +80,9 @@ rv32_zicsr_disass = [ csrrw_raw  --> prettyCSR     "csrrw"
 
 -- | List of RISC-V control and status register instructions
 rv32_zicsr :: Integer -> Integer -> Integer -> Integer -> [Integer]
-rv32_zicsr src dest imm uimm = [ csrrw  dest src  imm
-                               , csrrs  dest src  imm
-                               , csrrc  dest src  imm
-                               , csrrwi dest uimm imm
-                               , csrrsi dest uimm imm
-                               , csrrci dest uimm imm ]
+rv32_zicsr src dest csr uimm = [ csrrw  dest csr src
+                               , csrrs  dest csr src
+                               , csrrc  dest csr src
+                               , csrrwi dest csr uimm
+                               , csrrsi dest csr uimm
+                               , csrrci dest csr uimm ]

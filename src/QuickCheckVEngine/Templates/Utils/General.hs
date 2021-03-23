@@ -124,25 +124,25 @@ li64 reg imm = instSeq [ addi reg   0 (shiftAndMask imm 52 0xfff)
 
 -- | 'csrr' pseudo-instruction to read a CSR
 csrr :: Integer -> Integer -> Template
-csrr rd csr_idx = Single $ csrrs rd 0 csr_idx
+csrr rd csr_idx = Single $ csrrs rd csr_idx 0
 
 -- | 'csrw' pseudo-instruction to write a general purpose register's value to a CSR
 csrw :: Integer -> Integer -> Template
-csrw csr_idx rs1 = Single $ csrrw 0 rs1 csr_idx
+csrw csr_idx rs1 = Single $ csrrw 0 csr_idx rs1
 
 -- | 'csrwi' pseudo-instruction to write an immediate value to a CSR
 csrwi :: Integer -> Integer -> Template
-csrwi csr_idx uimm = Single $ csrrwi 0 csr_idx uimm
+csrwi csr_idx uimm = Single $ csrrwi csr_idx 0 uimm
 
 -- | 'csrs' pseudo-instruction to set the bits in a CSR corresponding to the
 --   set bits of a mask value in a general purpose register
 csrs :: Integer -> Integer -> Template
-csrs csr_idx rs1 = Single $ csrrs 0 rs1 csr_idx
+csrs csr_idx rs1 = Single $ csrrs 0 csr_idx rs1
 
 -- | 'csrc' pseudo-instruction to clear the bits in a CSR corresponding to the
 --   set bits of a mask value in a general purpose register
 csrc :: Integer -> Integer -> Template
-csrc csr_idx rs1 = Single $ csrrc 0 rs1 csr_idx
+csrc csr_idx rs1 = Single $ csrrc 0 csr_idx rs1
 
 -- | 'csrsi' pseudo-instruction to set the bits in a CSR corresponding to the
 --   set bits of a mask value obtained by zero extending the 5-bit uimm

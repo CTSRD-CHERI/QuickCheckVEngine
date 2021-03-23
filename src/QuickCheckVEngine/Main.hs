@@ -248,7 +248,7 @@ main = withSocketsDo $ do
                              (prop connA connB alive onFail archDesc (timeoutDelay flags) verbosity (return tc))
   let check_mcause_on_trap tc traceA traceB =
         if or (map rvfiIsTrap traceA) || or (map rvfiIsTrap traceB)
-           then tc <> TC (const []) [TS False [csrrs 1 0 0x342, csrrs 1 0 0x343, csrrs 1 0 0xbc0]]
+           then tc <> TC (const []) [TS False [csrrs 1 0x342 0, csrrs 1 0x343 0, csrrs 1 0xbc0 0]]
            else tc
   let saveOnFail tc tcTrans = do
         let (rawInsts, _) = fromTestCase tc

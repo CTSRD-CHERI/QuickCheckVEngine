@@ -198,7 +198,7 @@ gen_pte = Random $
                         Single $ lui 7 0x40000,
                         Single $ slli 7 7 1,
                         Single $ sd 7 1 0,
-                        Single $ csrrw 0 5 0x180]
+                        Single $ csrrw 0 0x180 5]
                         <>
                         (NoShrink $ Single $ encode "0001001 00000 00000 000 00000 1110011") -- sfence.vma 0 0
                         <> Sequence [

@@ -98,7 +98,7 @@ genRandomCHERITest arch = Random $ do
                         , (5, legalStore arch)
                         , (5, legalCapLoad srcAddr dest)
                         , (5, legalCapStore srcAddr)
-                        , (10, uniformTemplate $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) -- TODO add csr
+                        , (10, uniformTemplate $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2)
                         , (10, uniformTemplate $ rv32_xcheri srcAddr srcData srcScr imm mop dest)
                         , (10, Single $ cspecialrw dest srcScr srcAddr)
                         , (10, uniformTemplate $ rv32_zicsr srcData dest srcCsr mop)
