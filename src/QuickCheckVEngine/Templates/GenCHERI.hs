@@ -34,6 +34,7 @@
 
 module QuickCheckVEngine.Templates.GenCHERI (
   capDecodeTest,
+  cLoadTagsTest,
   randomCHERITest
 ) where
 
@@ -44,6 +45,9 @@ import InstrCodec
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 import Data.Bits
+
+cLoadTagsTest :: ArchDesc -> Template
+cLoadTagsTest arch = loadTags 1 2
 
 capDecodeTest :: ArchDesc -> Template
 capDecodeTest arch = Random $ do
@@ -107,6 +111,7 @@ genRandomCHERITest arch = Random $ do
                         , (10, randomCCall srcAddr srcData tmpReg tmpReg2)
                         , (10, makeShortCap)
                         , (10, clearASR tmpReg tmpReg2)
+                        , (10, loadTags srcAddr srcData)
                         ]
 
 randomCHERITest :: ArchDesc -> Template

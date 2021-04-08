@@ -74,6 +74,7 @@ module RISCV.RV32_Xcheri (
 , ccopytype
 , ccseal
 , csealentry
+, cloadtags
 , ctoptr
 , cfromptr
 , csub
@@ -159,6 +160,8 @@ ccseal_raw                         =                                        "001
 ccseal cd cs1 cs2                  = encode ccseal_raw                               cs2      cs1          cd
 csealentry_raw                     =                                        "1111111 10001 cs1[4:0] 000 cd[4:0] 1011011"
 csealentry cd cs1                  = encode csealentry_raw                                 cs1          cd
+cloadtags_raw                      =                                        "1111111 10010 cs1[4:0] 000 rd[4:0] 1011011"
+cloadtags rd cs1                   = encode cloadtags_raw                                  cs1          rd
 
 
 -- Capability Pointer Arithmetic
@@ -317,6 +320,7 @@ rv32_xcheri_disass = [ cgetperm_raw                    --> prettyR_2op "cgetperm
                      , ccopytype_raw                   --> prettyR "ccopytype"
                      , ccseal_raw                      --> prettyR "ccseal"
                      , csealentry_raw                  --> prettyR_2op "csealentry"
+                     , cloadtags_raw                   --> prettyR_2op "cloadtags"
                      , ccleartag_raw                   --> prettyR_2op "ccleartag"
                      , cincoffsetimmediate_raw         --> prettyI "cincoffsetimmediate"
                      , csetboundsimmediate_raw         --> prettyI "csetboundsimmediate"
@@ -373,6 +377,7 @@ rv32_xcheri_extract = [ cgetperm_raw                    --> extract_1op cgetperm
                       , ccopytype_raw                   --> extract_2op ccopytype_raw
                       , ccseal_raw                      --> extract_2op ccseal_raw
                       , csealentry_raw                  --> extract_1op csealentry_raw
+                      , cloadtags_raw                   --> extract_1op cloadtags_raw
                       , ccleartag_raw                   --> extract_1op ccleartag_raw
                       , cincoffsetimmediate_raw         --> extract_imm cincoffsetimmediate_raw
                       , csetboundsimmediate_raw         --> extract_imm csetboundsimmediate_raw
@@ -548,9 +553,10 @@ rv32_xcheri_control src1 src2 dest = [ cjalr dest src1
 
 -- | List of cheri memory instructions
 rv32_xcheri_mem :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
-rv32_xcheri_mem srcAddr srcData imm mop dest =
-  [ cload  dest srcAddr         mop
-  , cstore      srcAddr srcData mop
+rv32_xcheri_mem    srcAddr srcData imm mop dest =
+  [ cload  dest    srcAddr         mop
+  , cstore         srcAddr srcData mop
+  , cloadtags dest srcAddr
   --, ld     dest srcAddr dest        imm
   --, sd          srcAddr srcData     imm
   --, lq     dest srcAddr dest        imm

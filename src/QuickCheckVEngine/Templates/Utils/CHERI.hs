@@ -45,6 +45,7 @@ module QuickCheckVEngine.Templates.Utils.CHERI (
 , genCHERIarithmetic
 , genCHERImisc
 , genCHERIcontrol
+, loadTags
 ) where
 
 import Test.QuickCheck
@@ -113,6 +114,29 @@ legalCapStore addrReg = Random $ do
                    , slli tmpReg tmpReg 1
                    , add addrReg tmpReg addrReg
                    , cstore addrReg dataReg 0x4 ]
+
+loadTags :: Integer -> Integer -> Template
+loadTags addrReg capReg = Random $ do
+  tmpReg <- src
+  dataReg <- dest
+  return $ ( instSeq [ lui tmpReg 0x40004
+                     , slli tmpReg tmpReg 1
+                     , csetaddr addrReg addrReg tmpReg
+                     , ccleartag tmpReg capReg ])
+           <> maybeCapStore addrReg tmpReg capReg
+           <> Single (cincoffsetimmediate addrReg addrReg 16)
+           <> maybeCapStore addrReg tmpReg capReg
+           <> Single (cincoffsetimmediate addrReg addrReg 16)
+           <> maybeCapStore addrReg tmpReg capReg
+           <> Single (cincoffsetimmediate addrReg addrReg 16)
+           <> maybeCapStore addrReg tmpReg capReg
+           <> Single (cincoffsetimmediate addrReg addrReg 16)
+           <> maybeCapStore addrReg tmpReg capReg
+           <> Single (cincoffsetimmediate addrReg addrReg 16)
+           <> Single (cincoffsetimmediate addrReg addrReg (4096 - (16 * 5)))
+           <> Single (cloadtags dataReg addrReg)
+              where maybeCapStore addrReg capReg tmpReg = uniformTemplate [Single $ sq addrReg capReg 0,
+                                                                           Single $ sq addrReg tmpReg 0 ]
 
 switchEncodingMode :: Template
 switchEncodingMode = Random $ do

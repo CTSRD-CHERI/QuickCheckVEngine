@@ -215,6 +215,7 @@ allTests = [
            , ("capcontrol", "Xcheri Extension Capability Control Flow Verification",  has_cheri,                        const $ repeatTemplateTillEnd genCHERIcontrol)
            , ("capcache",   "Xcheri Extension Cache Verification",                    has_cheri,                        const $ repeatTemplateTillEnd gen_rv64_Xcheri_cache)
            , ("capdecode",  "Xcheri Extension Capability Decode Template",            has_cheri,                        repeatTemplateTillEnd . capDecodeTest)
+           , ("cloadtags",  "Xcheri Extension CLoadTags Template",                    has_cheri,                        repeatTemplateTillEnd . cLoadTagsTest)
            , ("caprandom",  "Xcheri Extension Random Template",                       has_cheri,                        randomCHERITest)
            , ("all",        "All Verification",                                       const True,                       genAll)
            , ("random",     "Random Template",                                        const True,                       randomTest)
