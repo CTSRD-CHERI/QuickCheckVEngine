@@ -82,7 +82,8 @@ data Template = Empty
               | Distribution [(Int, Template)]
               | Sequence [Template]
               | Random (Gen Template)
-              | Assert Template ([RVFI_Packet] -> Bool) String
+              | CompoundAssert Template ([RVFI_Packet] -> Bool) String
+              | SingleAssert Integer Integer
               | NoShrink Template
 instance Show Template where
   show Empty = "Empty"
@@ -90,7 +91,8 @@ instance Show Template where
   show (Distribution x) = "Distribution " ++ show x
   show (Sequence x) = "Sequence " ++ show x
   show (Random x) = "Random (?)"
-  show (Assert x _ z) = "Assert (" ++ show x ++ ") " ++ show z
+  show (CompoundAssert x _ z) = "CompoundAssert (" ++ show x ++ ") " ++ show z
+  show (SingleAssert x y) = "SingleAssert (" ++ show x ++ " rd_wdata == " ++ show y ++ ")"
   show (NoShrink x) = "NoShrink (" ++ show x ++ ")"
 instance Semigroup Template where
   x <> y = Sequence [x, y]
@@ -131,7 +133,7 @@ repeatTemplateTillEnd template = Random $ do
 
 -- | Wrap a single instruction in an assert
 assertSingle :: Integer -> (RVFI_Packet -> Bool) -> String -> Template
-assertSingle insn assert str = Assert (Single insn)
+assertSingle insn assert str = CompoundAssert (Single insn)
                                       (\z -> null z || assert (head z))
                                       str
 
@@ -161,15 +163,15 @@ flatten ((TS b s):ss) = (map (\x -> (b, x)) s) ++ (flatten ss)
 prepend_all x xs = map ((:) x) xs
 
 substitute [] _ _ = []
-substitute ((b,x):xs) new old = (if b && m_rs2 == Just old then [(b,reencode new (fromMaybe 0 m_rs1) (fromMaybe 0 m_rd)):xs] else [])
-                             ++ (if b && m_rs1 == Just old then [(b,reencode (fromMaybe 0 m_rs2) new (fromMaybe 0 m_rd)):xs] else [])
-                             ++ (if (m_rd == Just old) || (m_rd == Just new) then [] else prepend_all (b,x) (substitute xs new old))
+substitute ((b,(x,a)):xs) new old = (if b && m_rs2 == Just old then [(b,(reencode new (fromMaybe 0 m_rs1) (fromMaybe 0 m_rd), a)):xs] else [])
+                             ++ (if b && m_rs1 == Just old then [(b,(reencode (fromMaybe 0 m_rs2) new (fromMaybe 0 m_rd), a)):xs] else [])
+                             ++ (if (m_rd == Just old) || (m_rd == Just new) then [] else prepend_all (b,(x, a)) (substitute xs new old))
                                 where (_, m_rs2, m_rs1, m_rd, reencode) = rv_extract x
 
-shrink_bypass :: [(Bool, Integer)] -> [[(Bool, Integer)]]
+shrink_bypass :: [(Bool, (Integer, Maybe Integer))] -> [[(Bool, (Integer, Maybe Integer))]]
 shrink_bypass [] = []
 shrink_bypass ((b,x):xs) = prepend_all (b,x) ((if is_bypass && not (m_rd == m_rs1) then substitute xs (fromMaybe 0 m_rs1) (fromMaybe 0 m_rd) else []) ++ (shrink_bypass xs))
-                           where (is_bypass, _, m_rs1, m_rd, _) = rv_extract x
+                           where (is_bypass, _, m_rs1, m_rd, _) = rv_extract (fst x)
 
 coalesce [] = []
 coalesce [s] = [s]
@@ -188,17 +190,19 @@ instance Arbitrary TestCase where
           tsNotNull ts = (not . null) $ testStrandInsts ts
 -- | 'TestStrand' type representing a shrinkable part of a 'TestCase'
 data TestStrand = TS { testStrandShrink :: Bool
-                     , testStrandInsts  :: [Integer] }
+                     , testStrandInsts  :: [(Integer, Maybe Integer)] }
 instance Show TestStrand where
   show (TS { testStrandShrink = shrink
            , testStrandInsts  = insts }) = showShrink ++ "\n" ++ showInsts
     where showShrink = if shrink then ".shrink" else ".noshrink"
           showInsts  = intercalate "\n" (map showInst insts)
-          showInst inst = printf ".4byte 0x%08x # %s" inst (rv_pretty inst)
+          showInst (inst, assert) = (printf ".4byte 0x%08x # %s" inst (rv_pretty inst))
+                                 ++ (case assert of Nothing -> ""
+                                                    Just val -> printf "\n.assert rd_wdata == 0x%x \"\"" val)
 instance Arbitrary TestStrand where
   arbitrary = return $ TS True []
   shrink (TS False x) = []
-  shrink (TS True  x) = map (TS True) (shrinkList rv_shrink x)
+  shrink (TS True  x) = map (TS True) (shrinkList (\(i,a) -> map (\z -> (z,a)) (rv_shrink i)) x)
 
 -- | Create a simple 'TestCase' ...
 class ToTestCase x where
@@ -208,7 +212,7 @@ instance ToTestCase [TestStrand] where
   toTestCase = TC (const [])
 -- | ... from a list of instructions represented as a list of 'Integer'
 instance ToTestCase [Integer] where
-  toTestCase insts = TC (const []) [TS True insts]
+  toTestCase insts = TC (const []) [TS True (map (\x -> (x, Nothing)) insts)]
 
 -- Parse a TestCase
 tp = makeTokenParser $ emptyDef { commentLine   = "#"
@@ -230,22 +234,19 @@ parseTestStrand = do
 parseInst = do
   (reserved tp ".4byte" <|> reserved tp ".2byte")
   bits <- natural tp
-  asserts <- many parseAssert
-  return (\r -> concatMap ($ r) asserts, bits)
-parseAssert = do
+  assert <- optionMaybe parseSingleAssert
+  return (const [], (bits, assert))
+parseSingleAssert = do
   reserved tp ".assert"
-  field <- identifier tp
+  reserved tp "rd_wdata"
   symbol tp "=="
   val <- natural tp
   str <- stringLiteral tp
-  let e = "Invalid assert (" ++ str ++ "): field " ++ field ++ " not recognised"
-      f Nothing  = const [e]
-      f (Just g) = \r -> [str | g r /= val]
-  return $ f (rvfiGetFromString field)
+  return val -- XXX Currently throw away string
 
 -- | Create a list of instructions represented as a list of 'Integer' and
 --   associated asserts from the given 'TestCase'
-fromTestCase :: TestCase -> ([Integer], [RVFI_Packet] -> [String])
+fromTestCase :: TestCase -> ([(Integer, Maybe Integer)], [RVFI_Packet] -> [String])
 fromTestCase (TC a ss) = (concatMap testStrandInsts ss, a)
 
 -- | Count the number of instructions in a 'TestCase'
@@ -282,7 +283,7 @@ genTemplateUnsized = genHelper
 -- | Inner helper to implement the 'genTemplate' functions
 genHelper :: Template -> Gen TestCase
 genHelper Empty = return mempty
-genHelper (Single x) = return $ TC (const []) [TS True [x]]
+genHelper (Single x) = return $ TC (const []) [TS True [(x, Nothing)]]
 genHelper (Distribution xs) = do let xs' = map (\(a, b) -> (a, return b)) xs
                                  frequency xs' >>= genHelper
 genHelper (Sequence []) = return mempty
@@ -303,9 +304,10 @@ genHelper (Sequence (x:xs)) = do
                            ++ tail end )
         else return $ TC aO (start ++ end)
 genHelper (Random x) = x >>= genHelper
-genHelper (Assert x y z) = do
+genHelper (CompoundAssert x y z) = do
   TC a b <- genHelper x
   return $ TC (\c -> [z | not (y c)] ++ a c) b
+genHelper (SingleAssert x y) = return $ TC (const []) [TS True [(x, Just y)]]
 genHelper (NoShrink x) = do
   TC a b <- genHelper x
   return $ TC a [TS False (concatMap testStrandInsts b)]

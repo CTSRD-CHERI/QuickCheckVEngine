@@ -98,15 +98,19 @@ genInstrServer sckt = do
   return $ unsafePerformIO $ do sendAll sckt (encode seed)
                                 (decode . BS.reverse) <$> Network.Socket.ByteString.Lazy.recv sckt 4
 
--- | Helper that zips two lists of potentially unequal lengths, padding the
+-- | Helper that zips three lists of potentially unequal lengths, padding the
 --   shorter with a default element.
-zipWithPadding :: a -> b -> (a -> b -> c) -> [a] -> [b] -> [c]
-zipWithPadding a b f = go
+zipWithPadding :: a -> b -> c -> (a -> b -> c -> d) -> [a] -> [b] -> [c] -> [d]
+zipWithPadding a b c f = go
   where
-    go []     []     = []
-    go []     (y:ys) = f a y : go [] ys
-    go (x:xs) []     = f x b : go xs []
-    go (x:xs) (y:ys) = f x y : go xs ys
+    go []     []     []     = []
+    go []     []     (z:zs) = f a b z : go [] [] zs
+    go []     (y:ys) []     = f a y c : go [] ys []
+    go []     (y:ys) (z:zs) = f a y z : go [] ys zs
+    go (x:xs) []     []     = f x b c : go xs [] []
+    go (x:xs) []     (z:zs) = f x b z : go xs [] zs
+    go (x:xs) (y:ys) []     = f x y c : go xs ys []
+    go (x:xs) (y:ys) (z:zs) = f x y z : go xs ys zs
 
 -- | The core QuickCheck property sending the 'TestCase' to the tested RISC-V
 --   implementations as 'DII_Packet's and checking the returned 'RVFI_Packet's
@@ -120,16 +124,16 @@ prop connA connB alive onFail arch delay verbosity gen =
   where mkProp testCase = whenFail (onFail testCase) (doProp testCase)
         doProp testCase = monadicIO $ run $ do
           let (rawInsts, asserts) = fromTestCase testCase
-          let instTrace = map diiInstruction rawInsts
+          let instTrace = map diiInstruction (map fst rawInsts)
           let insts = instTrace ++ [diiEnd]
           currentlyAlive <- readIORef alive
           if currentlyAlive then do
             m_traces <- doRVFIDII connA connB alive delay verbosity insts
             case m_traces of
               Just (traceA, traceB) -> do
-                let diff = zipWithPadding rvfiEmptyHaltPacket rvfiEmptyHaltPacket
+                let diff = zipWithPadding rvfiEmptyHaltPacket rvfiEmptyHaltPacket Nothing
                                           (rvfiCheckAndShow $ has_xlen_64 arch)
-                                          traceA traceB
+                                          traceA traceB (map snd rawInsts)
                 when (verbosity > 1) $ mapM_ (putStrLn . snd) diff
                 let implAAsserts = asserts (init traceA)
                 let implBAsserts = asserts (init traceB)

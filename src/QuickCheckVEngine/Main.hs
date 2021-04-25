@@ -249,11 +249,11 @@ main = withSocketsDo $ do
                              (prop connA connB alive onFail archDesc (timeoutDelay flags) verbosity (return tc))
   let check_mcause_on_trap tc traceA traceB =
         if or (map rvfiIsTrap traceA) || or (map rvfiIsTrap traceB)
-           then tc <> TC (const []) [TS False [csrrs 1 0x342 0, csrrs 1 0x343 0, csrrs 1 0xbc0 0]]
+           then tc <> TC (const []) [TS False [(csrrs 1 0x342 0, Nothing), (csrrs 1 0x343 0, Nothing), (csrrs 1 0xbc0 0, Nothing)]]
            else tc
   let saveOnFail tc tcTrans = do
         let (rawInsts, _) = fromTestCase tc
-        let insts = (map diiInstruction rawInsts) ++ [diiEnd]
+        let insts = (map (diiInstruction . fst) rawInsts) ++ [diiEnd]
         m_traces <- doRVFIDII connA connB alive (timeoutDelay flags) 0 insts
         let (traceA, traceB) = fromMaybe (error "unexpected doRVFIDII failure")
                                          m_traces
@@ -325,7 +325,7 @@ main = withSocketsDo $ do
                       else
                         putStrLn $ "Warning: skipping " ++ label ++ " since architecture requirements not met"
             Just sock -> do
-              doCheck (liftM toTestCase $ listOf $ liftM (\x -> TS False x) $ listOf $ genInstrServer sock) (nTests flags)
+              doCheck (liftM toTestCase $ listOf $ liftM (\x -> TS False (map (\z -> (z, Nothing)) x)) $ listOf $ genInstrServer sock) (nTests flags)
   --
   close socA
   close socB

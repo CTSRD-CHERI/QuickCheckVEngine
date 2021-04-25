@@ -437,10 +437,10 @@ compareMemData is64 x y getMask getData = do
 
 -- | Compare 'RVFI_Packet's
 -- TODO: Improve handling of Maybe values
-rvfiCheck :: Bool -> RVFI_Packet -> RVFI_Packet -> Bool
-rvfiCheck is64 x y
-  | rvfiIsHalt x = rvfi_halt x == rvfi_halt y
-  | rvfiIsTrap x = (rvfi_trap x == rvfi_trap y) && (maskUpper is64 (rvfi_pc_wdata x) == maskUpper is64 (rvfi_pc_wdata y))
+rvfiCheck :: Bool -> RVFI_Packet -> RVFI_Packet -> (Maybe Integer) -> Bool
+rvfiCheck is64 x y assert
+  | rvfiIsHalt x = rvfi_halt x == rvfi_halt y && not (isJust assert)
+  | rvfiIsTrap x = (rvfi_trap x == rvfi_trap y) && (maskUpper is64 (rvfi_pc_wdata x) == maskUpper is64 (rvfi_pc_wdata y)) && not (isJust assert)
   | otherwise =
     (maskUpper False (rvfi_insn x) == maskUpper False (rvfi_insn y))
       && (rvfi_trap x == rvfi_trap y)
@@ -451,6 +451,7 @@ rvfiCheck is64 x y
       && ((getRDAddr x == 0) || (getRDWData x == getRDWData y))
       && compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata
       && (maskUpper is64 (rvfi_pc_wdata x) == maskUpper is64 (rvfi_pc_wdata y))
+      && (fromMaybe (getRDWData x) (fromInteger <$> assert)) == getRDWData x
   where
     maskUpper _is64 _x = if _is64 then _x else _x Data.Bits..&. 0x00000000FFFFFFFF
     getRDAddr pkt = maybe 0 rvfi_rd_addr $ rvfi_int_data pkt
@@ -459,7 +460,9 @@ rvfiCheck is64 x y
 -- | Compare 2 'RVFI_Packet's and produce a 'String' output displaying the
 --   the content of the packet once only for equal inputs or the content of
 --   each input 'RVFI_Packet' if inputs are not succeeding the 'rvfiCheck'
-rvfiCheckAndShow :: Bool -> RVFI_Packet -> RVFI_Packet -> (Bool, String)
-rvfiCheckAndShow is64 x y
-  | rvfiCheck is64 x y = (True,  "     " ++ show x)
-  | otherwise          = (False, " A < " ++ show x ++ "\n B > " ++ show y)
+rvfiCheckAndShow :: Bool -> RVFI_Packet -> RVFI_Packet -> (Maybe Integer) -> (Bool, String)
+rvfiCheckAndShow is64 x y assert
+  | rvfiCheck is64 x y assert = (True,  "     " ++ show x ++ suffix)
+  | otherwise                 = (False, " A < " ++ show x ++ suffix ++ "\n B > " ++ show y ++ suffix)
+    where suffix = case assert of Nothing -> ""
+                                  Just i  -> printf " (assert rd_wdata == 0x%x)" i
