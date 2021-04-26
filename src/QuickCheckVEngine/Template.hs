@@ -180,7 +180,7 @@ coalesce ((TS b1 x1):(TS b2 x2):ss) = if b1==b2 then coalesce ((TS b1 (x1++x2)):
 instance Arbitrary TestCase where
   arbitrary = TC (const []) <$> arbitrary
   shrink (TC _ ss) = map (TC (const []) . coalesce) $
-                         [ filter tsNotNull ys ++ if tsNotNull z' then [z'] else []
+                         [ filter tsNotNull ys ++ (if tsNotNull z' then [z'] else [])
                                                ++ filter tsNotNull zs
                                                 | (ys, z:zs) <- splits ss
                          , z' <- shrink z ]
