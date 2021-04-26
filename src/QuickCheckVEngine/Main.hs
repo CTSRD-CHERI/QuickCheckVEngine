@@ -72,6 +72,7 @@ import QuickCheckVEngine.Templates.GenAtomics
 import QuickCheckVEngine.Templates.GenFP
 import QuickCheckVEngine.Templates.GenCHERI
 import QuickCheckVEngine.Templates.GenHPM
+import QuickCheckVEngine.Templates.GenTransExec
 
 -- command line arguments
 --------------------------------------------------------------------------------
@@ -186,6 +187,7 @@ commandOpts argv =
 allTests :: [(String, String, ArchDesc -> Bool, ArchDesc -> Template)]
 allTests = [
              ("arith",      "Arithmetic Verification",                                const True,                       const $ repeatTemplateTillEnd gen_rv32_i_arithmetic)
+           , ("scc",        "Speculative Capability Constraint Verifier",             andPs [has_cheri, has_icsr],      const gen_scc_verify)
            , ("mem",        "Memory Verification",                                    const True,                       const $ repeatTemplateTillEnd gen_rv32_i_memory)
            , ("control",    "Control Flow Verification",                              const True,                       const $ repeatTemplateTillEnd gen_rv32_i_controlflow)
            , ("cache",      "Cache Verification",                                     const True,                       const $ repeatTemplateTillEnd gen_rv32_i_cache)

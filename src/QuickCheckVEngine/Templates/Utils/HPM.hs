@@ -43,6 +43,7 @@ module QuickCheckVEngine.Templates.Utils.HPM (
 , readHPMCounterM
 , writeHPMCounterM
 , surroundWithHPMAccess
+, surroundWithHPMAccess_core
 ) where
 
 import QuickCheckVEngine.Template
@@ -120,13 +121,14 @@ resetHPMCounter tmp idx = Sequence [ li32 tmpNonZero 0
 surroundWithHPMAccess :: Template -> Template
 surroundWithHPMAccess x = Random $ do
   evt <- oneof $ map return hpmevent_indices
-  return $ surroundWithHPMAccess_core False evt x
+  tmpReg <- dest
+  return $ surroundWithHPMAccess_core False evt x tmpReg
 
 -- | inner helper
-surroundWithHPMAccess_core :: Bool -> HPMEventIdx -> Template -> Template
-surroundWithHPMAccess_core shrink evt x = Random $ do
+surroundWithHPMAccess_core :: Bool -> HPMEventIdx -> Template -> Integer
+                           -> Template
+surroundWithHPMAccess_core shrink evt x tmpReg = Random $ do
   hpmCntIdx <- oneof $ map return hpmcounter_indices
-  tmpReg <- dest
   let prologue =    inhibitHPMCounter tmpReg hpmCntIdx
                  <> setupHPMEventSel tmpReg hpmCntIdx evt
                  <> resetHPMCounter tmpReg hpmCntIdx

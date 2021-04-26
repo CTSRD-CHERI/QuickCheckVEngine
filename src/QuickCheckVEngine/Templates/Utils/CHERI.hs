@@ -35,6 +35,7 @@
 module QuickCheckVEngine.Templates.Utils.CHERI (
   randomCCall
 , clearASR
+, makeCap
 , makeShortCap
 , legalCapLoad
 , legalCapStore
@@ -82,6 +83,15 @@ clearASR tmp1 tmp2 = instSeq [ cspecialrw tmp1 0 0, -- Get PCC
                                candperm tmp1 tmp1 tmp2, -- Mask out ASR
                                cspecialrw 0 28 tmp1, -- Clear ASR in trap vector
                                cjalr tmp1 0 ]
+
+makeCap :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
+makeCap dst source tmp base len offset =
+  Sequence [ li64 tmp base
+           , Single $ csetaddr dst source tmp
+           , li64 tmp len
+           , Single $ csetbounds dst dst tmp
+           , li64 tmp offset
+           , Single $ cincoffset dst dst tmp ]
 
 makeShortCap :: Template
 makeShortCap = Random $ do
