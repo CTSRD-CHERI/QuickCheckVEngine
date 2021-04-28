@@ -59,15 +59,15 @@ genSCCTorture = Random $ do
   let capReg = 1
   let tmpReg = 2
   let bitsReg = 3
-  let authReg = 4
-  src1     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg) ]
-  src2     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg) ]
+  let sldReg = 4
+  let nopermReg = 5
+  let authReg = 6
+  src1     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
+  src2     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   return $  (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic src1 src2 imm tmpReg)
                           , (1, uniformTemplate $ rv32_xcheri_misc       src1 src2 imm csrAddr tmpReg)
-                          --, (1, Single $ cincoffsetimmediate tmpReg tmpReg (imm `div` 2))
-                          --, (1, Single $ cbuildcap tmpReg bitsReg bitsReg)
                           , (1, Single $ cload tmpReg tmpReg 0x08)
-                          ])q
+                          ])
   --return $ replicateTemplate (size `div` 2) (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
   --                                                        , (1, gen_rv32_i_memory) ]))
 
@@ -75,11 +75,15 @@ gen_scc_verify = Random $ do
   let capReg = 1
   let tmpReg = 2
   let bitsReg = 3
-  let authReg = 4
+  let sldReg = 4
+  let nopermReg = 5
+  let authReg = 6
   let hpmEventIdx_dcache_miss = 0x31
   size <- getSize
   return $ Sequence [ NoShrink (makeCap capReg  authReg tmpReg 0x80010000     8 0)
                     , NoShrink (makeCap bitsReg authReg tmpReg 0x80014000 0x100 0)
+                    , NoShrink (Single $ csealentry sldReg bitsReg)
+                    , NoShrink (Single $ candperm nopermReg bitsReg 0)
                     , NoShrink (Single $ ccleartag bitsReg bitsReg)
                     , NoShrink (Single $ lw 0 tmpReg capReg)
                     , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) genSCCTorture) tmpReg
