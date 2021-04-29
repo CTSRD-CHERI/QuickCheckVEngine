@@ -71,6 +71,22 @@ genSCCTorture = Random $ do
   --return $ replicateTemplate (size `div` 2) (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
   --                                                        , (1, gen_rv32_i_memory) ]))
 
+genSBC_Cond_1_Torture :: Template
+genSBC_Cond_1_Torture = Random $ do
+  imm   <- bits 12
+  let tmpReg = 1
+  let src1 = 2
+  let src2 = 3
+  let captemReg = 4
+  let capsrc1 = 5
+  let capsrc2 = 6
+  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 imm tmpReg)
+                          , (1, uniformTemplate $ rv32_i_arith src1 src2 imm tmpReg)
+                          , (1, uniformTemplate $ rv64_i_mem src1 src2 imm tmpReg)
+                          , (1, uniformTemplate $ rv32_i_mem src1 src2 imm tmpReg)
+                          , (1, uniformTemplate $ rv32_xcheri_arithmetic capsrc1 capsrc2 imm captmpReg)
+                          ])
+
 gen_scc_verify = Random $ do
   let capReg = 1
   let tmpReg = 2
@@ -88,4 +104,28 @@ gen_scc_verify = Random $ do
                     , NoShrink (Single $ lw 0 tmpReg capReg)
                     , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) genSCCTorture) tmpReg
                     , NoShrink (SingleAssert (addi tmpReg tmpReg 0) 0)
+                    ]
+
+-- | Verify instruction Speculative Capability Constraint (SCC)
+--gen_inst_scc_verify = Random $ do
+
+{-
+    Actions to take:
+    - prime the BTB (execute many jump instructions with the same target capability) running in unconstrained code
+    - constrain code and pull in all cache lines reachable from the current PCC
+    - start measurements (L1 D cache misses)
+    - execute priming code sequence again
+    - evaluate measurements
+-}
+
+
+-- | Verify condition 1 of Speculative Branching Constraint (SBC)
+gen_sbc_clause_1_verify = Random $ do
+  let tmpReg1 = 1
+  let tmpReg2 = 2
+  let hpmEventIdx_renamed_insts = 0x80
+  size <- getSize
+  return $ Sequence [ surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) genSBC_Cond_1_Torture) tmpReg1
+                    , NoShrink (Single $ csrr tmpReg2 minstret)
+                    , NoShrink (SingleAssert (sub tmpReg1 tmpReg1 tmpReg2) 1)
                     ]
