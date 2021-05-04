@@ -39,6 +39,7 @@ module QuickCheckVEngine.Templates.GenTransExec (
 import InstrCodec
 import Test.QuickCheck
 import RISCV.RV32_I
+import RISCV.RV64_I
 import RISCV.RV32_Xcheri
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
@@ -73,17 +74,23 @@ genSCCTorture = Random $ do
 
 genSBC_Cond_1_Torture :: Template
 genSBC_Cond_1_Torture = Random $ do
-  imm   <- bits 12
+  imm      <- bits 12
+  longImm  <- bits 20
+  fenceOp1 <- bits 3
+  fenceOp2 <- bits 3
+  srcAddr  <- src
+  srcData  <- src
+  dest     <- dest
   let tmpReg = 1
   let src1 = 2
   let src2 = 3
-  let captemReg = 4
+  let captmpReg = 4
   let capsrc1 = 5
   let capsrc2 = 6
   return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 imm tmpReg)
-                          , (1, uniformTemplate $ rv32_i_arith src1 src2 imm tmpReg)
-                          , (1, uniformTemplate $ rv64_i_mem src1 src2 imm tmpReg)
-                          , (1, uniformTemplate $ rv32_i_mem src1 src2 imm tmpReg)
+                          , (1, uniformTemplate $ rv32_i_arith src1 src2 imm longImm tmpReg)
+                          , (1, uniformTemplate $ rv64_i_mem srcAddr srcData dest imm)
+                          , (1, uniformTemplate $ rv32_i_mem srcAddr srcData dest imm fenceOp1 fenceOp2)
                           , (1, uniformTemplate $ rv32_xcheri_arithmetic capsrc1 capsrc2 imm captmpReg)
                           ])
 
@@ -120,12 +127,12 @@ gen_scc_verify = Random $ do
 
 
 -- | Verify condition 1 of Speculative Branching Constraint (SBC)
-gen_sbc_clause_1_verify = Random $ do
-  let tmpReg1 = 1
-  let tmpReg2 = 2
-  let hpmEventIdx_renamed_insts = 0x80
-  size <- getSize
-  return $ Sequence [ surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) genSBC_Cond_1_Torture) tmpReg1
-                    , NoShrink (Single $ csrr tmpReg2 minstret)
-                    , NoShrink (SingleAssert (sub tmpReg1 tmpReg1 tmpReg2) 1)
-                    ]
+--gen_sbc_clause_1_verify = Random $ do
+--  let tmpReg1 = 1
+--  let tmpReg2 = 2
+--  let hpmEventIdx_renamed_insts = 0x80
+--  size <- getSize
+--  return $ Sequence [ surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) genSBC_Cond_1_Torture) tmpReg1
+--                    , NoShrink (Single $ csrr tmpReg2 minstret)
+--                    , NoShrink (SingleAssert (sub tmpReg1 tmpReg1 tmpReg2) 1)
+--                    ]
