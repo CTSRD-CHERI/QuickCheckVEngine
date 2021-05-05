@@ -34,6 +34,7 @@
 
 module QuickCheckVEngine.Templates.GenTransExec (
   gen_scc_verify
+, gen_sbc_cond_1_verify
 ) where
 
 import InstrCodec
@@ -127,12 +128,14 @@ gen_scc_verify = Random $ do
 
 
 -- | Verify condition 1 of Speculative Branching Constraint (SBC)
---gen_sbc_clause_1_verify = Random $ do
---  let tmpReg1 = 1
---  let tmpReg2 = 2
---  let hpmEventIdx_renamed_insts = 0x80
---  size <- getSize
---  return $ Sequence [ surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) genSBC_Cond_1_Torture) tmpReg1
---                    , NoShrink (Single $ csrr tmpReg2 minstret)
---                    , NoShrink (SingleAssert (sub tmpReg1 tmpReg1 tmpReg2) 1)
---                    ]
+gen_sbc_cond_1_verify = Random $ do
+  let tmpReg1 = 1
+  let tmpReg2 = 2
+  let tmpReg3 = 3
+  let hpmEventIdx_renamed_insts = 0x80
+  size <- getSize
+  return $ Sequence [ surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (NoShrink(csrr tmpReg2 0xB02) <> replicateTemplate (size - 100) (genSBC_Cond_1_Torture)) tmpReg1
+                    , NoShrink ( csrr tmpReg3 0xB02)
+                    , NoShrink (Single $ sub tmpReg3 tmpReg3 tmpReg2)
+                    , NoShrink (SingleAssert (sub tmpReg3 tmpReg3 tmpReg1) 3)
+                    ]
