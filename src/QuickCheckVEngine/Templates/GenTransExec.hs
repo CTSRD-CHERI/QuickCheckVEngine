@@ -134,8 +134,7 @@ gen_sbc_cond_1_verify = Random $ do
   let tmpReg3 = 3
   let hpmEventIdx_renamed_insts = 0x80
   size <- getSize
-  return $ Sequence [ surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (NoShrink(csrr tmpReg2 0xB02) <> replicateTemplate (size - 100) (genSBC_Cond_1_Torture)) tmpReg1
-                    , NoShrink ( csrr tmpReg3 0xB02)
+  return $ Sequence [ surroundWithHPMAccess_core_instret False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) (genSBC_Cond_1_Torture)) tmpReg1 tmpReg2 tmpReg3
                     , NoShrink (Single $ sub tmpReg3 tmpReg3 tmpReg2)
                     , NoShrink (SingleAssert (sub tmpReg3 tmpReg3 tmpReg1) 3)
                     ]

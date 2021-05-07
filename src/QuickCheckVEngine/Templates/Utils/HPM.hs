@@ -44,6 +44,7 @@ module QuickCheckVEngine.Templates.Utils.HPM (
 , writeHPMCounterM
 , surroundWithHPMAccess
 , surroundWithHPMAccess_core
+, surroundWithHPMAccess_core_instret
 ) where
 
 import QuickCheckVEngine.Template
@@ -139,3 +140,20 @@ surroundWithHPMAccess_core shrink evt x tmpReg = Random $ do
                                  , readHPMCounterM tmpReg hpmCntIdx ]
   return $ if shrink then prologue <> x <> epilogue
                      else NoShrink prologue <> x <> NoShrink epilogue
+
+surroundWithHPMAccess_core_instret :: Bool -> HPMEventIdx -> Template -> Integer -> Integer -> Integer
+                           -> Template
+surroundWithHPMAccess_core_instret shrink evt x tmpReg tmpReg2 tmpReg3 = Random $ do
+  hpmCntIdx <- oneof $ map return hpmcounter_indices
+  let prologue =    inhibitHPMCounter tmpReg hpmCntIdx
+                 <> setupHPMEventSel tmpReg hpmCntIdx evt
+                 <> resetHPMCounter tmpReg hpmCntIdx
+                 <> uniformTemplate [enableHPMCounterM tmpReg hpmCntIdx, Empty]
+                 <> uniformTemplate [enableHPMCounterS tmpReg hpmCntIdx, Empty]
+                 <> triggerHPMCounter tmpReg hpmCntIdx
+                 <> csrr tmpReg2 0xB02
+  let epilogue = csrr tmpReg3 0xB02 <> uniformTemplate [ readHPMCounter  tmpReg hpmCntIdx
+                                 , readHPMCounterM tmpReg hpmCntIdx ]
+  return $ if shrink then prologue <> x <> epilogue
+                     else NoShrink prologue <> x <> NoShrink epilogue
+
