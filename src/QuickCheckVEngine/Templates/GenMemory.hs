@@ -177,9 +177,11 @@ gen_cache has_a has_zifencei has_xlen_64 has_caplen = Random $
 
 gen_pte = Random $
   do lperms <- bits 10
-     uperms <- bits 2
+     uperms <- bits 5
+     clg0 <- bits 2
+     clg1 <- bits 2
      return $ Sequence [Single $ ori 1 0 uperms, -- two cheri pte bits
-                        Single $ slli 1 1 19,
+                        Single $ slli 1 1 16,
                         Single $ ori 1 1 0x000, -- 11 msbs of PA
                         Single $ slli 1 1 11,
                         Single $ ori 1 1 0x000, -- next 11 bits of PA
@@ -198,12 +200,15 @@ gen_pte = Random $
                         Single $ lui 7 0x40000,
                         Single $ slli 7 7 1,
                         Single $ sd 7 1 0,
-                        Single $ csrrw 0 0x180 5]
+                        Single $ csrrw 0 0x180 5,
+                        Single $ csrrwi 0 0x9c0 (clg0 * 4)]
                         <>
                         (NoShrink $ Single $ encode "0001001 00000 00000 000 00000 1110011") -- sfence.vma 0 0
                         <> Sequence [
                         Single sret,
                         Distribution [(1,Single $ ccleartag 3 3), (1,Single $ cmove 3 3)],
                         Distribution [(1,Single $ sw 0 3 16), (1,Single $ sq 0 3 16)],
+                        Distribution [(1,Single $ lw 4 0 16), (1,Single $ lq 4 0 16)],
+                        Single $ csrrwi 0 0x9c0 (clg1 * 4),
                         Distribution [(1,Single $ lw 4 0 16), (1,Single $ lq 4 0 16)],
                         Single $ cgettag 5 4]
