@@ -209,7 +209,7 @@ allTests = [
            , ("csr",        "Zicsr Extension Verification",                           has_icsr,                         const $ repeatTemplateTillEnd gen_rv32_i_zicsr)
            , ("fencei",     "Zifencei Extension Verification",                        has_ifencei,                      const $ repeatTemplateTillEnd gen_rv32_i_zifencei_memory)
            , ("fencei64",   "RV64 Zifencei Extension Verification",                   andPs [has_ifencei, has_xlen_64], const $ repeatTemplateTillEnd gen_rv64_i_zifencei_memory)
-           , ("pte",        "PTE Verification",                                       has_s,                            const $ gen_pte)
+           , ("pte",        "PTE Verification",                                       has_s,                            const $ repeatTemplateTillEnd $ Distribution [(1, gen_pte_perms), (1, gen_pte_trans)])
            , ("hpm",        "HPM Verification",                                       has_icsr,                         repeatTemplateTillEnd . genHPM)
            , ("capinspect", "Xcheri Extension Capability Inspection Verification",    has_cheri,                        const $ repeatTemplateTillEnd genCHERIinspection)
            , ("caparith",   "Xcheri Extension Capability Arithmetic Verification",    has_cheri,                        const $ repeatTemplateTillEnd genCHERIarithmetic)

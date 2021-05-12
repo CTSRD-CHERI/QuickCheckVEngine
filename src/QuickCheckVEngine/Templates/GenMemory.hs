@@ -45,7 +45,8 @@ module QuickCheckVEngine.Templates.GenMemory (
 , gen_rv64_i_cache
 , gen_rv32_Xcheri_cache
 , gen_rv64_Xcheri_cache
-, gen_pte
+, gen_pte_perms
+, gen_pte_trans
 ) where
 
 import InstrCodec
@@ -58,6 +59,7 @@ import RISCV.RV64_I
 import RISCV.RV32_Xcheri
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
+import Data.Bits
 
 data GenConf = GenConf { has_a        :: Bool
                        , has_zifencei :: Bool
@@ -175,7 +177,7 @@ gen_cache has_a has_zifencei has_xlen_64 has_caplen = Random $
                                    (Distribution $ concat insts)
 
 
-gen_pte = Random $
+gen_pte_perms = Random $
   do lperms <- bits 10
      uperms <- bits 5
      clg0 <- bits 2
@@ -211,4 +213,48 @@ gen_pte = Random $
                         Distribution [(1,Single $ lw 4 0 16), (1,Single $ lq 4 0 16)],
                         Single $ csrrwi 0 0x9c0 (clg1 * 4),
                         Distribution [(1,Single $ lw 4 0 16), (1,Single $ lq 4 0 16)],
-                        Single $ cgettag 5 4]
+                        Single $ cgettag 5 4,
+                        Single ecall]
+
+gen_pte_trans = Random $
+  do let leafperms = 0xFF
+     let parentperms = 0xF1
+     l2perms <- elements [leafperms, parentperms]
+     l1perms <- elements [leafperms, parentperms]
+     l0perms <- elements [leafperms, parentperms]
+     let satpa = 0x803ff000
+     let l2pa  = 0x80000000
+     let l1pa  = 0x80200000
+     let l0pa  = 0x80001000
+     let satp = (shiftL 0x8 60) + (shiftR satpa 12)
+     let l2pte = (shiftR l2pa 2) + l2perms
+     let l1pte = (shiftR l1pa 2) + l1perms
+     let l0pte = (shiftR l0pa 2) + l0perms
+     let lxreg = 1
+     let ptereg = 30
+     return $ Sequence [li64 ptereg l2pte,
+                        li64 lxreg  satpa,
+                        Single $ sd lxreg ptereg 0,
+                        li64 ptereg l1pte,
+                        li64 lxreg  l2pa,
+                        Single $ sd lxreg ptereg 0,
+                        li64 ptereg l0pte,
+                        li64 lxreg  l1pa,
+                        Single $ sd lxreg ptereg 0,
+                        li64 ptereg satp,
+                        Single $ csrrw 0 0x180 ptereg] -- SATP write
+                        <>
+                        (NoShrink $ Single $ encode "0001001 00000 00000 000 00000 1110011") -- sfence.vma 0 0
+                        <>
+                        (Single sret)
+                        <>
+                        (replicateTemplate 20
+                                          (Random $
+                                           do imm <- elements [0x10, 0x100, 0x0]
+                                              datReg <- elements [ptereg, lxreg]
+                                              return $ Distribution [(8, uniformTemplate $ rv64_i_load  0 datReg imm),
+                                                                     (8, uniformTemplate $ rv64_i_store 0 datReg imm),
+                                                                     (1, Single $ fence_i),
+                                                                     (1, Single $ fence 0 0)]))
+                        <>
+                        (NoShrink $ Single ecall)
