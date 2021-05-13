@@ -46,6 +46,7 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 import QuickCheckVEngine.RVFI_DII.RVFI
 import QuickCheckVEngine.Templates.GenMemory
+import Data.Bits
 
 genSCCTorture :: Template
 genSCCTorture = Random $ do
@@ -75,23 +76,25 @@ genSCCTorture = Random $ do
 
 genSBC_Cond_1_Torture :: Template
 genSBC_Cond_1_Torture = Random $ do
-  imm      <- bits 12
+  imm_rand <- bits 12
   longImm  <- bits 20
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
-  srcAddr  <- src
   srcData  <- src
-  dest     <- dest
+  let addrReg = 5
   let tmpReg = 10
   let src1 = 12
   let src2 = 13
   let captmpReg = 14
   let capsrc1 = 15
   let capsrc2 = 16
-  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 imm tmpReg)
+  let dest = 17
+  -- immediate has to be divisible by 8
+  let imm = (imm_rand `shiftR` 0x3) `shiftL` 0x3
+  return $ (Distribution  [ --(1, uniformTemplate $ rv64_i_arith src1 src2 imm tmpReg)
                           --, (1, uniformTemplate $ rv32_i_arith src1 src2 imm longImm tmpReg)
                           --, (1, uniformTemplate $ rv64_i_mem srcAddr srcData dest imm)
-                          , (1, uniformTemplate $ rv32_i_mem srcAddr srcData dest imm fenceOp1 fenceOp2)
+                           (1, uniformTemplate $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2)
                           --, (1, uniformTemplate $ rv32_xcheri_arithmetic capsrc1 capsrc2 imm captmpReg)
                           ])
 
@@ -133,11 +136,14 @@ gen_sbc_cond_1_verify = Random $ do
   let tmpReg2 = 2
   let tmpReg3 = 3
   let tmpReg4 = 4
-  let hpmEventIdx_renamed_insts = 0x84
+  let addrReg = 5
+  let addrVal = 0x80001000
+  let hpmEventIdx_renamed_insts = 0x80
   let hpmEventIdx_traps = 0x2
   size <- getSize
-  return $ Sequence [ surroundWithHPMAccess_core False hpmEventIdx_traps (surroundWithHPMAccess_core_instret False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) (NoShrink (genSBC_Cond_1_Torture))) tmpReg1 tmpReg2 tmpReg3) tmpReg4
+  return $ Sequence [ NoShrink ( (li64 addrReg addrVal))
+                    , surroundWithHPMAccess_core False hpmEventIdx_traps (surroundWithHPMAccess_core_instret False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) ( (genSBC_Cond_1_Torture))) tmpReg1 tmpReg2 tmpReg3) tmpReg4
                     , NoShrink (Single $ sub tmpReg3 tmpReg3 tmpReg2)
                     , NoShrink (Single $ sub tmpReg1 tmpReg1 tmpReg3)
-                    , NoShrink (SingleAssert (sub tmpReg1 tmpReg1 tmpReg4) 1)
+                    , NoShrink (SingleAssert (sub tmpReg1 tmpReg1 tmpReg4) 2)
                     ]
