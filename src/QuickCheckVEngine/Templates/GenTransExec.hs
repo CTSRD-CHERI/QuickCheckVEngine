@@ -91,10 +91,10 @@ genSBC_Cond_1_Torture = Random $ do
   let dest = 17
   -- immediate has to be divisible by 8
   let imm = (imm_rand `shiftR` 0x3) `shiftL` 0x3
-  return $ (Distribution  [ --(1, uniformTemplate $ rv64_i_arith src1 src2 imm tmpReg)
-                          --, (1, uniformTemplate $ rv32_i_arith src1 src2 imm longImm tmpReg)
-                          --, (1, uniformTemplate $ rv64_i_mem srcAddr srcData dest imm)
-                           (1, uniformTemplate $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2)
+  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 imm tmpReg)
+                          , (1, uniformTemplate $ rv32_i_arith src1 src2 imm longImm tmpReg)
+                          ,  (1, uniformTemplate $ rv64_i_mem addrReg srcData dest imm)
+                          , (1, uniformTemplate $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2)
                           --, (1, uniformTemplate $ rv32_xcheri_arithmetic capsrc1 capsrc2 imm captmpReg)
                           ])
 

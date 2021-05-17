@@ -129,7 +129,7 @@ surroundWithHPMAccess x = Random $ do
 surroundWithHPMAccess_core :: Bool -> HPMEventIdx -> Template -> Integer
                            -> Template
 surroundWithHPMAccess_core shrink evt x tmpReg = Random $ do
-  hpmCntIdx <- oneof $ map return hpmcounter_indices
+  let hpmCntIdx = 3 -- <- oneof $ map return hpmcounter_indices
   let prologue =    inhibitHPMCounter tmpReg hpmCntIdx
                  <> setupHPMEventSel tmpReg hpmCntIdx evt
                  <> resetHPMCounter tmpReg hpmCntIdx
@@ -144,7 +144,7 @@ surroundWithHPMAccess_core shrink evt x tmpReg = Random $ do
 surroundWithHPMAccess_core_instret :: Bool -> HPMEventIdx -> Template -> Integer -> Integer -> Integer
                            -> Template
 surroundWithHPMAccess_core_instret shrink evt x tmpReg tmpReg2 tmpReg3 = Random $ do
-  hpmCntIdx <- oneof $ map return hpmcounter_indices
+  let hpmCntIdx = 4 -- <- oneof $ map return hpmcounter_indices
   let prologue =    inhibitHPMCounter tmpReg hpmCntIdx
                  <> setupHPMEventSel tmpReg hpmCntIdx evt
                  <> resetHPMCounter tmpReg hpmCntIdx

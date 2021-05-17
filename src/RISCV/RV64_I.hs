@@ -153,7 +153,7 @@ rv64_i_store srcAddr srcData imm = [sd srcAddr srcData imm]
 -- | List of RV64 base integer memory instructions
 rv64_i_mem :: Integer -> Integer -> Integer -> Integer -> [Integer] --TODO alignment
 rv64_i_mem srcAddr srcData dest imm =
-  (rv64_i_load srcAddr dest imm) ++ (rv64_i_store srcData srcAddr imm)
+  (rv64_i_load srcAddr dest imm) ++ (rv64_i_store srcAddr srcData imm)
 
 -- | List of RV64 base integer instructions
 rv64_i :: Integer -> Integer -> Integer -> Integer -> [Integer]
