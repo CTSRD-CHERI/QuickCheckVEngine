@@ -123,13 +123,13 @@ surroundWithHPMAccess x = Random $ do
   evt <- oneof $ map return hpmevent_indices
   hpmCntIdx <- oneof $ map return hpmcounter_indices
   tmpReg <- dest
-  return $ surroundWithHPMAccess_core False evt x tmpReg hpmCntIdx False 0 0
+  return $ surroundWithHPMAccess_core False evt x tmpReg hpmCntIdx Nothing
 
 -- | inner helper
 
-surroundWithHPMAccess_core :: Bool -> HPMEventIdx -> Template -> Integer -> Integer -> Bool -> Integer -> Integer
+surroundWithHPMAccess_core :: Bool -> HPMEventIdx -> Template -> Integer -> Integer -> Maybe (Integer, Integer)
                            -> Template
-surroundWithHPMAccess_core shrink evt x tmpReg hpmCntIdx countInst instReg2 instReg3 = Random $ do
+surroundWithHPMAccess_core shrink evt x tmpReg hpmCntIdx instRet = Random $ do
   let prologue =    inhibitHPMCounter tmpReg hpmCntIdx
                  <> setupHPMEventSel tmpReg hpmCntIdx evt
                  <> resetHPMCounter tmpReg hpmCntIdx
@@ -138,8 +138,13 @@ surroundWithHPMAccess_core shrink evt x tmpReg hpmCntIdx countInst instReg2 inst
                  <> triggerHPMCounter tmpReg hpmCntIdx
   let epilogue = uniformTemplate [ readHPMCounter  tmpReg hpmCntIdx
                                  , readHPMCounterM tmpReg hpmCntIdx ]
-  let prolo = if countInst then prologue <> csrr instReg2 0xB02 else prologue
-  let epilo = if countInst then csrr instReg3 0xB02 <> epilogue else epilogue
-  return $ if shrink then prolo <> x <> epilo
-                     else NoShrink prolo <> x <> NoShrink epilo
+  --let prolo = if countInst then prologue <> csrr instReg2 0xB02 else prologue
+  --let epilo = if countInst then csrr instReg3 0xB02 <> epilogue else epilogue
+  return $ if shrink then prologue <> surroundWithHPMAccess_raw x instRet <> epilogue
+                     else NoShrink prologue <> surroundWithHPMAccess_raw x instRet <> NoShrink epilogue
 
+
+surroundWithHPMAccess_raw :: Template -> Maybe (Integer, Integer) -> Template
+surroundWithHPMAccess_raw x instRet = case (instRet) of
+              Just (reg1, reg2) -> ((NoShrink (csrr reg1 0xB02)) <> x <> (NoShrink (csrr reg2 0xB02)))
+              Nothing -> x

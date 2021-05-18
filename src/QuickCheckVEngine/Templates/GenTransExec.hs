@@ -3,6 +3,8 @@
 --
 -- Copyright (c) 2019-2020 Peter Rugg
 -- Copyright (c) 2019, 2020 Alexandre Joannou
+-- Copyright (c) 2021 Jonathan Woodruff
+-- Copyright (c) 2021 Franz Fuchs
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -93,7 +95,7 @@ genSBC_Cond_1_Torture = Random $ do
   let imm = (imm_rand `shiftR` 0x3) `shiftL` 0x3
   return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 imm tmpReg)
                           , (1, uniformTemplate $ rv32_i_arith src1 src2 imm longImm tmpReg)
-                          ,  (1, uniformTemplate $ rv64_i_mem addrReg srcData dest imm)
+                          , (1, uniformTemplate $ rv64_i_mem addrReg srcData dest imm)
                           , (1, uniformTemplate $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2)
                           ])
 
@@ -113,7 +115,7 @@ gen_scc_verify = Random $ do
                     , NoShrink (Single $ candperm nopermReg bitsReg 0)
                     , NoShrink (Single $ ccleartag bitsReg bitsReg)
                     , NoShrink (Single $ lw 0 tmpReg capReg)
-                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) genSCCTorture) tmpReg hpmCntIdx False 0 0
+                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) genSCCTorture) tmpReg hpmCntIdx Nothing
                     , NoShrink (SingleAssert (addi tmpReg tmpReg 0) 0)
                     ]
 
@@ -144,7 +146,7 @@ gen_sbc_cond_1_verify = Random $ do
   let hpmCntIdx_traps = 4
   size <- getSize
   return $ Sequence [ NoShrink ( (li64 addrReg addrVal))
-                    , surroundWithHPMAccess_core False hpmEventIdx_traps (surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) ( (genSBC_Cond_1_Torture))) tmpReg1 hpmCntIdx_renamed_insts True tmpReg2 tmpReg3) tmpReg4 hpmCntIdx_traps False 0 0
+                    , surroundWithHPMAccess_core False hpmEventIdx_traps (surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) ( (genSBC_Cond_1_Torture))) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))) tmpReg4 hpmCntIdx_traps Nothing
                     , NoShrink (Single $ sub tmpReg3 tmpReg3 tmpReg2)
                     , NoShrink (Single $ sub tmpReg1 tmpReg1 tmpReg3)
                     , NoShrink (SingleAssert (sub tmpReg1 tmpReg1 tmpReg4) 2)
