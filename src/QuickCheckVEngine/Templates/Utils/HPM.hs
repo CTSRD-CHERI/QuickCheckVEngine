@@ -44,7 +44,6 @@ module QuickCheckVEngine.Templates.Utils.HPM (
 , writeHPMCounterM
 , surroundWithHPMAccess
 , surroundWithHPMAccess_core
-, surroundWithHPMAccess_core_instret
 ) where
 
 import QuickCheckVEngine.Template
@@ -122,14 +121,15 @@ resetHPMCounter tmp idx = Sequence [ li32 tmpNonZero 0
 surroundWithHPMAccess :: Template -> Template
 surroundWithHPMAccess x = Random $ do
   evt <- oneof $ map return hpmevent_indices
+  hpmCntIdx <- oneof $ map return hpmcounter_indices
   tmpReg <- dest
-  return $ surroundWithHPMAccess_core False evt x tmpReg
+  return $ surroundWithHPMAccess_core False evt x tmpReg hpmCntIdx False 0 0
 
 -- | inner helper
-surroundWithHPMAccess_core :: Bool -> HPMEventIdx -> Template -> Integer
+
+surroundWithHPMAccess_core :: Bool -> HPMEventIdx -> Template -> Integer -> Integer -> Bool -> Integer -> Integer
                            -> Template
-surroundWithHPMAccess_core shrink evt x tmpReg = Random $ do
-  let hpmCntIdx = 3 -- <- oneof $ map return hpmcounter_indices
+surroundWithHPMAccess_core shrink evt x tmpReg hpmCntIdx countInst instReg2 instReg3 = Random $ do
   let prologue =    inhibitHPMCounter tmpReg hpmCntIdx
                  <> setupHPMEventSel tmpReg hpmCntIdx evt
                  <> resetHPMCounter tmpReg hpmCntIdx
@@ -138,22 +138,8 @@ surroundWithHPMAccess_core shrink evt x tmpReg = Random $ do
                  <> triggerHPMCounter tmpReg hpmCntIdx
   let epilogue = uniformTemplate [ readHPMCounter  tmpReg hpmCntIdx
                                  , readHPMCounterM tmpReg hpmCntIdx ]
-  return $ if shrink then prologue <> x <> epilogue
-                     else NoShrink prologue <> x <> NoShrink epilogue
-
-surroundWithHPMAccess_core_instret :: Bool -> HPMEventIdx -> Template -> Integer -> Integer -> Integer
-                           -> Template
-surroundWithHPMAccess_core_instret shrink evt x tmpReg tmpReg2 tmpReg3 = Random $ do
-  let hpmCntIdx = 4 -- <- oneof $ map return hpmcounter_indices
-  let prologue =    inhibitHPMCounter tmpReg hpmCntIdx
-                 <> setupHPMEventSel tmpReg hpmCntIdx evt
-                 <> resetHPMCounter tmpReg hpmCntIdx
-                 <> uniformTemplate [enableHPMCounterM tmpReg hpmCntIdx, Empty]
-                 <> uniformTemplate [enableHPMCounterS tmpReg hpmCntIdx, Empty]
-                 <> triggerHPMCounter tmpReg hpmCntIdx
-                 <> csrr tmpReg2 0xB02
-  let epilogue = csrr tmpReg3 0xB02 <> uniformTemplate [ readHPMCounter  tmpReg hpmCntIdx
-                                 , readHPMCounterM tmpReg hpmCntIdx ]
-  return $ if shrink then prologue <> x <> epilogue
-                     else NoShrink prologue <> x <> NoShrink epilogue
+  let prolo = if countInst then prologue <> csrr instReg2 0xB02 else prologue
+  let epilo = if countInst then csrr instReg3 0xB02 <> epilogue else epilogue
+  return $ if shrink then prolo <> x <> epilo
+                     else NoShrink prolo <> x <> NoShrink epilo
 
