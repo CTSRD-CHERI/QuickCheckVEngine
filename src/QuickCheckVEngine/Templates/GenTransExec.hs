@@ -145,8 +145,10 @@ gen_sbc_cond_1_verify = Random $ do
   let hpmEventIdx_traps = 0x2
   let hpmCntIdx_traps = 4
   size <- getSize
+  let inner_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) ( (genSBC_Cond_1_Torture))) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))
+  let outer_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_traps inner_hpm_access tmpReg4 hpmCntIdx_traps Nothing
   return $ Sequence [ NoShrink ( (li64 addrReg addrVal))
-                    , surroundWithHPMAccess_core False hpmEventIdx_traps (surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) ( (genSBC_Cond_1_Torture))) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))) tmpReg4 hpmCntIdx_traps Nothing
+                    , outer_hpm_access
                     , NoShrink (Single $ sub tmpReg3 tmpReg3 tmpReg2)
                     , NoShrink (Single $ sub tmpReg1 tmpReg1 tmpReg3)
                     , NoShrink (SingleAssert (sub tmpReg1 tmpReg1 tmpReg4) 2)
