@@ -37,6 +37,7 @@
 module QuickCheckVEngine.Templates.GenTransExec (
   gen_scc_verify
 , gen_sbc_cond_1_verify
+, gen_inst_scc_verify
 ) where
 
 import InstrCodec
@@ -75,6 +76,14 @@ genSCCTorture = Random $ do
                           ])
   --return $ replicateTemplate (size `div` 2) (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
   --                                                        , (1, gen_rv32_i_memory) ]))
+
+genInstSCCTorture :: Template
+genInstSCCTorture = Random $ do
+  let src1 = 10
+  let src2 = 11
+  let tmpReg = 12
+  let imm = 0x40
+  return $ Distribution [ (1, uniformTemplate $ rv64_i_arith src1 src2 imm tmpReg)]
 
 genSBC_Cond_1_Torture :: Template
 genSBC_Cond_1_Torture = Random $ do
@@ -120,7 +129,19 @@ gen_scc_verify = Random $ do
                     ]
 
 -- | Verify instruction Speculative Capability Constraint (SCC)
---gen_inst_scc_verify = Random $ do
+gen_inst_scc_verify = Random $ do
+  let hpmEventIdx_dcache_miss = 0x80
+  let hpmCntIdx = 3
+  let tmpReg = 10
+
+
+-- TOOOBA PR
+
+
+  size <- getSize
+  let instSeq = replicateTemplate (size - 100) genInstSCCTorture
+  let measureSeq = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (instSeq) tmpReg hpmCntIdx Nothing
+  return $ Sequence [ NoShrink (Single $ lw 0 1 2)]
 
 {-
     Actions to take:

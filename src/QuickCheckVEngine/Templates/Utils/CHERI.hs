@@ -148,6 +148,16 @@ loadTags addrReg capReg = Random $ do
               where maybeCapStore addrReg capReg tmpReg = uniformTemplate [Single $ sq addrReg capReg 0,
                                                                            Single $ sq addrReg tmpReg 0 ]
 
+--loadRegion :: Integer -> Integer -> Integer -> Template -> Template
+--loadRegion capReg cacheLSize numLines insts =
+--  return $ if numLines == 0 then (loadRegion (capReg cacheLSize (numLines - 1) (instSeq [ (cincoffsetimmediate (capReg capReg numLines))])))
+--        else return insts
+
+
+--loadRegion ::  Integer -> Template -> Template
+--loadRegion capReg insts =
+--  return insts --Sequence [cincoffsetimmediate capReg capReg 0x40]
+
 switchEncodingMode :: Template
 switchEncodingMode = Random $ do
   tmpReg1 <- src
