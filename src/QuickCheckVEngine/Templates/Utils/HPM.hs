@@ -138,8 +138,6 @@ surroundWithHPMAccess_core shrink evt x tmpReg hpmCntIdx instRet = Random $ do
                  <> triggerHPMCounter tmpReg hpmCntIdx
   let epilogue = uniformTemplate [ readHPMCounter  tmpReg hpmCntIdx
                                  , readHPMCounterM tmpReg hpmCntIdx ]
-  --let prolo = if countInst then prologue <> csrr instReg2 0xB02 else prologue
-  --let epilo = if countInst then csrr instReg3 0xB02 <> epilogue else epilogue
   return $ if shrink then prologue <> surroundWithHPMAccess_raw x instRet <> epilogue
                      else NoShrink prologue <> surroundWithHPMAccess_raw x instRet <> NoShrink epilogue
 
