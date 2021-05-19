@@ -342,10 +342,12 @@ shrink_branch :: Integer -> Integer -> Integer -> [Integer]
 shrink_branch imm rs2 rs1 = [sltu 1 rs1 rs2 , sltu 1 rs2 rs1, slt 1 rs1 rs2, slt 1 rs2 rs1, jal 0 imm]
 
 shrink_load :: Integer -> Integer -> Integer -> [Integer]
-shrink_load imm rs rd = [ecall, addi rd 0 0]
+shrink_load imm rs rd = []
+--shrink_load imm rs rd = [ecall, addi rd 0 0]
 
 shrink_store :: Integer -> Integer -> Integer -> [Integer]
-shrink_store imm rs2 rs1 = [ecall]
+shrink_store imm rs2 rs1 = []
+--shrink_store imm rs2 rs1 = [ecall]
 
 shrink_illegal :: [Integer]
 shrink_illegal = [ecall]

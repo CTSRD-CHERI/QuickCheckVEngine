@@ -188,6 +188,7 @@ allTests :: [(String, String, ArchDesc -> Bool, ArchDesc -> Template)]
 allTests = [
              ("arith",      "Arithmetic Verification",                                const True,                       const $ repeatTemplateTillEnd gen_rv32_i_arithmetic)
            , ("scc",        "Speculative Capability Constraint Verifier",             andPs [has_cheri, has_icsr],      const gen_scc_verify)
+           , ("sbc_cond_1", "Speculative Branching Constraint Condition 1 Verifier",  andPs [has_cheri, has_icsr],      const gen_sbc_cond_1_verify)
            , ("mem",        "Memory Verification",                                    const True,                       const $ repeatTemplateTillEnd gen_rv32_i_memory)
            , ("control",    "Control Flow Verification",                              const True,                       const $ repeatTemplateTillEnd gen_rv32_i_controlflow)
            , ("cache",      "Cache Verification",                                     const True,                       const $ repeatTemplateTillEnd gen_rv32_i_cache)
