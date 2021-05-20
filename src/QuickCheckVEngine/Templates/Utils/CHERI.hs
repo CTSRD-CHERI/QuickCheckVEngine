@@ -39,6 +39,7 @@ module QuickCheckVEngine.Templates.Utils.CHERI (
 , makeShortCap
 , legalCapLoad
 , legalCapStore
+, loadRegion
 , switchEncodingMode
 , cspecialRWChain
 , tagCacheTest

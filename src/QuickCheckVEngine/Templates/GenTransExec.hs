@@ -79,11 +79,12 @@ genSCCTorture = Random $ do
 
 genInstSCCTorture :: Template
 genInstSCCTorture = Random $ do
-  let src1 = 10
-  let src2 = 11
-  let tmpReg = 12
+  let src1 = 20
+  let src2 = 21
+  let tmpReg = 22
   let imm = 0x40
   return $ Distribution [ (1, uniformTemplate $ rv64_i_arith src1 src2 imm tmpReg)]
+
 
 genSBC_Cond_1_Torture :: Template
 genSBC_Cond_1_Torture = Random $ do
@@ -130,18 +131,23 @@ gen_scc_verify = Random $ do
 
 -- | Verify instruction Speculative Capability Constraint (SCC)
 gen_inst_scc_verify = Random $ do
-  let hpmEventIdx_dcache_miss = 0x80
+  let hpmEventIdx_dcache_miss = 0x31
   let hpmCntIdx = 3
   let tmpReg = 10
-
-
--- TOOOBA PR
-
-
+  let capReg = 11
+  let authReg = 12
+  let length = 0x800
+  let cacheLSize = 0x40
+  let numLines = 0x800 `div` 0x40
   size <- getSize
   let instSeq = replicateTemplate (size - 100) genInstSCCTorture
+  let loadSeq = loadRegion numLines capReg cacheLSize (Sequence [])
   let measureSeq = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (instSeq) tmpReg hpmCntIdx Nothing
-  return $ Sequence [ NoShrink (Single $ lw 0 1 2)]
+  return $ Sequence [ NoShrink (makeCap capReg authReg tmpReg 0x80001000 0x1000 0)
+                    , instSeq
+                    , NoShrink (loadSeq)
+                    , NoShrink (Single $ ccleartag capReg capReg)
+                    , measureSeq]
 
 {-
     Actions to take:
