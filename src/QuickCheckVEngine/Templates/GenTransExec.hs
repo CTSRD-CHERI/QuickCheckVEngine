@@ -82,8 +82,15 @@ genInstSCCTorture = Random $ do
   let src1 = 20
   let src2 = 21
   let tmpReg = 22
+  let tmpReg2 = 23
+  let capReg2 = 24
   let imm = 0x40
-  return $ Distribution [ (1, uniformTemplate $ rv64_i_arith src1 src2 imm tmpReg)]
+  let zeroReg = 0
+  let capReg = 11
+  return $ Distribution [ (1, Single $ cjalr zeroReg capReg)
+                        , (1, Single $ auipc capReg2 0x0)
+                        , (1, Single $ cload tmpReg2 capReg2 0x0)
+                        ]
 
 
 genSBC_Cond_1_Torture :: Template
@@ -141,13 +148,15 @@ gen_inst_scc_verify = Random $ do
   let numLines = 0x800 `div` 0x40
   size <- getSize
   let instSeq = replicateTemplate (size - 100) genInstSCCTorture
-  let loadSeq = loadRegion numLines capReg cacheLSize (Sequence [])
+  let loadSeq = loadRegion numLines capReg cacheLSize tmpReg (Sequence [])
   let measureSeq = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (instSeq) tmpReg hpmCntIdx Nothing
   return $ Sequence [ NoShrink (makeCap capReg authReg tmpReg 0x80001000 0x1000 0)
                     , instSeq
                     , NoShrink (loadSeq)
                     , NoShrink (Single $ ccleartag capReg capReg)
-                    , measureSeq]
+                    , measureSeq
+                    , NoShrink (SingleAssert (addi tmpReg tmpReg 0) 0)
+                    ]
 
 {-
     Actions to take:
