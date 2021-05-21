@@ -35,7 +35,7 @@
 --
 
 module QuickCheckVEngine.Templates.GenTransExec (
-  gen_scc_verify
+  gen_data_scc_verify
 , gen_sbc_cond_1_verify
 ) where
 
@@ -50,8 +50,8 @@ import QuickCheckVEngine.RVFI_DII.RVFI
 import QuickCheckVEngine.Templates.GenMemory
 import Data.Bits
 
-genSCCTorture :: Template
-genSCCTorture = Random $ do
+genDataSCCTorture :: Template
+genDataSCCTorture = Random $ do
   srcAddr  <- src
   srcData  <- src
   dest     <- dest
@@ -99,7 +99,7 @@ genSBC_Cond_1_Torture = Random $ do
                           , (1, uniformTemplate $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2)
                           ])
 
-gen_scc_verify = Random $ do
+gen_data_scc_verify = Random $ do
   let capReg = 1
   let tmpReg = 2
   let bitsReg = 3
@@ -115,9 +115,15 @@ gen_scc_verify = Random $ do
                     , NoShrink (Single $ candperm nopermReg bitsReg 0)
                     , NoShrink (Single $ ccleartag bitsReg bitsReg)
                     , NoShrink (Single $ lw 0 tmpReg capReg)
-                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) genSCCTorture) tmpReg hpmCntIdx Nothing
+                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) genDataSCCTorture) tmpReg hpmCntIdx Nothing
                     , NoShrink (SingleAssert (addi tmpReg tmpReg 0) 0)
                     ]
+
+
+-- typcial cinvoke counterexample:
+-- csealentry sldReg, bitsReg
+-- cinvoke arbitraryReg, sldReg // cinvoke jumps to the arbitrary reg, unseals sldReg and always stores this capability to capability register 31 (c31)
+-- cload arbitraryReg, c31 // c31 is referred to as ct6 in my example
 
 -- | Verify instruction Speculative Capability Constraint (SCC)
 --gen_inst_scc_verify = Random $ do
