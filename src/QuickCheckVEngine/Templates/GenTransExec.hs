@@ -151,10 +151,10 @@ gen_inst_scc_verify = Random $ do
   let loadSeq = loadRegion numLines capReg cacheLSize tmpReg (Sequence [])
   let measureSeq = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (instSeq) tmpReg hpmCntIdx Nothing
   return $ Sequence [ NoShrink (makeCap capReg authReg tmpReg 0x80001000 0x1000 0)
-                    , instSeq
+                    , NoShrink (instSeq)
                     , NoShrink (loadSeq)
                     , NoShrink (Single $ ccleartag capReg capReg)
-                    , measureSeq
+                    , NoShrink (measureSeq)
                     , NoShrink (SingleAssert (addi tmpReg tmpReg 0) 0)
                     ]
 

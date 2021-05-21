@@ -153,6 +153,7 @@ loadTags addrReg capReg = Random $ do
 loadRegion ::  Integer -> Integer -> Integer -> Integer -> Template -> Template
 loadRegion numLines capReg cacheLSize tmpReg insts =
    if numLines == 0 then Sequence [insts]
+   else if numLines == 1 then Sequence [insts, Single (cload tmpReg capReg 0x0)]
    else loadRegion (numLines - 1) capReg cacheLSize tmpReg (Sequence [insts, Single (cload tmpReg capReg 0x0), Single (cincoffsetimmediate capReg capReg cacheLSize)])
 
 switchEncodingMode :: Template
