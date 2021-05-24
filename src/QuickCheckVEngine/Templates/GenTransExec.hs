@@ -78,11 +78,12 @@ genDataSCCTorture = Random $ do
 
 genSBC_Cond_1_Torture :: Template
 genSBC_Cond_1_Torture = Random $ do
-  imm_rand <- bits 12
-  longImm  <- bits 20
-  fenceOp1 <- bits 3
-  fenceOp2 <- bits 3
-  srcData  <- src
+  imm_rand      <- bits 12
+  longImm_rand  <- bits 20
+  fenceOp1      <- bits 3
+  fenceOp2      <- bits 3
+  srcData       <- src
+  let zeroReg = 0
   let addrReg = 5
   let tmpReg = 10
   let src1 = 12
@@ -93,10 +94,14 @@ genSBC_Cond_1_Torture = Random $ do
   let dest = 17
   -- immediate has to be divisible by 8
   let imm = (imm_rand `shiftR` 0x3) `shiftL` 0x3
+  -- long immediate has to be divisible by 4
+  let longImm = (longImm_rand `shiftR` 0x2) `shiftL` 0x2
   return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 imm tmpReg)
                           , (1, uniformTemplate $ rv32_i_arith src1 src2 imm longImm tmpReg)
                           , (1, uniformTemplate $ rv64_i_mem addrReg srcData dest imm)
                           , (1, uniformTemplate $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2)
+                          , (1, Single $ jal zeroReg longImm)
+                          , (1, uniformTemplate $ rv32_xcheri_mem capsrc1 capsrc2 imm 0xb tmpReg)
                           ])
 
 gen_data_scc_verify = Random $ do
@@ -145,6 +150,9 @@ gen_sbc_cond_1_verify = Random $ do
   let tmpReg3 = 3
   let tmpReg4 = 4
   let addrReg = 5
+  let capReg = 15
+  let authReg = 16
+  let tmpReg5 = 17
   let addrVal = 0x80001000
   let hpmEventIdx_renamed_insts = 0x80
   let hpmCntIdx_renamed_insts = 3
@@ -154,6 +162,7 @@ gen_sbc_cond_1_verify = Random $ do
   let inner_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) ( (genSBC_Cond_1_Torture))) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))
   let outer_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_traps inner_hpm_access tmpReg4 hpmCntIdx_traps Nothing
   return $ Sequence [ NoShrink ( (li64 addrReg addrVal))
+                    , NoShrink ( (makeCap capReg authReg tmpReg5 addrVal 0x10000 0))
                     , outer_hpm_access
                     , NoShrink (Single $ sub tmpReg3 tmpReg3 tmpReg2)
                     , NoShrink (Single $ sub tmpReg1 tmpReg1 tmpReg3)
