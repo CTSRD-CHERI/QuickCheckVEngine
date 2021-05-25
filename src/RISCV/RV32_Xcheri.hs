@@ -502,8 +502,8 @@ rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
 --                   , fpclear_raw                     --> noshrink
 --                   , croundrepresentablelength_raw   --> noshrink
 --                   , crepresentablealignmentmask_raw --> noshrink
-                     --, cload_raw                       --> shrink_cload
-                     --, cstore_raw                      --> shrink_cstore
+                     , cload_raw                       --> shrink_cload
+                     , cstore_raw                      --> shrink_cstore
                      , csetflags_raw                   --> shrink_capcap
 --                   , sq_raw                          --> noshrink
 --                   , lq_raw                          --> noshrink
