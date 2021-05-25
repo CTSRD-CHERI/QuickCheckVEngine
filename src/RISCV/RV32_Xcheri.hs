@@ -202,8 +202,8 @@ crepresentablealignmentmask rd rs1 = encode crepresentablealignmentmask_raw     
 -- Memory -- Needs further refinement
 cload_raw                          =                                        "1111101 mop[4:0] cb[4:0] 000 cd[4:0] 1011011"
 cload cd cb mop                    = encode cload_raw                                mop      cb          cd
-cstore_raw                         =                                        "1111100 rs1[4:0] rs2[4:0] 000 mop[4:0] 1011011"
-cstore rs1 rs2 mop                 = encode cstore_raw                               rs1      rs2          mop
+cstore_raw                         =                                        "1111100 rs2[4:0] cs1[4:0] 000 mop[4:0] 1011011"
+cstore rs2 cs1 mop                 = encode cstore_raw                               rs2      cs1          mop
 lq_raw                             =                                        "imm[11:0] rs1[4:0] 010 cd[4:0] 0001111"
 lq cd rs1 imm                      = encode lq_raw                           imm       rs1          cd
 sq_raw                             =                                        "imm[11:5] cs2[4:0] rs1[4:0] 100 imm[4:0] 0100011"
@@ -459,6 +459,12 @@ shrink_ctestsubset cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 
 
 shrink_cfromptr rs cs cd = [csetoffset cd cs rs] ++ shrink_capint rs cs cd
 
+shrink_cload :: Integer -> Integer -> Integer -> [Integer]
+shrink_cload cb cd mop = [addi 0 0 0];
+
+shrink_cstore :: Integer -> Integer -> Integer -> [Integer]
+shrink_cstore rs2 cs1 mop = [addi 0 0 0];
+
 rv32_xcheri_shrink :: [DecodeBranch [Integer]]
 rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
                      , cgettype_raw                    --> shrink_cgettype
@@ -496,8 +502,8 @@ rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
 --                   , fpclear_raw                     --> noshrink
 --                   , croundrepresentablelength_raw   --> noshrink
 --                   , crepresentablealignmentmask_raw --> noshrink
---                   , cload_raw                       --> noshrink
---                   , cstore_raw                      --> noshrink
+                     --, cload_raw                       --> shrink_cload
+                     --, cstore_raw                      --> shrink_cstore
                      , csetflags_raw                   --> shrink_capcap
 --                   , sq_raw                          --> noshrink
 --                   , lq_raw                          --> noshrink
@@ -555,7 +561,7 @@ rv32_xcheri_control src1 src2 dest = [ cjalr dest src1
 rv32_xcheri_mem :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_xcheri_mem    srcAddr srcData imm mop dest =
   [ cload  dest    srcAddr         mop
-  , cstore         srcAddr srcData mop
+  , cstore         srcData srcAddr mop
   , cloadtags dest srcAddr
   --, ld     dest srcAddr dest        imm
   --, sd          srcAddr srcData     imm

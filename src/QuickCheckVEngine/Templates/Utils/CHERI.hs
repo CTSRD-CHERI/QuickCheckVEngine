@@ -123,7 +123,7 @@ legalCapStore addrReg = Random $ do
                    , lui tmpReg 0x40004
                    , slli tmpReg tmpReg 1
                    , add addrReg tmpReg addrReg
-                   , cstore addrReg dataReg 0x4 ]
+                   , cstore dataReg addrReg 0x4 ]
 
 loadTags :: Integer -> Integer -> Template
 loadTags addrReg capReg = Random $ do
