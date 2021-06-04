@@ -152,7 +152,8 @@ gen_inst_scc_verify = Random $ do
   let instSeq = replicateTemplate (20) genInstSCCTorture
   let loadSeq = loadRegion numLines capReg cacheLSize tmpReg (Sequence [])
   let measureSeq = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (instSeq) tmpReg hpmCntIdx Nothing
-  return $ Sequence [ NoShrink (makeCap_core capReg authReg tmpReg 0x80001000)
+  return $ Sequence [ NoShrink (switchEncodingMode)
+                    , NoShrink (makeCap_core capReg authReg tmpReg 0x80001000)
                     , NoShrink (instSeq)
                     , NoShrink (loadSeq)
                     , NoShrink (Single $ ccleartag capReg capReg)
