@@ -80,7 +80,7 @@ module RISCV.RV32_Xcheri (
 , csub
 , cmove
 , cjalr
-, ccall
+, cinvoke
 , ctestsubset
 , cspecialrw
 , clear
@@ -180,8 +180,8 @@ cspecialrw cd cSP cs1              = encode cspecialrw_raw                      
 -- Control Flow
 cjalr_raw                          =                                        "1111111 01100 cs1[4:0] 000 cd[4:0] 1011011"
 cjalr cd cs1                       = encode cjalr_raw                                      cs1          cd
-ccall_raw                          =                                        "1111110 pcc[4:0] idc[4:0] 000 00001 1011011"
-ccall pcc idc                      = encode ccall_raw                                pcc      idc
+cinvoke_raw                        =                                        "1111110 cs2[4:0] cs1[4:0] 000 00001 1011011"
+cinvoke cs2 cs1                    = encode cinvoke_raw                              cs2      cs1
 
 -- Assertion
 ctestsubset_raw                    =                                        "0100000 cs2[4:0] cs1[4:0] 000 rd[4:0] 1011011"
@@ -330,7 +330,7 @@ rv32_xcheri_disass = [ cgetperm_raw                    --> prettyR_2op "cgetperm
                      , cspecialrw_raw                  --> pretty_cspecialrw "cspecialrw"
                      , cmove_raw                       --> prettyR_2op "cmove"
                      , cjalr_raw                       --> prettyR_2op "cjalr"
-                     , ccall_raw                       --> pretty_2src "ccall"
+                     , cinvoke_raw                     --> pretty_2src "cinvoke"
                      , ctestsubset_raw                 --> prettyR "ctestsubset"
                      , clear_raw                       --> pretty_reg_clear "clear"
                      , fpclear_raw                     --> pretty_reg_clear "fpclear"
@@ -349,8 +349,8 @@ extract_cspecialrw idx rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> en
 extract_cmove :: Integer -> Integer -> ExtractedRegs
 extract_cmove rs1 rd = (True, Nothing, Just rs1, Just rd, \x y z -> encode cmove_raw y z)
 
-extract_ccall :: Integer -> Integer -> ExtractedRegs
-extract_ccall rs2 rs1 = (False, Just rs2, Just rs1, Just 31, \x y z -> encode ccall_raw x y)
+extract_cinvoke :: Integer -> Integer -> ExtractedRegs
+extract_cinvoke rs2 rs1 = (False, Just rs2, Just rs1, Just 31, \x y z -> encode cinvoke_raw x y)
 
 extract_cstore :: Integer -> Integer -> Integer -> ExtractedRegs
 extract_cstore rs2 rs1 mop = (False, Just rs2, Just rs1, Nothing, \x y z -> encode cstore_raw x y mop)
@@ -387,7 +387,7 @@ rv32_xcheri_extract = [ cgetperm_raw                    --> extract_1op cgetperm
                       , cspecialrw_raw                  --> extract_cspecialrw
                       , cmove_raw                       --> extract_cmove
                       , cjalr_raw                       --> extract_1op cjalr_raw
-                      , ccall_raw                       --> extract_ccall
+                      , cinvoke_raw                     --> extract_cinvoke
                       , ctestsubset_raw                 --> extract_2op ctestsubset_raw
 --                    , clear_raw                       --> noextract -- TODO
 --                    , fpclear_raw                     --> noextract -- TODO
@@ -452,8 +452,8 @@ shrink_capimm imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
 shrink_cmove :: Integer -> Integer -> [Integer]
 shrink_cmove cs cd = [cgetaddr cd cs]
 
-shrink_ccall :: Integer -> Integer -> [Integer]
-shrink_ccall cs2 cs1 = shrink_capcap cs2 cs1 31
+shrink_cinvoke :: Integer -> Integer -> [Integer]
+shrink_cinvoke cs2 cs1 = shrink_capcap cs2 cs1 31
 
 shrink_ctestsubset cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
 
@@ -496,7 +496,7 @@ rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
 --                   , cspecialrw_raw                  --> noshrink
                      , cmove_raw                       --> shrink_cmove
 --                   , cjalr_raw                       --> noshrink
-                     , ccall_raw                       --> shrink_ccall
+                     , cinvoke_raw                     --> shrink_cinvoke
                      , ctestsubset_raw                 --> shrink_ctestsubset
 --                   , clear_raw                       --> noshrink
 --                   , fpclear_raw                     --> noshrink
@@ -554,8 +554,8 @@ rv32_xcheri_misc src1 src2 srcScr imm dest =
 
 -- | List of cheri control instructions
 rv32_xcheri_control :: Integer -> Integer -> Integer -> [Integer]
-rv32_xcheri_control src1 src2 dest = [ cjalr dest src1
-                                     , ccall      src1 src2 ]
+rv32_xcheri_control src1 src2 dest = [ cjalr    dest src1
+                                     , cinvoke  src2 src1 ]
 
 -- | List of cheri memory instructions
 rv32_xcheri_mem :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
