@@ -50,8 +50,8 @@ import QuickCheckVEngine.RVFI_DII.RVFI
 import QuickCheckVEngine.Templates.GenMemory
 import Data.Bits
 
-genDataSCCTorture :: Template
-genDataSCCTorture = Random $ do
+genDataSCCTorture :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
+genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = Random $ do
   srcAddr  <- src
   srcData  <- src
   dest     <- dest
@@ -61,12 +61,12 @@ genDataSCCTorture = Random $ do
   fenceOp2 <- bits 3
   size     <- getSize
   csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
-  let capReg = 1
-  let tmpReg = 2
-  let bitsReg = 3
-  let sldReg = 4
-  let nopermReg = 5
-  let authReg = 6
+  --let capReg = 1
+  --let tmpReg = 2
+  --let bitsReg = 3
+  --let sldReg = 4
+  --let nopermReg = 5
+  --let authReg = 6
   src1     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   src2     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   return $  (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic src1 src2 imm tmpReg)
@@ -120,7 +120,7 @@ gen_data_scc_verify = Random $ do
                     , NoShrink (Single $ candperm nopermReg bitsReg 0)
                     , NoShrink (Single $ ccleartag bitsReg bitsReg)
                     , NoShrink (Single $ lw tmpReg capReg 0)
-                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) genDataSCCTorture) tmpReg hpmCntIdx Nothing
+                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) (genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg)) tmpReg hpmCntIdx Nothing
                     , NoShrink (SingleAssert (addi tmpReg tmpReg 0) 0)
                     ]
 
