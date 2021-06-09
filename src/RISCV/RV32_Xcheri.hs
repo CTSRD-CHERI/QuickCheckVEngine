@@ -277,7 +277,7 @@ prettyCStore rs2 rs1 mop =
 pretty_reg_clear instr imm qt = concat [instr, " ", int qt, ", ", int imm]
 
 -- | Pretty-print a 2 sources instruction
-pretty_2src instr idc pcc = concat [instr, " ", reg pcc, ", ", reg idc]
+pretty_2src instr src2 src1 = concat [instr, " ", reg src1, ", ", reg src2]
 
 -- | Pretty-print a special capability read/write instruction
 pretty_cspecialrw instr idx cs1 cd =

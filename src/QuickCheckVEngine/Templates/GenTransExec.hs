@@ -61,16 +61,11 @@ genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = Random $ do
   fenceOp2 <- bits 3
   size     <- getSize
   csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
-  --let capReg = 1
-  --let tmpReg = 2
-  --let bitsReg = 3
-  --let sldReg = 4
-  --let nopermReg = 5
-  --let authReg = 6
   src1     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   src2     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   return $  (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic src1 src2 imm tmpReg)
                           , (1, uniformTemplate $ rv32_xcheri_misc       src1 src2 imm csrAddr tmpReg)
+                          , (1, Single $ cinvoke src2 src1)
                           , (1, Single $ cload tmpReg tmpReg 0x08)
                           ])
   --return $ replicateTemplate (size `div` 2) (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
@@ -106,7 +101,7 @@ genSBC_Cond_1_Torture = Random $ do
 
 gen_data_scc_verify = Random $ do
   let capReg = 1
-  let tmpReg = 2
+  let tmpReg = 31
   let bitsReg = 3
   let sldReg = 4
   let nopermReg = 5
