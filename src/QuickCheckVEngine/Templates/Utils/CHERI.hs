@@ -33,7 +33,7 @@
 --
 
 module QuickCheckVEngine.Templates.Utils.CHERI (
-  randomCCall
+  randomCInvoke
 , clearASR
 , makeCap
 , makeShortCap
@@ -56,25 +56,25 @@ import InstrCodec
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils.General
 
-randomCCall :: Integer -> Integer -> Integer -> Integer -> Template
-randomCCall pccReg idcReg typeReg tmpReg =
+randomCInvoke :: Integer -> Integer -> Integer -> Integer -> Template
+randomCInvoke cs1 cs2 typeReg tmpReg =
      Distribution [ (1, instSeq [ addi 0 tmpReg 0xffd
-                                , candperm pccReg pccReg tmpReg ])
+                                , candperm cs1 cs1 tmpReg ])
                   , (9, Empty) ] -- clear X perm?
   <> Distribution [ (9, instSeq [ addi tmpReg 0 0xffd
-                                , candperm idcReg idcReg tmpReg ])
+                                , candperm cs2 cs2 tmpReg ])
                   , (1, Empty) ]
   <> Distribution [ (1, instSeq [ addi tmpReg 0 0xeff
-                                , candperm pccReg pccReg tmpReg ])
-                  , (9, Empty) ] -- clear CCall perm?
+                                , candperm cs1 cs1 tmpReg ])
+                  , (9, Empty) ] -- clear CInvoke perm?
   <> Distribution [ (1, instSeq [ addi tmpReg 0 0xeff
-                                , candperm idcReg idcReg tmpReg ])
+                                , candperm cs2 cs2 tmpReg ])
                   , (9, Empty) ]
-  <> Distribution [ (9, Single $ cseal pccReg pccReg typeReg)
+  <> Distribution [ (9, Single $ cseal cs1 cs1 typeReg)
                   , (1, Empty) ] -- seal?
-  <> Distribution [ (9, Single $ cseal idcReg idcReg typeReg)
+  <> Distribution [ (9, Single $ cseal cs2 cs2 typeReg)
                   , (1, Empty) ]
-  <> instSeq [ ccall pccReg idcReg
+  <> instSeq [ cinvoke cs2 cs1
              , cmove 31 1 ]
 
 clearASR :: Integer -> Integer -> Template
