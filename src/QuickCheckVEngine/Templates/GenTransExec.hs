@@ -119,7 +119,7 @@ gen_data_scc_verify = Random $ do
                     , NoShrink (Single $ csealentry sldReg bitsReg)
                     , NoShrink (Single $ candperm nopermReg bitsReg 0)
                     , NoShrink (Single $ ccleartag bitsReg bitsReg)
-                    , NoShrink (Single $ lw 0 tmpReg capReg)
+                    , NoShrink (Single $ lw tmpReg capReg 0)
                     , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) genDataSCCTorture) tmpReg hpmCntIdx Nothing
                     , NoShrink (SingleAssert (addi tmpReg tmpReg 0) 0)
                     ]
