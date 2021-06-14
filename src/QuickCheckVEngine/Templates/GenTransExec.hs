@@ -37,6 +37,7 @@
 module QuickCheckVEngine.Templates.GenTransExec (
   gen_data_scc_verify
 , gen_sbc_cond_1_verify
+, gen_sbc_jumps_verify
 ) where
 
 import InstrCodec
@@ -97,6 +98,17 @@ genSBC_Cond_1_Torture = Random $ do
                           , (1, uniformTemplate $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2)
                           , (1, Single $ jal zeroReg longImm)
                           , (1, uniformTemplate $ rv32_xcheri_mem capsrc1 capsrc2 imm 0xb tmpReg)
+                          ])
+
+genSBC_Jumps_Torture :: Template
+genSBC_Jumps_Torture = Random $ do
+  imm <- bits 12
+  longImm <- bits 20
+  src1 <- src
+  src2 <- src
+  dest <- dest
+  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith 1 2 imm 4)
+                          , (1, uniformTemplate $ rv32_i_ctrl src1 src2 dest imm longImm)
                           ])
 
 gen_data_scc_verify = Random $ do
@@ -162,4 +174,14 @@ gen_sbc_cond_1_verify = Random $ do
                     , NoShrink (Single $ sub tmpReg3 tmpReg3 tmpReg2)
                     , NoShrink (Single $ sub tmpReg1 tmpReg1 tmpReg3)
                     , NoShrink (SingleAssert (sub tmpReg1 tmpReg1 tmpReg4) 2)
+                    ]
+
+-- | Verify the jumping conditions of Speculative Branching Constraint (SBC)
+gen_sbc_jumps_verify = Random $ do
+  let tmpReg = 20
+  let hpmCntIdx_wild_jumps = 3
+  let hpmEventIdx_wild_jumps = 0x71
+  size <- getSize
+  return $ Sequence [ NoShrink ( (li64 3 4))
+                    , surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (replicateTemplate (size - 100) (genSBC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
                     ]
