@@ -429,7 +429,9 @@ rv32_i_ctrl src1 src2 dest imm longImm = [ auipc dest           longImm
                                          , beq        src1 src2 imm
                                          , bne        src1 src2 imm
                                          , bge        src1 src2 imm
-                                         , bgeu       src1 src2 imm ]
+                                         , bgeu       src1 src2 imm
+                                         , blt        src1 src2 imm
+                                         , bltu       src1 src2 imm ]
 
 -- | List of RV32 base integer exception-related instructions
 rv32_i_exc :: [Integer]
