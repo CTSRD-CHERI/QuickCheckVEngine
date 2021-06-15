@@ -107,8 +107,9 @@ genSBC_Jumps_Torture = Random $ do
   src1 <- src
   src2 <- src
   dest <- dest
-  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith 1 2 imm 4)
-                          , (1, uniformTemplate $ rv32_i_ctrl src1 src2 dest imm longImm)
+  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
+                          , (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
+                          , (1, uniformTemplate $ rv32_i_ctrl_jumps src1 dest imm longImm)
                           ])
 
 gen_data_scc_verify = Random $ do
@@ -178,10 +179,11 @@ gen_sbc_cond_1_verify = Random $ do
 
 -- | Verify the jumping conditions of Speculative Branching Constraint (SBC)
 gen_sbc_jumps_verify = Random $ do
+  let zeroReg = 0
   let tmpReg = 20
   let hpmCntIdx_wild_jumps = 3
   let hpmEventIdx_wild_jumps = 0x71
   size <- getSize
-  return $ Sequence [ NoShrink ( (li64 3 4))
-                    , surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (replicateTemplate (size - 100) (genSBC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
+  return $ Sequence [ surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (replicateTemplate (size - 100) (genSBC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
+                    , NoShrink(SingleAssert (add tmpReg tmpReg zeroReg) 0)
                     ]
