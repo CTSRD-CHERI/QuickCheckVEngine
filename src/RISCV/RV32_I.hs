@@ -113,6 +113,8 @@ module RISCV.RV32_I (
 , rv32_i
 , rv32_i_arith
 , rv32_i_ctrl
+, rv32_i_ctrl_jumps
+, rv32_i_ctrl_branches
 , rv32_i_load
 , rv32_i_store
 , rv32_i_fence
@@ -430,6 +432,19 @@ rv32_i_ctrl src1 src2 dest imm longImm = [ auipc dest           longImm
                                          , bne        src1 src2 imm
                                          , bge        src1 src2 imm
                                          , bgeu       src1 src2 imm ]
+
+-- | List of RV32 base integer control instructions: jumps
+rv32_i_ctrl_jumps :: Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_i_ctrl_jumps src1 dest imm longImm = [ jal  dest longImm
+                                          , jalr dest src1 imm ]
+
+-- | List of RV32 base integer control instructions: branches
+rv32_i_ctrl_branches :: Integer -> Integer -> Integer -> [Integer]
+rv32_i_ctrl_branches src1 src2 imm = [ beq  src1 src2 imm
+                                     , bne  src1 src2 imm
+                                     , bge  src1 src2 imm
+                                     , bgeu src1 src2 imm ]
+
 
 -- | List of RV32 base integer exception-related instructions
 rv32_i_exc :: [Integer]
