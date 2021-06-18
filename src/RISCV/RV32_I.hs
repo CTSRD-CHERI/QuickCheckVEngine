@@ -121,8 +121,8 @@ module RISCV.RV32_I (
 , rv32_i_mem
 ) where
 
-import RISCV.Helpers (prettyR, prettyI, prettyU, prettyB, prettyF, prettyS
-                     , prettyL, ExtractedRegs)
+import RISCV.Helpers (prettyR, prettyI, prettyI_sig, prettyU, prettyU_jal, prettyB, prettyF
+                     , prettyS, prettyL, ExtractedRegs)
 import InstrCodec (DecodeBranch, (-->), encode)
 import Prelude hiding (and, or)
 
@@ -227,8 +227,8 @@ rv32_i_disass = [ add_raw    --> prettyR "add"
                 , srl_raw    --> prettyR "srl"
                 , sub_raw    --> prettyR "sub"
                 , sra_raw    --> prettyR "sra"
-                , addi_raw   --> prettyI "addi"
-                , slti_raw   --> prettyI "slti"
+                , addi_raw   --> prettyI_sig "addi"
+                , slti_raw   --> prettyI_sig "slti"
                 , sltiu_raw  --> prettyI "sltiu"
                 , andi_raw   --> prettyI "andi"
                 , ori_raw    --> prettyI "ori"
@@ -238,8 +238,8 @@ rv32_i_disass = [ add_raw    --> prettyR "add"
                 , srai_raw   --> prettyI "srai"
                 , lui_raw    --> prettyU "lui"
                 , auipc_raw  --> prettyU "auipc"
-                , jal_raw    --> prettyU "jal"
-                , jalr_raw   --> prettyI "jalr"
+                , jal_raw    --> prettyU_jal "jal"
+                , jalr_raw   --> prettyI_sig "jalr"
                 , beq_raw    --> prettyB "beq"
                 , bne_raw    --> prettyB "bne"
                 , blt_raw    --> prettyB "blt"
@@ -431,7 +431,9 @@ rv32_i_ctrl src1 src2 dest imm longImm = [ auipc dest           longImm
                                          , beq        src1 src2 imm
                                          , bne        src1 src2 imm
                                          , bge        src1 src2 imm
-                                         , bgeu       src1 src2 imm ]
+                                         , bgeu       src1 src2 imm
+                                         , blt        src1 src2 imm
+                                         , bltu       src1 src2 imm ]
 
 -- | List of RV32 base integer control instructions: jumps
 rv32_i_ctrl_jumps :: Integer -> Integer -> Integer -> Integer -> [Integer]
