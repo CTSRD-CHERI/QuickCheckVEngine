@@ -102,14 +102,18 @@ genSBC_Cond_1_Torture = Random $ do
 
 genSBC_Jumps_Torture :: Template
 genSBC_Jumps_Torture = Random $ do
+  imm_branches <- bits 7
+  longImm_jumps <- bits 8
   imm <- bits 12
   longImm <- bits 20
+  -- src can return on of the following: 0,1,2,3,4,16,17,18,19,20 (same for dest)
   src1 <- src
   src2 <- src
   dest <- dest
   return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
                           , (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
-                          , (1, uniformTemplate $ rv32_i_ctrl_jumps src1 dest imm longImm)
+                          , (1, uniformTemplate $ rv32_i_ctrl_jumps src1 dest imm longImm_jumps)
+                          , (1, uniformTemplate $ rv32_i_ctrl_branches src1 src2 imm_branches)
                           ])
 
 gen_data_scc_verify = Random $ do
