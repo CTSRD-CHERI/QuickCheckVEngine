@@ -106,15 +106,25 @@ genSBC_Jumps_Torture = Random $ do
   longImm_jumps <- bits 8
   imm <- bits 12
   longImm <- bits 20
-  -- src can return on of the following: 0,1,2,3,4,16,17,18,19,20 (same for dest)
-  src1 <- src
-  src2 <- src
-  dest <- dest
+  imm_jumps <- bits 7
+  -- sbcRegs can return on of the following: 22,23,24,25,26,27,28,29
+  src1 <- sbcRegs
+  src2 <- sbcRegs
+  dest <- sbcRegs
+  let regRet = 1
+  let regJump = 10
   return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
                           , (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
-                          , (1, uniformTemplate $ rv32_i_ctrl_jumps src1 dest imm longImm_jumps)
+                          , (1, uniformTemplate $ rv32_i_ctrl_jumps regJump regRet imm_jumps longImm_jumps)
                           , (1, uniformTemplate $ rv32_i_ctrl_branches src1 src2 imm_branches)
                           ])
+
+-- | Helper for initialising registers
+initSBCReg :: Template
+initSBCReg = Random $ do
+  reg <- sbcRegs
+  val <- bits 16
+  return $ li64 reg val
 
 gen_data_scc_verify = Random $ do
   let capReg = 1
@@ -184,10 +194,14 @@ gen_sbc_cond_1_verify = Random $ do
 -- | Verify the jumping conditions of Speculative Branching Constraint (SBC)
 gen_sbc_jumps_verify = Random $ do
   let zeroReg = 0
-  let tmpReg = 20
+  let tmpReg = 21
+  let regJump = 10
+  let addrVal = 0x80001000
   let hpmCntIdx_wild_jumps = 3
   let hpmEventIdx_wild_jumps = 0x71
   size <- getSize
-  return $ Sequence [ surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (replicateTemplate (size - 100) (genSBC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
+  return $ Sequence [ NoShrink ((li64 regJump addrVal))
+                    , NoShrink (initSBCReg)
+                    , surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (replicateTemplate (size - 100) (genSBC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
                     , NoShrink(SingleAssert (add tmpReg tmpReg zeroReg) 0)
                     ]
