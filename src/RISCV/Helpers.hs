@@ -199,7 +199,7 @@ int i = show i
 
 -- | Helper for turning numbers into signed integer
 toSigned :: (Ord a, Num a) => Int -> a -> a
-toSigned w x | x > 0 = if x >= 2^(w-1) then x - 2^w else x
+toSigned w x | x >= 0 = if x >= 2^(w-1) then x - 2^w else x
              | otherwise = error $ "cannot toSigned on negative number"
 
 
