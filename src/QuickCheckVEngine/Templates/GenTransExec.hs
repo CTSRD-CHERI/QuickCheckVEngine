@@ -119,12 +119,6 @@ genSBC_Jumps_Torture = Random $ do
                           , (1, uniformTemplate $ rv32_i_ctrl_branches src1 src2 imm_branches)
                           ])
 
--- | Helper for initialising registers
-initSBCReg :: Template
-initSBCReg = Random $ do
-  reg <- sbcRegs
-  val <- bits 16
-  return $ li64 reg val
 
 gen_data_scc_verify = Random $ do
   let capReg = 1
@@ -201,7 +195,6 @@ gen_sbc_jumps_verify = Random $ do
   let hpmEventIdx_wild_jumps = 0x71
   size <- getSize
   return $ Sequence [ NoShrink ((li64 regJump addrVal))
-                    , NoShrink (initSBCReg)
                     , surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (replicateTemplate (size - 100) (genSBC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
                     , NoShrink(SingleAssert (add tmpReg tmpReg zeroReg) 0)
                     ]
