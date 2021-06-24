@@ -111,11 +111,13 @@ genSBC_Jumps_Torture = Random $ do
   src1 <- sbcRegs
   src2 <- sbcRegs
   dest <- sbcRegs
-  let regRet = 1
+  let zeroReg = 0
+  let retReg = 1
+  dest_jumps <- frequency [ (1, return zeroReg), (1, return retReg) ]
   let regJump = 10
   return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
                           , (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
-                          , (1, uniformTemplate $ rv32_i_ctrl_jumps regJump regRet imm_jumps longImm_jumps)
+                          , (1, uniformTemplate $ rv32_i_ctrl_jumps regJump dest_jumps imm_jumps longImm_jumps)
                           , (1, uniformTemplate $ rv32_i_ctrl_branches src1 src2 imm_branches)
                           ])
 
