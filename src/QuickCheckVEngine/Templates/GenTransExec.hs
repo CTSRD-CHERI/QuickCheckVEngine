@@ -38,6 +38,7 @@ module QuickCheckVEngine.Templates.GenTransExec (
   gen_data_scc_verify
 , gen_sbc_cond_1_verify
 , gen_sbc_jumps_verify
+, gen_sbc_exceptions_verify
 ) where
 
 import InstrCodec
@@ -121,6 +122,18 @@ genSBC_Jumps_Torture = Random $ do
                           , (1, uniformTemplate $ rv32_i_ctrl_branches src1 src2 imm_branches)
                           ])
 
+genSBC_Excps_Torture :: Integer -> Template
+genSBC_Excps_Torture tmpReg = Random $ do
+  imm <- bits 12
+  src1 <- sbcRegs
+  src2 <- sbcRegs
+  dest <- sbcRegs
+  let capsrc1 = 15
+  let capsrc2 = 16
+  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
+                          , (1, uniformTemplate $ rv32_xcheri_mem capsrc1 capsrc2 imm 0xb tmpReg)
+                          ])
+
 
 gen_data_scc_verify = Random $ do
   let capReg = 1
@@ -200,3 +213,16 @@ gen_sbc_jumps_verify = Random $ do
                     , surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (replicateTemplate (size - 100) (genSBC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
                     , NoShrink(SingleAssert (add tmpReg tmpReg zeroReg) 0)
                     ]
+
+-- | Verify the exception conditions of Speculative Branching Constraint (SBC)
+gen_sbc_exceptions_verify = Random $ do
+  let zeroReg = 0
+  let tmpReg = 21
+  let hpmCntIdx_wild_excps = 3
+  let hpmEventIdx_wild_excps = 0x72
+  size <- getSize
+  return $ Sequence [ NoShrink ((li64 tmpReg 0x0))
+                    , surroundWithHPMAccess_core False hpmEventIdx_wild_excps (replicateTemplate (size - 100) (genSBC_Excps_Torture tmpReg)) tmpReg hpmCntIdx_wild_excps Nothing
+                    , NoShrink(SingleAssert (add tmpReg tmpReg zeroReg) 0)
+                    ]
+
