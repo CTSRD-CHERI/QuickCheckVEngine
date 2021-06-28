@@ -71,7 +71,7 @@ module RISCV.RV64_I (
 , rv64_i_mem
 ) where
 
-import RISCV.Helpers (prettyI, prettyR, prettyL, prettyS)
+import RISCV.Helpers (prettyI, prettyI_sig, prettyR, prettyL, prettyS)
 import InstrCodec (DecodeBranch, (-->), encode)
 
 lwu_raw            =                   "imm[11:0] rs1[4:0] 110 rd[4:0] 0000011"
@@ -110,7 +110,7 @@ rv64_i_disass :: [DecodeBranch String]
 rv64_i_disass = [ lwu_raw    --> prettyL "lwu"
                 , ld_raw     --> prettyL "ld"
                 , sd_raw     --> prettyS "sd"
-                , addiw_raw  --> prettyI "addiw"
+                , addiw_raw  --> prettyI_sig "addiw"
                 , slli64_raw --> prettyI "slli"
                 , srli64_raw --> prettyI "srli"
                 , srai64_raw --> prettyI "srai"

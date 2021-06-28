@@ -53,12 +53,6 @@ genControlFlow = Random $ do
   dest    <- dest
   longImm <- bits 20
   offset  <- geomBits 11 2
-  return $ instDist [ (8, addi  dest src1 offset)
-                    , (8, ori   dest src1 offset)
-                    , (8, auipc dest longImm)
-                    , (8, jal   dest longImm)
-                    , (8, jalr  src1 dest imm)
-                    , (8, beq   src1 src2 imm)
-                    , (8, bne   src1 src2 imm)
-                    , (8, bge   src1 src2 imm)
-                    , (8, bgeu  src1 src2 imm) ]
+  return $ Distribution [ (8, Single $ addi  dest src1 offset)
+                        , (8, Single $ ori   dest src1 offset)
+                        , (40, uniformTemplate $ rv32_i_ctrl src1 src2 dest imm longImm) ]

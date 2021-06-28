@@ -108,7 +108,7 @@ genRandomCHERITest arch = Random $ do
                         , (10, uniformTemplate $ rv32_zicsr srcData dest srcCsr mop)
                         , (10, switchEncodingMode)
                         , (10, cspecialRWChain)
-                        , (10, randomCCall srcAddr srcData tmpReg tmpReg2)
+                        , (10, randomCInvoke srcAddr srcData tmpReg tmpReg2)
                         , (10, makeShortCap)
                         , (10, clearASR tmpReg tmpReg2)
                         , (10, loadTags srcAddr srcData)

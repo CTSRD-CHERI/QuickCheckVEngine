@@ -52,9 +52,11 @@ module RISCV.Helpers (
 -- * Instruction pretty-printers
   prettyR
 , prettyI
+, prettyI_sig
 , prettyL
 , prettyS
 , prettyU
+, prettyU_jal
 , prettyB
 , prettyF
 , prettyR_2op
@@ -86,6 +88,7 @@ import Numeric
 import Data.Maybe
 import Data.Word (Word8)
 import RISCV.RV_CSRs
+import Data.Bits
 
 data PrivMode = PRV_U | PRV_S | PRV_Reserved | PRV_M deriving (Enum, Show, Eq)
 privString :: Maybe PrivMode -> String
@@ -194,6 +197,12 @@ fpRegABI  i = "unknownFPRegIdx" ++ show i
 int :: Integer -> String
 int i = show i
 
+-- | Helper for turning numbers into signed integer
+toSigned :: (Ord a, Num a) => Int -> a -> a
+toSigned w x | x >= 0 = if x >= 2^(w-1) then x - 2^w else x
+             | otherwise = error $ "cannot toSigned on negative number"
+
+
 -- ** Instructions
 
 -- | R-type instruction pretty printer
@@ -204,21 +213,30 @@ prettyR instr rs2 rs1 rd =
 prettyI instr imm rs1 rd =
   concat [instr, " ", reg rd, ", ", reg rs1, ", ", int imm]
 
+-- | I-type instruction pretty printer signed immediates
+prettyI_sig instr imm rs1 rd =
+  concat [instr, " ", reg rd, ", ", reg rs1, ", ", int $ toSigned 12 imm]
+
+
 -- | Pretty printer for load instructions
 prettyL instr imm rs1 rd =
-  concat [instr, " ", reg rd, ", ", reg rs1, "[", int imm, "]"]
+  concat [instr, " ", reg rd, ", ", reg rs1, "[", int $ toSigned 12 imm, "]"]
 
 -- | S-type instruction pretty printer
 prettyS instr imm rs2 rs1 =
-  concat [instr, " ", reg rs2, ", ", reg rs1, "[", int imm, "]"]
+  concat [instr, " ", reg rs2, ", ", reg rs1, "[", int $ toSigned 12 imm, "]"]
 
 -- | U-type instruction pretty printer
 prettyU instr imm rd =
   concat [instr, " ", reg rd, ", ", int imm]
 
+-- | U-type instruction pretty printer for jal instructions
+prettyU_jal instr imm rd =
+  concat [instr, " ", reg rd, ", ", int $ toSigned 21 (imm `shiftL` 1)]
+
 -- | B-type instruction pretty printer
 prettyB instr imm rs2 rs1 =
-  concat [instr, " ", reg rs1, ", ", reg rs2, ", ", int imm]
+  concat [instr, " ", reg rs1, ", ", reg rs2, ", ", int $ toSigned 13 (imm `shiftL` 1)]
 
 -- | Pretty printer for fence instructions
 prettyF pred succ =

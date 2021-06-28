@@ -35,9 +35,11 @@
 --
 
 module QuickCheckVEngine.Templates.GenTransExec (
-  gen_scc_verify
+  gen_data_scc_verify
 , gen_sbc_cond_1_verify
 , gen_inst_scc_verify
+, gen_sbc_jumps_verify
+, gen_sbc_exceptions_verify
 ) where
 
 import InstrCodec
@@ -51,8 +53,8 @@ import QuickCheckVEngine.RVFI_DII.RVFI
 import QuickCheckVEngine.Templates.GenMemory
 import Data.Bits
 
-genSCCTorture :: Template
-genSCCTorture = Random $ do
+genDataSCCTorture :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
+genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = Random $ do
   srcAddr  <- src
   srcData  <- src
   dest     <- dest
@@ -62,16 +64,11 @@ genSCCTorture = Random $ do
   fenceOp2 <- bits 3
   size     <- getSize
   csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
-  let capReg = 1
-  let tmpReg = 2
-  let bitsReg = 3
-  let sldReg = 4
-  let nopermReg = 5
-  let authReg = 6
   src1     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   src2     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   return $  (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic src1 src2 imm tmpReg)
                           , (1, uniformTemplate $ rv32_xcheri_misc       src1 src2 imm csrAddr tmpReg)
+                          , (1, Single $ cinvoke src2 src1)
                           , (1, Single $ cload tmpReg tmpReg 0x08)
                           ])
   --return $ replicateTemplate (size `div` 2) (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
@@ -95,11 +92,12 @@ genInstSCCTorture = Random $ do
 
 genSBC_Cond_1_Torture :: Template
 genSBC_Cond_1_Torture = Random $ do
-  imm_rand <- bits 12
-  longImm  <- bits 20
-  fenceOp1 <- bits 3
-  fenceOp2 <- bits 3
-  srcData  <- src
+  imm_rand      <- bits 12
+  longImm_rand  <- bits 20
+  fenceOp1      <- bits 3
+  fenceOp2      <- bits 3
+  srcData       <- src
+  let zeroReg = 0
   let addrReg = 5
   let tmpReg = 10
   let src1 = 12
@@ -110,15 +108,60 @@ genSBC_Cond_1_Torture = Random $ do
   let dest = 17
   -- immediate has to be divisible by 8
   let imm = (imm_rand `shiftR` 0x3) `shiftL` 0x3
+  -- long immediate has to be divisible by 4
+  let longImm = (longImm_rand `shiftR` 0x2) `shiftL` 0x2
   return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 imm tmpReg)
                           , (1, uniformTemplate $ rv32_i_arith src1 src2 imm longImm tmpReg)
                           , (1, uniformTemplate $ rv64_i_mem addrReg srcData dest imm)
                           , (1, uniformTemplate $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2)
+                          , (1, Single $ jal zeroReg longImm)
+                          , (1, uniformTemplate $ rv32_xcheri_mem capsrc1 capsrc2 imm 0xb tmpReg)
                           ])
 
-gen_scc_verify = Random $ do
+genSBC_Jumps_Torture :: Template
+genSBC_Jumps_Torture = Random $ do
+  imm_branches <- bits 7
+  longImm_jumps <- bits 8
+  imm <- bits 12
+  longImm <- bits 20
+  imm_jumps <- bits 7
+  -- sbcRegs can return on of the following: 22,23,24,25,26,27,28,29
+  src1 <- sbcRegs
+  src2 <- sbcRegs
+  dest <- sbcRegs
+  let zeroReg = 0
+  let retReg = 1
+  dest_jumps <- frequency [ (1, return zeroReg), (1, return retReg) ]
+  let regJump = 10
+  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
+                          , (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
+                          , (1, uniformTemplate $ rv32_i_ctrl_jumps regJump dest_jumps imm_jumps longImm_jumps)
+                          , (1, uniformTemplate $ rv32_i_ctrl_branches src1 src2 imm_branches)
+                          ])
+
+genSBC_Excps_Torture :: Integer -> Template
+genSBC_Excps_Torture tmpReg = Random $ do
+  imm <- bits 12
+  longImm <- bits 20
+  src1 <- sbcRegs
+  src2 <- sbcRegs
+  dest <- sbcRegs
+  --let capsrc1 = 15
+  --let capsrc2 = 16
+  let fenceOp1 = 17
+  let fenceOp2 = 18
+  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
+                          , (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
+                          , (1, uniformTemplate $ rv64_i_mem src1 src2 dest imm)
+                          , (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
+                          , (1, uniformTemplate $ rv32_i_exc)
+                          , (1, uniformTemplate $ rv32_xcheri_mem src1 src2 imm 0xb tmpReg)
+                          ])
+
+
+gen_data_scc_verify = Random $ do
   let capReg = 1
-  let tmpReg = 2
+  let tmpReg = 31
   let bitsReg = 3
   let sldReg = 4
   let nopermReg = 5
@@ -131,10 +174,16 @@ gen_scc_verify = Random $ do
                     , NoShrink (Single $ csealentry sldReg bitsReg)
                     , NoShrink (Single $ candperm nopermReg bitsReg 0)
                     , NoShrink (Single $ ccleartag bitsReg bitsReg)
-                    , NoShrink (Single $ lw 0 tmpReg capReg)
-                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) genSCCTorture) tmpReg hpmCntIdx Nothing
+                    , NoShrink (Single $ lw tmpReg capReg 0)
+                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) (genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg)) tmpReg hpmCntIdx Nothing
                     , NoShrink (SingleAssert (addi tmpReg tmpReg 0) 0)
                     ]
+
+
+-- typcial cinvoke counterexample:
+-- csealentry sldReg, bitsReg
+-- cinvoke arbitraryReg, sldReg // cinvoke jumps to the arbitrary reg, unseals sldReg and always stores this capability to capability register 31 (c31)
+-- cload arbitraryReg, c31 // c31 is referred to as ct6 in my example
 
 -- | Verify instruction Speculative Capability Constraint (SCC)
 gen_inst_scc_verify = Random $ do
@@ -180,8 +229,11 @@ gen_sbc_cond_1_verify = Random $ do
   let tmpReg3 = 3
   let tmpReg4 = 4
   let addrReg = 5
+  let capReg = 15
+  let authReg = 16
+  let tmpReg5 = 17
   let addrVal = 0x80001000
-  let hpmEventIdx_renamed_insts = 0x80
+  let hpmEventIdx_renamed_insts = 0x70
   let hpmCntIdx_renamed_insts = 3
   let hpmEventIdx_traps = 0x2
   let hpmCntIdx_traps = 4
@@ -189,8 +241,40 @@ gen_sbc_cond_1_verify = Random $ do
   let inner_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) ( (genSBC_Cond_1_Torture))) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))
   let outer_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_traps inner_hpm_access tmpReg4 hpmCntIdx_traps Nothing
   return $ Sequence [ NoShrink ( (li64 addrReg addrVal))
+                    , NoShrink ( (makeCap capReg authReg tmpReg5 addrVal 0x10000 0))
                     , outer_hpm_access
                     , NoShrink (Single $ sub tmpReg3 tmpReg3 tmpReg2)
                     , NoShrink (Single $ sub tmpReg1 tmpReg1 tmpReg3)
                     , NoShrink (SingleAssert (sub tmpReg1 tmpReg1 tmpReg4) 2)
                     ]
+
+-- | Verify the jumping conditions of Speculative Branching Constraint (SBC)
+gen_sbc_jumps_verify = Random $ do
+  let zeroReg = 0
+  let tmpReg = 21
+  let regJump = 10
+  let addrVal = 0x80001000
+  let hpmCntIdx_wild_jumps = 3
+  let hpmEventIdx_wild_jumps = 0x71
+  size <- getSize
+  return $ Sequence [ NoShrink ((li64 regJump addrVal))
+                    , surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (replicateTemplate (size - 100) (genSBC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
+                    , NoShrink(SingleAssert (add tmpReg tmpReg zeroReg) 0)
+                    ]
+
+-- | Verify the exception conditions of Speculative Branching Constraint (SBC)
+gen_sbc_exceptions_verify = Random $ do
+  let zeroReg = 0
+  let capReg = 22
+  let authReg = 23
+  let tmpReg = 21
+  let addr = 0x80002000
+  let hpmCntIdx_wild_excps = 3
+  let hpmEventIdx_wild_excps = 0x72
+  size <- getSize
+  return $ Sequence [ NoShrink ((li64 tmpReg 0x0))
+                    , NoShrink ((makeCap capReg authReg tmpReg addr 0x100 0))
+                    , surroundWithHPMAccess_core False hpmEventIdx_wild_excps (replicateTemplate (size - 100) (genSBC_Excps_Torture tmpReg)) tmpReg hpmCntIdx_wild_excps Nothing
+                    , NoShrink(SingleAssert (add tmpReg tmpReg zeroReg) 0)
+                    ]
+

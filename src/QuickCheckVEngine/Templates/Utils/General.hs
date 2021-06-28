@@ -55,6 +55,7 @@ module QuickCheckVEngine.Templates.Utils.General (
   -- * Arbitrary value generators
 , src
 , dest
+, sbcRegs
 , csr
 , roundingMode
 , bits
@@ -178,6 +179,10 @@ src = inUseReg
 -- | 'dest' generates an arbitrary destination register index
 dest :: Gen Integer
 dest = inUseReg
+
+-- | 'sbcRegs' generates an arbitrary register index for SBC use
+sbcRegs :: Gen Integer
+sbcRegs = choose(22, 29)
 
 -- | 'csr' generates an arbitrary csr register index
 csr :: Gen Integer

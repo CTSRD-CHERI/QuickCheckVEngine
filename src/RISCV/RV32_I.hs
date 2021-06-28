@@ -113,14 +113,17 @@ module RISCV.RV32_I (
 , rv32_i
 , rv32_i_arith
 , rv32_i_ctrl
+, rv32_i_ctrl_jumps
+, rv32_i_ctrl_branches
+, rv32_i_exc
 , rv32_i_load
 , rv32_i_store
 , rv32_i_fence
 , rv32_i_mem
 ) where
 
-import RISCV.Helpers (prettyR, prettyI, prettyU, prettyB, prettyF, prettyS
-                     , prettyL, ExtractedRegs)
+import RISCV.Helpers (prettyR, prettyI, prettyI_sig, prettyU, prettyU_jal, prettyB, prettyF
+                     , prettyS, prettyL, ExtractedRegs)
 import InstrCodec (DecodeBranch, (-->), encode)
 import Prelude hiding (and, or)
 
@@ -225,8 +228,8 @@ rv32_i_disass = [ add_raw    --> prettyR "add"
                 , srl_raw    --> prettyR "srl"
                 , sub_raw    --> prettyR "sub"
                 , sra_raw    --> prettyR "sra"
-                , addi_raw   --> prettyI "addi"
-                , slti_raw   --> prettyI "slti"
+                , addi_raw   --> prettyI_sig "addi"
+                , slti_raw   --> prettyI_sig "slti"
                 , sltiu_raw  --> prettyI "sltiu"
                 , andi_raw   --> prettyI "andi"
                 , ori_raw    --> prettyI "ori"
@@ -236,8 +239,8 @@ rv32_i_disass = [ add_raw    --> prettyR "add"
                 , srai_raw   --> prettyI "srai"
                 , lui_raw    --> prettyU "lui"
                 , auipc_raw  --> prettyU "auipc"
-                , jal_raw    --> prettyU "jal"
-                , jalr_raw   --> prettyI "jalr"
+                , jal_raw    --> prettyU_jal "jal"
+                , jalr_raw   --> prettyI_sig "jalr"
                 , beq_raw    --> prettyB "beq"
                 , bne_raw    --> prettyB "bne"
                 , blt_raw    --> prettyB "blt"
@@ -423,13 +426,24 @@ rv32_i_arith src1 src2 dest imm longImm = [ add   dest  src1 src2
 
 -- | List of RV32 base integer control instructions
 rv32_i_ctrl :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
-rv32_i_ctrl src1 src2 dest imm longImm = [ auipc dest           longImm
-                                         , jal   dest           longImm
-                                         , jalr  dest src1      imm
-                                         , beq        src1 src2 imm
-                                         , bne        src1 src2 imm
-                                         , bge        src1 src2 imm
-                                         , bgeu       src1 src2 imm ]
+rv32_i_ctrl src1 src2 dest imm longImm = [ auipc dest           longImm ]
+                                         ++ (rv32_i_ctrl_jumps src1 dest imm longImm)
+                                         ++ (rv32_i_ctrl_branches src1 src2 imm)
+
+-- | List of RV32 base integer control instructions: jumps
+rv32_i_ctrl_jumps :: Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_i_ctrl_jumps src1 dest imm longImm = [ jal  dest longImm
+                                          , jalr dest src1 imm ]
+
+-- | List of RV32 base integer control instructions: branches
+rv32_i_ctrl_branches :: Integer -> Integer -> Integer -> [Integer]
+rv32_i_ctrl_branches src1 src2 imm = [ beq  src1 src2 imm
+                                     , bne  src1 src2 imm
+                                     , bge  src1 src2 imm
+                                     , bgeu src1 src2 imm
+                                     , blt  src1 src2 imm
+                                     , bltu src1 src2 imm ]
+
 
 -- | List of RV32 base integer exception-related instructions
 rv32_i_exc :: [Integer]
