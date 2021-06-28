@@ -186,7 +186,7 @@ gen_data_scc_verify = Random $ do
 -- cload arbitraryReg, c31 // c31 is referred to as ct6 in my example
 
 -- | Verify instruction Speculative Capability Constraint (SCC)
-gen_inst_scc_verify = Random $ do
+{-gen_inst_scc_verify = Random $ do
   let hpmEventIdx_dcache_miss = 0x31
   let hpmCntIdx = 3
   let tmpReg = 10
@@ -210,6 +210,26 @@ gen_inst_scc_verify = Random $ do
                     , NoShrink (Single $ cjalr czero capJump)
                     , NoShrink (measureSeq)
                     , NoShrink (SingleAssert (addi tmpReg tmpReg 0) 1)
+                    ]-}
+genJump :: Integer -> Template
+genJump reg = Random $ do
+  imm <- bits 7
+  let czero = 0
+  return $ instSeq [ (cincoffsetimmediate reg reg imm)
+                   , (cjalr czero reg)
+                   ]
+
+--insertInst :: Template -> Integer -> Template
+
+
+gen_inst_scc_verify = Random $ do
+  let hpmEventIdx_dcache_miss = 0x31
+  let hpmCntIdx = 3
+  let rand = 7
+  let jumpReg = 10 
+  let jumpSeq = replicateTemplate (10) (genJump jumpReg)
+  return $ Sequence [ NoShrink (switchEncodingMode)
+                    --, NoShrink (jumpSeq)
                     ]
 
 {-
