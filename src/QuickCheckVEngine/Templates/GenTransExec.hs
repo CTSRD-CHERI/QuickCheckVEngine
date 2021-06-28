@@ -137,7 +137,7 @@ genSBC_Excps_Torture tmpReg = Random $ do
                           , (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
                           , (1, uniformTemplate $ rv64_i_mem src1 src2 dest imm)
                           , (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
-                          --, (1, uniformTemplate $ rv32_i_exc)
+                          , (1, uniformTemplate $ rv32_i_exc)
                           , (1, uniformTemplate $ rv32_xcheri_mem src1 src2 imm 0xb tmpReg)
                           ])
 

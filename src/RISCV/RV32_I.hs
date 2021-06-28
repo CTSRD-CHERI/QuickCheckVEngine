@@ -115,6 +115,7 @@ module RISCV.RV32_I (
 , rv32_i_ctrl
 , rv32_i_ctrl_jumps
 , rv32_i_ctrl_branches
+, rv32_i_exc
 , rv32_i_load
 , rv32_i_store
 , rv32_i_fence
