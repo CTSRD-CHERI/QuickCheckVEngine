@@ -144,7 +144,8 @@ genSBC_Excps_Torture tmpReg = Random $ do
 
 gen_data_scc_verify = Random $ do
   let capReg = 1
-  let tmpReg = 31
+  let tmpReg0 = 30
+  let tmpReg1 = 31
   let bitsReg = 3
   let sldReg = 4
   let nopermReg = 5
@@ -152,14 +153,15 @@ gen_data_scc_verify = Random $ do
   let hpmEventIdx_dcache_miss = 0x31
   let hpmCntIdx = 3
   size <- getSize
-  return $ Sequence [ NoShrink (makeCap capReg  authReg tmpReg 0x80010000     8 0)
-                    , NoShrink (makeCap bitsReg authReg tmpReg 0x80014000 0x100 0)
+  return $ Sequence [ NoShrink (clearASR tmpReg0 tmpReg1)
+                    , NoShrink (makeCap capReg  authReg tmpReg1 0x80010000     8 0)
+                    , NoShrink (makeCap bitsReg authReg tmpReg1 0x80014000 0x100 0)
                     , NoShrink (Single $ csealentry sldReg bitsReg)
                     , NoShrink (Single $ candperm nopermReg bitsReg 0)
                     , NoShrink (Single $ ccleartag bitsReg bitsReg)
-                    , NoShrink (Single $ lw tmpReg capReg 0)
-                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) (genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg)) tmpReg hpmCntIdx Nothing
-                    , NoShrink (SingleAssert (addi tmpReg tmpReg 0) 0)
+                    , NoShrink (Single $ lw tmpReg1 capReg 0)
+                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) (genDataSCCTorture capReg tmpReg1 bitsReg sldReg nopermReg authReg)) tmpReg0 hpmCntIdx Nothing
+                    , NoShrink (SingleAssert (addi tmpReg0 tmpReg0 0) 0)
                     ]
 
 
