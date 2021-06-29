@@ -125,9 +125,9 @@ replicateTemplate n template = Sequence $ replicate n template
 
 -- | Insert a 'Template' at index idx into a 'Sequence'
 sequenceInsertAt :: Int -> Template -> Template -> Template
-sequenceInsertAt idx elem (Sequence xs) =
-  Sequence $ start ++ (elem : end)
-  where (start, end) = splitAt idx xs
+sequenceInsertAt idx (Sequence a) (Sequence b) =
+  Sequence $ start ++ a ++ end
+  where (start, end) = splitAt idx b
 sequenceInsertAt _ _ temp = error $ "sequenceInsertAt can only take Sequences, but not: " ++ show temp
 
 -- | Split a 'Sequence' into two subsequences at index idx

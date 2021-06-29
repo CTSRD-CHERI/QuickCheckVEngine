@@ -211,6 +211,7 @@ gen_data_scc_verify = Random $ do
                     , NoShrink (measureSeq)
                     , NoShrink (SingleAssert (addi tmpReg tmpReg 0) 1)
                     ]-}
+
 genJump :: Integer -> Template
 genJump reg = Random $ do
   imm <- bits 7
@@ -219,17 +220,25 @@ genJump reg = Random $ do
                    , (cjalr czero reg)
                    ]
 
---insertInst :: Template -> Integer -> Template
-
 
 gen_inst_scc_verify = Random $ do
   let hpmEventIdx_dcache_miss = 0x31
-  let hpmCntIdx = 3
+  let hpmCntIdx_dcache_miss = 3
   let rand = 7
-  let jumpReg = 10 
+  let jumpReg = 10
+  let dataReg = 11
+  let tmpReg = 12
+  let counterReg = 13
+  let authReg = 14
   let jumpSeq = replicateTemplate (10) (genJump jumpReg)
+  let elem = instSeq [ auipc dataReg 0x0, cload tmpReg dataReg 0xb]
+  let leakSeq = sequenceInsertAt 2 elem jumpSeq
   return $ Sequence [ NoShrink (switchEncodingMode)
-                    --, NoShrink (jumpSeq)
+                    , NoShrink (makeCap_core jumpReg authReg tmpReg 0x80001000)
+                    , NoShrink (jumpSeq)
+                    , NoShrink (makeCap jumpReg authReg tmpReg 0x80001000 0x8 0x0)
+                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (leakSeq) counterReg hpmCntIdx_dcache_miss Nothing
+                    , NoShrink (SingleAssert (addi counterReg counterReg 0) 0)
                     ]
 
 {-
