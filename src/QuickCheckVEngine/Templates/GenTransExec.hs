@@ -65,9 +65,10 @@ genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = Random $ do
   csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
   src1     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   src2     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
+  let rv32_xcheri_misc_alt = filter (/= (cspecialrw tmpReg csrAddr src1)) (rv32_xcheri_misc src1 src2 csrAddr imm tmpReg)
   return $  (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic src1 src2 imm tmpReg)
-                          , (1, uniformTemplate $ rv32_xcheri_misc       src1 src2 imm csrAddr tmpReg)
-                          , (1, Single $ cinvoke src2 src1)
+                          , (1, uniformTemplate $ rv32_xcheri_misc_alt)
+                          --, (1, Single $ cinvoke src2 src1)
                           , (1, Single $ cload tmpReg tmpReg 0x08)
                           ])
   --return $ replicateTemplate (size `div` 2) (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
@@ -153,8 +154,7 @@ gen_data_scc_verify = Random $ do
   let hpmEventIdx_dcache_miss = 0x31
   let hpmCntIdx = 3
   size <- getSize
-  return $ Sequence [ NoShrink (clearASR tmpReg0 tmpReg1)
-                    , NoShrink (makeCap capReg  authReg tmpReg1 0x80010000     8 0)
+  return $ Sequence [ NoShrink (makeCap capReg  authReg tmpReg1 0x80010000     8 0)
                     , NoShrink (makeCap bitsReg authReg tmpReg1 0x80014000 0x100 0)
                     , NoShrink (Single $ csealentry sldReg bitsReg)
                     , NoShrink (Single $ candperm nopermReg bitsReg 0)
