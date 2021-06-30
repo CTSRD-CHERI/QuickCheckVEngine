@@ -95,6 +95,7 @@ data Options = Options
     , testLen          :: Int
     , optShrink        :: Bool
     , optSave          :: Bool
+    , optContinueOnFail:: Bool
     } deriving Show
 
 defaultOptions :: Options
@@ -117,6 +118,7 @@ defaultOptions = Options
     , testLen          = 2048
     , optShrink        = True
     , optSave          = True
+    , optContinueOnFail= False
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -175,6 +177,9 @@ options =
   , Option []        ["no-save"]
       (NoArg (\ opts -> opts { optSave = False }))
         "Don't offer to save failed counter-examples"
+  , Option []        ["continue-on-fail"]
+      (NoArg (\ opts -> opts { optContinueOnFail = True }))
+        "Keep running tests after failure to find multiple failures"
   ]
 
 commandOpts :: [String] -> IO (Options, [String])
@@ -287,11 +292,9 @@ main = withSocketsDo $ do
   let checkResult = if (optVerbosity flags > 1)
                     then verboseCheckWithResult
                     else quickCheckWithResult
-  let checkGen gen remainingTests = do
-        res <- checkResult (Args Nothing remainingTests 1 (testLen flags) (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
+  let checkGen gen remainingTests =
+               checkResult (Args Nothing remainingTests 1 (testLen flags) (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
                            (prop connA connB alive checkTrapAndSave archDesc (timeoutDelay flags) (optVerbosity flags) gen)
-        case res of Failure {} -> return 1
-                    _          -> return 0
   let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
             | skipped == 0 = do putStrLn $ "Reading trace from " ++ fileName
                                 trace <- read <$> readFile fileName
@@ -308,7 +311,8 @@ main = withSocketsDo $ do
   --
   failuresRef <- newIORef 0
   let doCheck a b = do res <- checkGen a b
-                       modifyIORef failuresRef ((+) res)
+                       case res of Failure {} -> modifyIORef failuresRef ((+) 1)
+                       return res
   case (instTraceFile flags) of
     Just fileName -> do
       void $ checkFile (memoryInitFile flags) 0 fileName
@@ -326,11 +330,13 @@ main = withSocketsDo $ do
               where attemptTest (label, description, archReqs, template) =
                       if archReqs archDesc then do
                         putStrLn $ label ++ " -- " ++ description ++ ":"
-                        doCheck (genTemplate $ template archDesc) (nTests flags)
+                        (if optContinueOnFail flags then repeatTillTarget else (\f t -> f t >> return ())) ((numTests <$>) . (doCheck (genTemplate $ template archDesc))) (nTests flags)
                       else
                         putStrLn $ "Warning: skipping " ++ label ++ " since architecture requirements not met"
+                    repeatTillTarget f t = if t <= 0 then return () else f t >>= (\x -> repeatTillTarget f (t - x))
             Just sock -> do
               doCheck (liftM toTestCase $ listOf $ liftM (\x -> TS False (map (\z -> (z, Nothing)) x)) $ listOf $ genInstrServer sock) (nTests flags)
+              return ()
   --
   close socA
   close socB
