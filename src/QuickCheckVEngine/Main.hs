@@ -196,7 +196,7 @@ allTests = [
            , ("sbc_cond_1", "Speculative Branching Constraint Condition 1 Verifier",  andPs [has_cheri, has_icsr, has_xlen_64], const gen_sbc_cond_1_verify)
            , ("sbc_jumps",  "Speculative Branching Constraint Jumps Verifier",        andPs [has_cheri, has_icsr, has_xlen_64], const gen_sbc_jumps_verify)
            , ("sbc_excps",  "Speculative Branching Constraint Execeptions Verifier",  andPs [has_cheri, has_icsr, has_xlen_64], const gen_sbc_exceptions_verify)
-           , ("inst_scc", "Instruction Speculative Capability Constraint Verifier",   andPs [has_cheri, has_icsr, has_xlen_64], const gen_inst_scc_verify)
+           , ("inst_scc",   "Instruction Speculative Capability Constraint Verifier", andPs [has_cheri, has_icsr, has_xlen_64], const gen_inst_scc_verify)
            , ("mem",        "Memory Verification",                                    const True,                               const $ repeatTemplateTillEnd gen_rv32_i_memory)
            , ("control",    "Control Flow Verification",                              const True,                               const $ repeatTemplateTillEnd gen_rv32_i_controlflow)
            , ("cache",      "Cache Verification",                                     const True,                               const $ repeatTemplateTillEnd gen_rv32_i_cache)
