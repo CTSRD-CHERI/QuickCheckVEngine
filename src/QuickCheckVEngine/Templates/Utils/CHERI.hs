@@ -170,7 +170,7 @@ switchEncodingMode = Random $ do
                    , addi mode tmpReg2 0
                    , csetflags tmpReg1 tmpReg1 tmpReg2
                    , cspecialrw 0 28 tmpReg1 --Also write trap vector so we stay in cap mode
-                   , cjalr tmpReg1 0 ]
+                   , cjalr 0 tmpReg1 ]
 
 cspecialRWChain :: Template
 cspecialRWChain = Random $ do
