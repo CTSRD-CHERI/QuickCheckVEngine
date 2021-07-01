@@ -225,19 +225,25 @@ gen_inst_scc_verify = Random $ do
   let hpmEventIdx_dcache_miss = 0x31
   let hpmCntIdx_dcache_miss = 3
   let rand = 7
+  let zeroReg = 0
   let jumpReg = 10
   let dataReg = 11
   let tmpReg = 12
   let counterReg = 13
   let authReg = 14
+  let startReg = 15
   let jumpSeq = replicateTemplate (10) (genJump jumpReg)
-  let elem = instSeq [ auipc dataReg 0x0, cload tmpReg dataReg 0xb]
+  let elem = instSeq [ auipc dataReg 0x0, lw tmpReg dataReg 0]
   let leakSeq = sequenceInsertAt 2 elem jumpSeq
   return $ Sequence [ NoShrink (switchEncodingMode)
                     , NoShrink (makeCap_core jumpReg authReg tmpReg 0x80001000)
+                    , NoShrink (Single $ cmove startReg jumpReg)
+                    , NoShrink (Single $ cjalr zeroReg startReg)
                     , NoShrink (jumpSeq)
                     , NoShrink (makeCap jumpReg authReg tmpReg 0x80001000 0x8 0x0)
-                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (leakSeq) counterReg hpmCntIdx_dcache_miss Nothing
+                    , NoShrink (Single $ lw tmpReg jumpReg 0)
+                    , NoShrink (Single $ cjalr zeroReg startReg)
+                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (elem) counterReg hpmCntIdx_dcache_miss Nothing
                     , NoShrink (SingleAssert (addi counterReg counterReg 0) 0)
                     ]
 
