@@ -214,18 +214,20 @@ gen_data_scc_verify = Random $ do
                     , NoShrink (SingleAssert (addi tmpReg tmpReg 0) 1)
                     ]-}
 
-genJump :: Integer -> Template
-genJump reg = Random $ do
+genJump :: Integer ->Integer -> Integer -> Template
+genJump reg0 reg1 reg2 = Random $ do
   imm <- bits 7
   let czero = 0
-  return $ instSeq [ (cincoffsetimmediate reg reg imm)
-                   , (cjalr czero reg)
+  return $ instSeq [ (cincoffsetimmediate reg0 reg0 imm)
+                   , (cjalr czero reg0)
+                   , (auipc reg1 0x1)
+                   , (lw reg2 reg1 0)
                    ]
 
 
 gen_inst_scc_verify = Random $ do
-  let hpmEventIdx_dcache_miss = 0x31
-  let hpmCntIdx_dcache_miss = 3
+  let hpmEventIdx_dcache_load = 0x30
+  let hpmCntIdx_dcache_load = 3
   let rand = 7
   let zeroReg = 0
   let jumpReg = 10
@@ -234,18 +236,20 @@ gen_inst_scc_verify = Random $ do
   let counterReg = 13
   let authReg = 14
   let startReg = 15
-  let jumpSeq = replicateTemplate (10) (genJump jumpReg)
-  let elem = instSeq [ auipc dataReg 0x0, lw tmpReg dataReg 0]
-  let leakSeq = sequenceInsertAt 2 elem jumpSeq
+  let pccReg = 16
+  let loadReg = 17
+  let startSeq = Sequence [NoShrink (Single $ cjalr zeroReg startReg)]
+  let jumpSeq = replicateTemplate (10) (genJump jumpReg pccReg loadReg)
+  --let elem = instSeq [ auipc dataReg 0x1, lw tmpReg dataReg 0]
+  let leakSeq = startSeq <> jumpSeq
   return $ Sequence [ NoShrink (switchEncodingMode)
                     , NoShrink (makeCap_core jumpReg authReg tmpReg 0x80001000)
                     , NoShrink (Single $ cmove startReg jumpReg)
-                    , NoShrink (Single $ cjalr zeroReg startReg)
+                    , startSeq
                     , NoShrink (jumpSeq)
-                    , NoShrink (makeCap jumpReg authReg tmpReg 0x80001000 0x8 0x0)
-                    , NoShrink (Single $ lw tmpReg jumpReg 0)
-                    , NoShrink (Single $ cjalr zeroReg startReg)
-                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (elem) counterReg hpmCntIdx_dcache_miss Nothing
+                    --, NoShrink (makeCap jumpReg authReg tmpReg 0x80001000 0x8 0x0)
+                    , NoShrink (Single $ ccleartag jumpReg jumpReg)
+                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_load (leakSeq) counterReg hpmCntIdx_dcache_load Nothing
                     , NoShrink (SingleAssert (addi counterReg counterReg 0) 0)
                     ]
 
