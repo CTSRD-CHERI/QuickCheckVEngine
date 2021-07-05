@@ -69,7 +69,7 @@ genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = Random $ do
   let rv32_xcheri_misc_alt = filter (/= (cspecialrw tmpReg csrAddr src1)) (rv32_xcheri_misc src1 src2 csrAddr imm tmpReg)
   return $  (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic src1 src2 imm tmpReg)
                           , (1, uniformTemplate $ rv32_xcheri_misc_alt)
-                          --, (1, Single $ cinvoke src2 src1)
+                          , (1, Single $ cinvoke src2 src1)
                           , (1, Single $ cload tmpReg tmpReg 0x08)
                           ])
   --return $ replicateTemplate (size `div` 2) (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
