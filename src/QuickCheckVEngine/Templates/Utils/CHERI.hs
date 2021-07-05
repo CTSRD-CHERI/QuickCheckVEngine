@@ -167,7 +167,7 @@ switchEncodingMode = Random $ do
   tmpReg2 <- src
   mode    <- elements [0, 1]
   return $ instSeq [ cspecialrw tmpReg1 0 0
-                   , addi mode tmpReg2 0
+                   , addi tmpReg2 0 mode
                    , csetflags tmpReg1 tmpReg1 tmpReg2
                    , cspecialrw 0 28 tmpReg1 --Also write trap vector so we stay in cap mode
                    , cjalr 0 tmpReg1 ]
