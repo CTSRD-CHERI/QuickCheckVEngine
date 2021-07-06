@@ -529,9 +529,9 @@ rv32_xcheri_arithmetic src1 src2 imm dest =
   [ csetoffset          dest src1 src2
   , csetaddr            dest src1 src2
   , cincoffset          dest src1 src2
-  --, csetbounds          dest src1 src2
-  --, csetboundsexact     dest src1 src2
-  --, csetboundsimmediate dest src1      imm
+  , csetbounds          dest src1 src2
+  , csetboundsexact     dest src1 src2
+  , csetboundsimmediate dest src1      imm
   , cincoffsetimmediate dest src1      imm
   , ctoptr              dest src1 src2
   , cfromptr            dest src1 src2
@@ -542,9 +542,9 @@ rv32_xcheri_arithmetic src1 src2 imm dest =
 rv32_xcheri_misc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
 rv32_xcheri_misc src1 src2 srcScr imm dest =
   [ cseal       dest src1 src2
-  --, cunseal     dest src1 src2
+  , cunseal     dest src1 src2
   , candperm    dest src1 src2
-  --, cbuildcap   dest src1 src2
+  , cbuildcap   dest src1 src2
   , csetflags   dest src1 src2
   , ccopytype   dest src1 src2
   , ccseal      dest src1 src2
