@@ -50,6 +50,8 @@ module QuickCheckVEngine.Template (
 , uniformTemplate
 , replicateTemplate
 , repeatTemplate
+, sequenceInsertAt
+, sequenceSplitAt
 , repeatTemplateTillEnd
 , assertSingle
 , assertSingleRWD
@@ -120,6 +122,20 @@ instance UniformTemplate Integer where
 -- | Replicate a 'Template' a given number of times
 replicateTemplate :: Int -> Template -> Template
 replicateTemplate n template = Sequence $ replicate n template
+
+-- | Insert a 'Template' at index idx into a 'Sequence'
+sequenceInsertAt :: Int -> Template -> Template -> Template
+sequenceInsertAt idx (Sequence a) (Sequence b) =
+  Sequence $ start ++ a ++ end
+  where (start, end) = splitAt idx b
+sequenceInsertAt _ _ temp = error $ "sequenceInsertAt can only take Sequences, but not: " ++ show temp
+
+-- | Split a 'Sequence' into two subsequences at index idx
+sequenceSplitAt :: Int -> Template -> (Template, Template)
+sequenceSplitAt idx (Sequence xs) =
+  (Sequence a, Sequence b)
+  where (a, b) = splitAt idx xs
+sequenceSplitAt _ temp = error $ "sequenceSplitAt can only take Sequences, but not: " ++ show temp
 
 -- | Repeat a 'Template' an infinite number of times
 repeatTemplate :: Template -> Template

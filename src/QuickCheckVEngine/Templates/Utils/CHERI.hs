@@ -36,9 +36,11 @@ module QuickCheckVEngine.Templates.Utils.CHERI (
   randomCInvoke
 , clearASR
 , makeCap
+, makeCap_core
 , makeShortCap
 , legalCapLoad
 , legalCapStore
+, loadRegion
 , switchEncodingMode
 , cspecialRWChain
 , tagCacheTest
@@ -86,12 +88,16 @@ clearASR tmp1 tmp2 = instSeq [ cspecialrw tmp1 0 0, -- Get PCC
 
 makeCap :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
 makeCap dst source tmp base len offset =
-  Sequence [ li64 tmp base
-           , Single $ csetaddr dst source tmp
+  Sequence [ makeCap_core dst source tmp base
            , li64 tmp len
            , Single $ csetbounds dst dst tmp
            , li64 tmp offset
            , Single $ cincoffset dst dst tmp ]
+
+makeCap_core :: Integer -> Integer -> Integer -> Integer -> Template
+makeCap_core dst source tmp base =
+  Sequence [ li64 tmp base
+           , Single $ csetaddr dst source tmp]
 
 makeShortCap :: Template
 makeShortCap = Random $ do
@@ -148,13 +154,20 @@ loadTags addrReg capReg = Random $ do
               where maybeCapStore addrReg capReg tmpReg = uniformTemplate [Single $ sq addrReg capReg 0,
                                                                            Single $ sq addrReg tmpReg 0 ]
 
+
+loadRegion ::  Integer -> Integer -> Integer -> Integer -> Template -> Template
+loadRegion numLines capReg cacheLSize tmpReg insts =
+   if numLines == 0 then Sequence [insts]
+   else if numLines == 1 then Sequence [insts, Single (cload tmpReg capReg 0x0)]
+   else loadRegion (numLines - 1) capReg cacheLSize tmpReg (Sequence [insts, Single (cload tmpReg capReg 0x0), Single (cincoffsetimmediate capReg capReg cacheLSize)])
+
 switchEncodingMode :: Template
 switchEncodingMode = Random $ do
   tmpReg1 <- src
   tmpReg2 <- src
   mode    <- elements [0, 1]
   return $ instSeq [ cspecialrw tmpReg1 0 0
-                   , addi mode tmpReg2 0
+                   , addi tmpReg2 0 mode
                    , csetflags tmpReg1 tmpReg1 tmpReg2
                    , cspecialrw 0 28 tmpReg1 --Also write trap vector so we stay in cap mode
                    , cjalr 0 tmpReg1 ]

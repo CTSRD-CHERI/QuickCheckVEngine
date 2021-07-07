@@ -37,6 +37,7 @@
 module QuickCheckVEngine.Templates.GenTransExec (
   gen_data_scc_verify
 , gen_sbc_cond_1_verify
+, gen_inst_scc_verify
 , gen_sbc_jumps_verify
 , gen_sbc_exceptions_verify
 , gen_stc_verify
@@ -70,11 +71,27 @@ genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = Random $ do
   let rv32_xcheri_misc_alt = filter (/= (cspecialrw tmpReg csrAddr src1)) (rv32_xcheri_misc src1 src2 csrAddr imm tmpReg)
   return $  (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic src1 src2 imm tmpReg)
                           , (1, uniformTemplate $ rv32_xcheri_misc_alt)
-                          --, (1, Single $ cinvoke src2 src1)
+                          , (1, Single $ cinvoke src2 src1)
                           , (1, Single $ cload tmpReg tmpReg 0x08)
                           ])
   --return $ replicateTemplate (size `div` 2) (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
   --                                                        , (1, gen_rv32_i_memory) ]))
+
+genInstSCCTorture :: Template
+genInstSCCTorture = Random $ do
+  let src1 = 20
+  let src2 = 21
+  let tmpReg = 22
+  let tmpReg2 = 23
+  let capReg2 = 24
+  let imm = 0x40
+  let zeroReg = 0
+  let capReg = 11
+  return $ Sequence [ ( Single $ cjalr zeroReg capReg)
+                    , ( Single $ auipc capReg2 0x0)
+                    , ( Single $ cload tmpReg2 capReg2 0xb)
+                    ]
+
 
 genSBC_Cond_1_Torture :: Template
 genSBC_Cond_1_Torture = Random $ do
@@ -187,17 +204,50 @@ gen_data_scc_verify = Random $ do
 -- cinvoke arbitraryReg, sldReg // cinvoke jumps to the arbitrary reg, unseals sldReg and always stores this capability to capability register 31 (c31)
 -- cload arbitraryReg, c31 // c31 is referred to as ct6 in my example
 
--- | Verify instruction Speculative Capability Constraint (SCC)
---gen_inst_scc_verify = Random $ do
 
-{-
-    Actions to take:
-    - prime the BTB (execute many jump instructions with the same target capability) running in unconstrained code
-    - constrain code and pull in all cache lines reachable from the current PCC
-    - start measurements (L1 D cache misses)
-    - execute priming code sequence again
-    - evaluate measurements
--}
+genJump :: Integer -> Integer -> Integer -> Integer -> Integer -> Template
+genJump reg0 reg1 reg2 imm offset = Random $ do
+  imm_bits <- bits 5
+  let czero = 0
+  return $ instSeq [ (cincoffsetimmediate reg0 reg0 imm)
+                   , (cjalr czero reg0)
+                   , (auipc reg1 0x1)
+                   , (lw reg2 reg1 offset)
+                   ]
+
+
+-- | Verify instruction Speculative Capability Constraint (SCC)
+gen_inst_scc_verify = Random $ do
+  let hpmEventIdx_dcache_miss = 0x31
+  let hpmCntIdx_dcache_miss = 3
+  let rand = 7
+  let zeroReg = 0
+  let jumpReg = 10
+  let dataReg = 11
+  let tmpReg = 12
+  let counterReg = 13
+  let authReg = 14
+  let startReg = 15
+  let pccReg = 16
+  let loadReg = 17
+  let startSeq = Sequence [NoShrink (Single $ cjalr zeroReg startReg)]
+  let trainSeq = replicateTemplate (10) (genJump jumpReg pccReg loadReg 0xa0 0x0)
+  --let elem = instSeq [ auipc dataReg 0x1, lw tmpReg dataReg 0]
+  let leakSeq = replicateTemplate (10) (genJump jumpReg pccReg loadReg 0xa0 0x80)
+  let tortSeq = startSeq <> leakSeq
+  return $ Sequence [ NoShrink (switchEncodingMode)
+                    , NoShrink (makeCap_core jumpReg authReg tmpReg 0x80001000)
+                    , NoShrink (Single $ cmove startReg jumpReg)
+                    , startSeq
+                    , NoShrink (trainSeq)
+                    , NoShrink (Single $ csetboundsimmediate startReg startReg 0x8)
+                    , NoShrink (Single $ lw loadReg startReg 0)
+                    , NoShrink (Single $ lw loadReg pccReg 0)
+                    , NoShrink (Single $ add pccReg zeroReg zeroReg)
+                    , NoShrink (Single $ ccleartag jumpReg jumpReg)
+                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (tortSeq) counterReg hpmCntIdx_dcache_miss Nothing
+                    , NoShrink (SingleAssert (addi counterReg counterReg 0) 0)
+                    ]
 
 
 -- | Verify condition 1 of Speculative Branching Constraint (SBC)
