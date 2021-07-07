@@ -39,6 +39,7 @@ module QuickCheckVEngine.Templates.GenTransExec (
 , gen_sbc_cond_1_verify
 , gen_sbc_jumps_verify
 , gen_sbc_exceptions_verify
+, gen_stc_verify
 ) where
 
 import InstrCodec
@@ -47,6 +48,7 @@ import RISCV.RV32_I
 import RISCV.RV64_I
 import RISCV.RV32_Xcheri
 import QuickCheckVEngine.Template
+import QuickCheckVEngine.Templates.GenMemory
 import QuickCheckVEngine.Templates.Utils
 import QuickCheckVEngine.RVFI_DII.RVFI
 import QuickCheckVEngine.Templates.GenMemory
@@ -142,6 +144,21 @@ genSBC_Excps_Torture tmpReg = Random $ do
                           , (1, uniformTemplate $ rv32_xcheri_mem src1 src2 imm 0xb tmpReg)
                           ])
 
+
+genSTCTorture :: Template
+genSTCTorture = Random $ do
+  imm <- bits 12
+  longImm <- bits 20
+  src1 <- sbcRegs
+  src2 <- sbcRegs
+  dest <- sbcRegs
+  let fenceOp1 = 17
+  let fenceOp2 = 18
+  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
+                          , (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
+                          , (1, uniformTemplate $ rv64_i_mem src1 src2 dest imm)
+                          , (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
+                          ])
 
 gen_data_scc_verify = Random $ do
   let capReg = 1
@@ -239,3 +256,16 @@ gen_sbc_exceptions_verify = Random $ do
                     , NoShrink(SingleAssert (add tmpReg tmpReg zeroReg) 0)
                     ]
 
+gen_stc_verify = Random $ do
+  let lxReg = 1
+  let addrReg = 2
+  let tmpReg = 3
+  let pteReg = 30
+  let hpmCntIdx_dcache_miss = 3
+  let hpmEventIdx_dcache_miss = 0x31
+  size <- getSize
+  return $ (gen_pte_trans_core lxReg addrReg pteReg)
+           <>
+           Sequence [ surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) (genSTCTorture)) tmpReg hpmCntIdx_dcache_miss Nothing
+                    , NoShrink(SingleAssert (addi tmpReg tmpReg 0) 0)
+                    ]

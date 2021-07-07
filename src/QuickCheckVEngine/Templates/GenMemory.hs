@@ -46,6 +46,7 @@ module QuickCheckVEngine.Templates.GenMemory (
 , gen_rv32_Xcheri_cache
 , gen_rv64_Xcheri_cache
 , gen_pte_perms
+, gen_pte_trans_core
 , gen_pte_trans
 ) where
 
