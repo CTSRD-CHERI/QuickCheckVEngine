@@ -91,6 +91,7 @@ module RISCV.RV32_I (
 , uret
 , ecall
 , ebreak
+, sfence
 -- * Extract and shrink functions
 , extract_1op
 , extract_2op
@@ -123,7 +124,7 @@ module RISCV.RV32_I (
 ) where
 
 import RISCV.Helpers (prettyR, prettyI, prettyI_sig, prettyU, prettyU_jal, prettyB, prettyF
-                     , prettyS, prettyL, ExtractedRegs)
+                     ,prettySfence, prettyS, prettyL, ExtractedRegs)
 import InstrCodec (DecodeBranch, (-->), encode)
 import Prelude hiding (and, or)
 
@@ -215,6 +216,8 @@ ecall_raw        =                   "000000000000 00000 000 00000 1110011"
 ecall            = encode ecall_raw
 ebreak_raw       =                   "000000000001 00000 000 00000 1110011"
 ebreak           = encode ebreak_raw
+sfence_raw       =                   "0001001 rs2[4:0] rs1[4:0] 000 00000 1110011"
+sfence rs1 rs2   = encode sfence_raw          rs2      rs1
 
 -- | Dissassembly of RV32 base integer instructions
 rv32_i_disass :: [DecodeBranch String]
@@ -261,7 +264,8 @@ rv32_i_disass = [ add_raw    --> prettyR "add"
                 , sret_raw   --> "sret"
                 , uret_raw   --> "uret"
                 , ecall_raw  --> "ecall"
-                , ebreak_raw --> "ebreak" ]
+                , ebreak_raw --> "ebreak"
+                , sfence_raw --> prettySfence ]
 
 extract_1op :: String -> Integer -> Integer -> ExtractedRegs
 extract_1op instr rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode instr y z)
@@ -327,6 +331,7 @@ rv32_i_extract = [ add_raw    --> extract_2op add_raw
 --               , uret_raw   --> noextract
 --               , ecall_raw  --> noextract
 --               , ebreak_raw --> noextract
+--               , sfence_raw --> noextract
                  ]
 
 shrink_arith :: Integer -> Integer -> Integer -> [Integer]

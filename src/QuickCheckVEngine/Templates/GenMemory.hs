@@ -205,7 +205,7 @@ gen_pte_perms = Random $
                         Single $ csrrw 0 0x180 5,
                         Single $ csrrwi 0 0x9c0 (clg0 * 4)]
                         <>
-                        (NoShrink $ Single $ encode "0001001 00000 00000 000 00000 1110011") -- sfence.vma 0 0
+                        (NoShrink $ Single $ sfence 0 0)
                         <> Sequence [
                         Single sret,
                         Distribution [(1,Single $ ccleartag 3 3), (1,Single $ cmove 3 3)],
@@ -247,7 +247,7 @@ gen_pte_trans = Random $
                         Single $ csrrw 0 0x180 ptereg, -- SATP write
                         li64 addrReg addrInitial]
                         <>
-                        (NoShrink $ Single $ encode "0001001 00000 00000 000 00000 1110011") -- sfence.vma 0 0
+                        (NoShrink $ Single $ sfence 0 0)
                         <>
                         (Single sret)
                         <>

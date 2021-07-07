@@ -59,6 +59,7 @@ module RISCV.Helpers (
 , prettyU_jal
 , prettyB
 , prettyF
+, prettySfence
 , prettyR_2op
 , prettyCSR
 , prettyCSR_imm
@@ -241,6 +242,10 @@ prettyB instr imm rs2 rs1 =
 -- | Pretty printer for fence instructions
 prettyF pred succ =
   concat ["fence ", int pred, ", ", int succ]
+
+-- | Pretty printer for sfence.vma instructions
+prettySfence rs1 rs2 =
+  concat ["sfence.vma ", int rs1, ", ", int rs2]
 
 -- | R-type, 2-operand instruction pretty printer
 prettyR_2op instr cs1 cd =
