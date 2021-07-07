@@ -187,37 +187,10 @@ gen_data_scc_verify = Random $ do
 -- cinvoke arbitraryReg, sldReg // cinvoke jumps to the arbitrary reg, unseals sldReg and always stores this capability to capability register 31 (c31)
 -- cload arbitraryReg, c31 // c31 is referred to as ct6 in my example
 
--- | Verify instruction Speculative Capability Constraint (SCC)
-{-gen_inst_scc_verify = Random $ do
-  let hpmEventIdx_dcache_miss = 0x31
-  let hpmCntIdx = 3
-  let tmpReg = 10
-  let capReg = 11
-  let authReg = 12
-  let length = 0x800
-  let cacheLSize = 0x40
-  let numLines = 0x800 `div` 0x40
-  let czero = 0
-  let capJump = 13
-  size <- getSize
-  let instSeq = replicateTemplate (20) genInstSCCTorture
-  let loadSeq = loadRegion numLines capReg cacheLSize tmpReg (Sequence [])
-  let measureSeq = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (instSeq) tmpReg hpmCntIdx Nothing
-  return $ Sequence [ NoShrink (switchEncodingMode)
-                    , NoShrink (makeCap_core capReg authReg tmpReg 0x80001000)
-                    , NoShrink (instSeq)
-                    , NoShrink (loadSeq)
-                    , NoShrink (Single $ ccleartag capReg capReg)
-                    , NoShrink (makeCap_core capJump authReg tmpReg 0x80000000)
-                    , NoShrink (Single $ cjalr czero capJump)
-                    , NoShrink (measureSeq)
-                    , NoShrink (SingleAssert (addi tmpReg tmpReg 0) 1)
-                    ]-}
 
 genJump :: Integer -> Integer -> Integer -> Integer -> Integer -> Template
 genJump reg0 reg1 reg2 imm offset = Random $ do
   imm_bits <- bits 5
-  --let imm = (imm_bits `shiftL` 0x2)
   let czero = 0
   return $ instSeq [ (cincoffsetimmediate reg0 reg0 imm)
                    , (cjalr czero reg0)
@@ -226,6 +199,7 @@ genJump reg0 reg1 reg2 imm offset = Random $ do
                    ]
 
 
+-- | Verify instruction Speculative Capability Constraint (SCC)
 gen_inst_scc_verify = Random $ do
   let hpmEventIdx_dcache_miss = 0x31
   let hpmCntIdx_dcache_miss = 3
@@ -250,7 +224,6 @@ gen_inst_scc_verify = Random $ do
                     , startSeq
                     , NoShrink (trainSeq)
                     , NoShrink (Single $ csetboundsimmediate startReg startReg 0x8)
-                    --, NoShrink (Single $ auipc pccReg 0x1)
                     , NoShrink (Single $ lw loadReg startReg 0)
                     , NoShrink (Single $ lw loadReg pccReg 0)
                     , NoShrink (Single $ add pccReg zeroReg zeroReg)
@@ -258,15 +231,6 @@ gen_inst_scc_verify = Random $ do
                     , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (tortSeq) counterReg hpmCntIdx_dcache_miss Nothing
                     , NoShrink (SingleAssert (addi counterReg counterReg 0) 0)
                     ]
-
-{-
-    Actions to take:
-    - prime the BTB (execute many jump instructions with the same target capability) running in unconstrained code
-    - constrain code and pull in all cache lines reachable from the current PCC
-    - start measurements (L1 D cache misses)
-    - execute priming code sequence again
-    - evaluate measurements
--}
 
 
 -- | Verify condition 1 of Speculative Branching Constraint (SBC)
