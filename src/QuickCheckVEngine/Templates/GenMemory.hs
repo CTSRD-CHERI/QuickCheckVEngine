@@ -216,7 +216,7 @@ gen_pte_perms = Random $
                         Single $ cgettag 5 4,
                         Single ecall]
 
-gen_pte_trans = Random $
+gen_pte_trans_core lxReg addrReg pteReg = Random $
   do let leafperms = 0xFF
      let parentperms = 0xF1
      l2perms <- elements [leafperms, parentperms]
@@ -230,35 +230,40 @@ gen_pte_trans = Random $
      let l2pte = (shiftR l2pa 2) + l2perms
      let l1pte = (shiftR l1pa 2) + l1perms
      let l0pte = (shiftR l0pa 2) + l0perms
-     let lxreg = 1
-     let addrReg = 2
      addrInitial <- elements [0x00000000, 0x00000800, 0x00100000]
-     let ptereg = 30
-     return $ Sequence [li64 ptereg l2pte,
-                        li64 lxreg  satpa,
-                        Single $ sd lxreg ptereg 0,
-                        li64 ptereg l1pte,
-                        li64 lxreg  l2pa,
-                        Single $ sd lxreg ptereg 0,
-                        li64 ptereg l0pte,
-                        li64 lxreg  l1pa,
-                        Single $ sd lxreg ptereg 0,
-                        li64 ptereg satp,
-                        Single $ csrrw 0 0x180 ptereg, -- SATP write
+     return $ Sequence [li64 pteReg l2pte,
+                        li64 lxReg  satpa,
+                        Single $ sd lxReg pteReg 0,
+                        li64 pteReg l1pte,
+                        li64 lxReg  l2pa,
+                        Single $ sd lxReg pteReg 0,
+                        li64 pteReg l0pte,
+                        li64 lxReg  l1pa,
+                        Single $ sd lxReg pteReg 0,
+                        li64 pteReg satp,
+                        Single $ csrrw 0 0x180 pteReg, -- SATP write
                         li64 addrReg addrInitial]
                         <>
                         (NoShrink $ Single $ sfence 0 0)
                         <>
                         (Single sret)
-                        <>
-                        (replicateTemplate 20
-                                          (Random $
-                                           do imm <- elements [0x10, 0x100, 0x0]
-                                              datReg <- elements [ptereg, lxreg]
-                                              return $ Distribution [(8, uniformTemplate $ rv64_i_load  addrReg datReg imm),
-                                                                     (8, uniformTemplate $ rv64_i_store addrReg datReg imm),
-                                                                     (4, Single $ addi addrReg addrReg imm),
-                                                                     (1, Single $ fence_i),
-                                                                     (1, Single $ fence 0 0)]))
-                        <>
-                        (NoShrink $ Single ecall)
+
+
+
+gen_pte_trans = Random $
+  do let lxreg = 1
+     let addrReg = 2
+     let ptereg = 30
+     return $ (gen_pte_trans_core lxreg addrReg ptereg)
+               <>
+               (replicateTemplate 20
+                                 (Random $
+                                  do imm <- elements [0x10, 0x100, 0x0]
+                                     datReg <- elements [ptereg, lxreg]
+                                     return $ Distribution [(8, uniformTemplate $ rv64_i_load  addrReg datReg imm),
+                                                            (8, uniformTemplate $ rv64_i_store addrReg datReg imm),
+                                                            (4, Single $ addi addrReg addrReg imm),
+                                                            (1, Single $ fence_i),
+                                                            (1, Single $ fence 0 0)]))
+               <>
+               (NoShrink $ Single ecall)
