@@ -74,8 +74,6 @@ genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = Random $ do
                           , (1, Single $ cinvoke src2 src1)
                           , (1, Single $ cload tmpReg tmpReg 0x08)
                           ])
-  --return $ replicateTemplate (size `div` 2) (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
-  --                                                        , (1, gen_rv32_i_memory) ]))
 
 genInstSCCTorture :: Template
 genInstSCCTorture = Random $ do
@@ -149,8 +147,6 @@ genSBC_Excps_Torture tmpReg = Random $ do
   src1 <- sbcRegs
   src2 <- sbcRegs
   dest <- sbcRegs
-  --let capsrc1 = 15
-  --let capsrc2 = 16
   let fenceOp1 = 17
   let fenceOp2 = 18
   return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
@@ -199,11 +195,6 @@ gen_data_scc_verify = Random $ do
                     ]
 
 
--- typcial cinvoke counterexample:
--- csealentry sldReg, bitsReg
--- cinvoke arbitraryReg, sldReg // cinvoke jumps to the arbitrary reg, unseals sldReg and always stores this capability to capability register 31 (c31)
--- cload arbitraryReg, c31 // c31 is referred to as ct6 in my example
-
 
 genJump :: Integer -> Integer -> Integer -> Integer -> Integer -> Template
 genJump reg0 reg1 reg2 imm offset = Random $ do
@@ -232,7 +223,6 @@ gen_inst_scc_verify = Random $ do
   let loadReg = 17
   let startSeq = Sequence [NoShrink (Single $ cjalr zeroReg startReg)]
   let trainSeq = replicateTemplate (10) (genJump jumpReg pccReg loadReg 0xa0 0x0)
-  --let elem = instSeq [ auipc dataReg 0x1, lw tmpReg dataReg 0]
   let leakSeq = replicateTemplate (10) (genJump jumpReg pccReg loadReg 0xa0 0x80)
   let tortSeq = startSeq <> leakSeq
   return $ Sequence [ NoShrink (switchEncodingMode)
