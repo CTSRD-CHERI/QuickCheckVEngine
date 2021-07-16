@@ -163,8 +163,8 @@ loadRegion numLines capReg cacheLSize tmpReg insts =
 
 switchEncodingMode :: Template
 switchEncodingMode = Random $ do
-  tmpReg1 <- src
-  tmpReg2 <- src
+  tmpReg1 <- sbcRegs
+  let tmpReg2 = tmpReg1 + 1
   mode    <- elements [0, 1]
   return $ instSeq [ cspecialrw tmpReg1 0 0
                    , addi tmpReg2 0 mode
