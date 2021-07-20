@@ -315,6 +315,8 @@ gen_sbc_exceptions_verify = Random $ do
                     , NoShrink(SingleAssert (add tmpReg tmpReg zeroReg) 0)
                     ]
 
+-- | Verify Speculative Translation Constraint (STC)
+-- TODO
 gen_stc_verify = Random $ do
   let lxReg = 1
   let addrReg = 2
@@ -323,8 +325,5 @@ gen_stc_verify = Random $ do
   let hpmCntIdx_dcache_miss = 3
   let hpmEventIdx_dcache_miss = 0x31
   size <- getSize
-  return $ (gen_pte_trans_core lxReg addrReg pteReg)
-           <>
-           Sequence [ surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) (genSTCTorture)) tmpReg hpmCntIdx_dcache_miss Nothing
-                    , NoShrink(SingleAssert (addi tmpReg tmpReg 0) 0)
+  return $ Sequence [ NoShrink(SingleAssert (addi tmpReg tmpReg 0) 1)
                     ]
