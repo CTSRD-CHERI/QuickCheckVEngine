@@ -77,7 +77,7 @@ module RISCV.RV32_D (
 , rv32_d
 ) where
 
-import RISCV.Helpers (prettyR, prettyS, prettyR4_rm, prettyR_rm,
+import RISCV.Helpers (prettyR, prettyL, prettyS, prettyR4_rm, prettyR_rm,
                       prettyR_IF_1op, prettyR_FF_1op_rm, prettyR_FI_1op_rm,
                       prettyR_IF_1op_rm, prettyS_F)
 import InstrCodec (DecodeBranch, (-->), encode)
@@ -137,7 +137,7 @@ fcvt_d_wu rd rs1 rm        = encode fcvt_d_wu_raw                       rs1     
 
 -- | Dissassembly of RV32 double-precision floating-point instructions
 rv32_d_disass :: [DecodeBranch String]
-rv32_d_disass = [ fld_raw       --> prettyR           "fld"
+rv32_d_disass = [ fld_raw       --> prettyL           "fld"
                 , fsd_raw       --> prettyS_F         "fsd"
                 , fmadd_d_raw   --> prettyR4_rm       "fmadd.d"
                 , fmsub_d_raw   --> prettyR4_rm       "fmsub.d"

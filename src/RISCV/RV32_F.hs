@@ -77,7 +77,7 @@ module RISCV.RV32_F (
 , rv32_f
 ) where
 
-import RISCV.Helpers (prettyR, prettyS, prettyR4_rm, prettyR_rm,
+import RISCV.Helpers (prettyR, prettyL, prettyS, prettyR4_rm, prettyR_rm,
                       prettyR_FI_1op, prettyR_FF_1op, prettyR_IF_1op,
                       prettyR_FF_1op_rm, prettyR_FI_1op_rm, prettyR_IF_1op_rm,
                       prettyS_F)
@@ -139,7 +139,7 @@ fmv_w_x rd rs1             = encode fmv_w_x_raw                         rs1     
 
 -- | Dissassembly of RV32 floating-point instructions
 rv32_f_disass :: [DecodeBranch String]
-rv32_f_disass = [ flw_raw       --> prettyR           "flw"
+rv32_f_disass = [ flw_raw       --> prettyL           "flw"
                 , fsw_raw       --> prettyS_F         "fsw"
                 , fmadd_s_raw   --> prettyR4_rm       "fmadd.s"
                 , fmsub_s_raw   --> prettyR4_rm       "fmsub.s"
