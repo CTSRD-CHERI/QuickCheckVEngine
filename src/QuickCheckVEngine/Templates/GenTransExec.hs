@@ -48,6 +48,9 @@ import Test.QuickCheck
 import RISCV.RV32_I
 import RISCV.RV64_I
 import RISCV.RV32_Xcheri
+import RISCV.RV32_Zicsr
+import RISCV.RV32_F
+import RISCV.RV32_D
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.GenMemory
 import QuickCheckVEngine.Templates.Utils
@@ -172,6 +175,74 @@ genSTCTorture = Random $ do
                           , (1, uniformTemplate $ rv64_i_mem src1 src2 dest imm)
                           , (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
                           ])
+
+setUpPageTable :: Template
+setUpPageTable = Random $ do
+  let a0 = 10
+  let t0 = 6
+  return $ Sequence [ NoShrink( li64 a0 0x80002000)
+                    , NoShrink( li64 t0 0x20000c01)
+                    , NoShrink(Single $ sd a0 t0 0)
+                    , NoShrink( li64 t0 0x20000801)
+                    , NoShrink(Single $ sd a0 t0 16)
+                    , NoShrink( li64 a0 0x80003000)
+                    , NoShrink( li64 t0 0x2000004b)
+                    , NoShrink(Single $ sd a0 t0 0)
+                    , NoShrink( li64 t0 0x20000447)
+                    , NoShrink(Single $ sd a0 t0 8)
+                    , NoShrink( li64 t0 0x2000105b)
+                    , NoShrink(Single $ sd a0 t0 32)
+                    , NoShrink( li64 t0 0x20001457)
+                    , NoShrink(Single $ sd a0 t0 40)
+                    ]
+
+prepareSTCGen :: Template
+prepareSTCGen = Random $ do
+  let s0 = 8
+  let s1 = 9
+  let s2 = 18
+  let mstatus = 0x300
+  let sstatus = 0x100
+  let mepc = 0x341
+  let sepc = 0x141
+  let satp = 0x180
+  return $ instSeq [ (lui s1 0x100)
+                   , (csrrc 0 mstatus s1)
+                   , (lui s1 0x1)
+                   , (csrrc 0 mstatus s1)
+                   , (lui s1 0x1)
+                   , (addi s1 s1 0x800)
+                   , (csrrs 0 mstatus s1)
+                   , (auipc s2 0)
+                   , (addi s2 s2 16)
+                   , (csrrw 0 mepc s2)
+                   , (mret)]
+                   <>
+                     (setUpPageTable)
+                   <>
+                     (li64 s2 0x80002000)
+                   <>
+                   instSeq [
+                     --(addi 19 19 0x123)
+                   --, (sd s2 19 0)
+                     (ld s2 s2 0)
+                   , (lui s0 0xfffe0)
+                   , (addi s0 s0 1)
+                   , (slli s0 s0 0x1b)
+                   , (addi s0 s0 1)
+                   , (slli s0 s0 0x13)
+                   , (addi s0 s0 2)
+                   , (csrrw 0 satp s0)
+                   , (addi s1 s1 256)
+                   , (csrrc 0 sstatus s1)]
+                   <>
+                   --, (auipc s2 4)
+                   --, (addi s2 s2 0xfb0)
+                    (li64 s2 0x80004000)
+                   <>
+                   instSeq[ (csrrw 0 sepc s2)
+                   , (sret)
+                   ]
 
 gen_data_scc_verify = Random $ do
   let capReg = 1
@@ -309,11 +380,32 @@ gen_sbc_exceptions_verify = Random $ do
   let hpmCntIdx_wild_excps = 3
   let hpmEventIdx_wild_excps = 0x72
   size <- getSize
-  return $ Sequence [ NoShrink ((li64 tmpReg 0x0))
-                    , NoShrink ((makeCap capReg authReg tmpReg addr 0x100 0))
-                    , surroundWithHPMAccess_core False hpmEventIdx_wild_excps (replicateTemplate (size - 100) (genSBC_Excps_Torture tmpReg)) tmpReg hpmCntIdx_wild_excps Nothing
-                    , NoShrink(SingleAssert (add tmpReg tmpReg zeroReg) 0)
+  let a0 = 10
+  let t1 = 6
+  let t2 = 7
+  let ft2 = 7
+  let fa6 = 16
+  let a1 = 11
+  let a2 = 12
+  return $ Sequence [ NoShrink (Single $ lui a0 2)
+                    , NoShrink (Single $ csrrs 0 0x300 a0)
+                    , NoShrink (Single $ auipc t1 0)
+                    , NoShrink (Single $ addi t1 t1 48)
+                    , NoShrink (Single $ lui t2 262144)
+                    , NoShrink (Single $ sd t1 t2 0)
+                    , NoShrink (Single $ flw ft2 t1 0)
+                    , NoShrink (Single $ fld ft2 t1 0)
+                    , NoShrink (Single $ addi a0 0 96)
+                    , NoShrink (Single $ encode "00000000 00110101 00010000 01110011")
+                    , NoShrink (Single $ fadd_s a2 a0 a1 0x7)
+                    , NoShrink (Single $ fsqrt_s fa6 ft2 0x7)
+                    , NoShrink (Single $ fsw t1 ft2 0)
                     ]
+ -- return $ Sequence [ NoShrink ((li64 tmpReg 0x0))
+ --                   , NoShrink ((makeCap capReg authReg tmpReg addr 0x100 0))
+ --                   , surroundWithHPMAccess_core False hpmEventIdx_wild_excps (replicateTemplate (size - 100) (genSBC_Excps_Torture tmpReg)) tmpReg hpmCntIdx_wild_excps Nothing
+ --                   , NoShrink(SingleAssert (add tmpReg tmpReg zeroReg) 0)
+ --                   ]
 
 -- | Verify Speculative Translation Constraint (STC)
 -- TODO
@@ -325,5 +417,10 @@ gen_stc_verify = Random $ do
   let hpmCntIdx_dcache_miss = 3
   let hpmEventIdx_dcache_miss = 0x31
   size <- getSize
-  return $ Sequence [ NoShrink(SingleAssert (addi tmpReg tmpReg 0) 1)
+  return $ Sequence [ prepareSTCGen
+                    , NoShrink(li64 tmpReg 0x80005000)
+                    , NoShrink(Single $ ld tmpReg tmpReg 0)
+                    , NoShrink(li64 tmpReg 0x80001000)
+                    , NoShrink(Single $ ld tmpReg tmpReg 0)
+                    , NoShrink(SingleAssert (addi tmpReg tmpReg 0) 3)
                     ]
