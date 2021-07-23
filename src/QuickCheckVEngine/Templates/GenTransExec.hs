@@ -163,17 +163,18 @@ genSBC_Excps_Torture tmpReg = Random $ do
 
 genSTCTorture :: Template
 genSTCTorture = Random $ do
-  imm <- bits 12
+  imm_bits <- bits 12
   longImm <- bits 20
-  src1 <- sbcRegs
+  src1 <- choose(16,18)
   src2 <- sbcRegs
   dest <- sbcRegs
-  let fenceOp1 = 17
-  let fenceOp2 = 18
-  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
-                          , (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
-                          , (1, uniformTemplate $ rv64_i_mem src1 src2 dest imm)
-                          , (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
+  let fenceOp1 = 19
+  let fenceOp2 = 20
+  let imm = (imm_bits `shiftR` 3) `shiftL` 3
+  return $ (Distribution  [ --(1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
+                          --, (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
+                            (1, uniformTemplate $ rv64_i_mem src1 src2 dest imm)
+                          --, (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
                           ])
 
 setUpPageTable :: Template
@@ -201,6 +202,9 @@ prepareSTCGen = Random $ do
   let s0 = 8
   let s1 = 9
   let s2 = 18
+  let counterReg = 30
+  let hpmCntIdx = 3
+  let evt = 0x31
   let mstatus = 0x300
   let sstatus = 0x100
   let mepc = 0x341
@@ -216,16 +220,15 @@ prepareSTCGen = Random $ do
                    , (auipc s2 0)
                    , (addi s2 s2 16)
                    , (csrrw 0 mepc s2)
-                   , (mret)]
+                   ]
                    <>
                      (setUpPageTable)
                    <>
-                     (li64 s2 0x80002000)
+                     (setupHPMEventSel counterReg hpmCntIdx evt)
                    <>
-                   instSeq [
-                     --(addi 19 19 0x123)
-                   --, (sd s2 19 0)
-                     (ld s2 s2 0)
+                     (enableHPMCounterM counterReg hpmCntIdx)
+                   <>
+           instSeq [ (mret)
                    , (lui s0 0xfffe0)
                    , (addi s0 s0 1)
                    , (slli s0 s0 0x1b)
@@ -234,13 +237,14 @@ prepareSTCGen = Random $ do
                    , (addi s0 s0 2)
                    , (csrrw 0 satp s0)
                    , (addi s1 s1 256)
-                   , (csrrc 0 sstatus s1)]
+                   , (csrrc 0 sstatus s1)
+                   ]
                    <>
-                   --, (auipc s2 4)
-                   --, (addi s2 s2 0xfb0)
-                    (li64 s2 0x80004000)
+                     (enableHPMCounterS counterReg hpmCntIdx)
                    <>
-                   instSeq[ (csrrw 0 sepc s2)
+                     (li64 s2 0x80004000)
+                   <>
+            instSeq[ (csrrw 0 sepc s2)
                    , (sret)
                    ]
 
@@ -412,15 +416,20 @@ gen_sbc_exceptions_verify = Random $ do
 gen_stc_verify = Random $ do
   let lxReg = 1
   let addrReg = 2
-  let tmpReg = 3
-  let pteReg = 30
+  let tmpReg = 31
+  let counterReg = 30
+  let addrReg1 = 16
+  let addrReg2 = 17
+  let addrReg3 = 18
   let hpmCntIdx_dcache_miss = 3
   let hpmEventIdx_dcache_miss = 0x31
   size <- getSize
-  return $ Sequence [ prepareSTCGen
-                    , NoShrink(li64 tmpReg 0x80005000)
-                    , NoShrink(Single $ ld tmpReg tmpReg 0)
-                    , NoShrink(li64 tmpReg 0x80001000)
-                    , NoShrink(Single $ ld tmpReg tmpReg 0)
-                    , NoShrink(SingleAssert (addi tmpReg tmpReg 0) 3)
+  return $ Sequence [ NoShrink(prepareSTCGen)
+                    , NoShrink(li64 addrReg1 0x80010000)
+                    , NoShrink(li64 addrReg2 0x80001000)
+                    , NoShrink(li64 addrReg3 0x80008000)
+                    , NoShrink(Single $ csrrw tmpReg 0xc03 0)
+                    , (replicateTemplate (20) (genSTCTorture))
+                    , NoShrink(Single $ csrrw counterReg 0xc03 0)
+                    , NoShrink(SingleAssert (sub counterReg counterReg tmpReg) 0)
                     ]

@@ -43,6 +43,7 @@ module QuickCheckVEngine.Templates.Utils.HPM (
 , readHPMCounterM
 , writeHPMCounterM
 , surroundWithHPMAccess
+, surroundWithUHPMAccess_core
 , surroundWithHPMAccess_core
 ) where
 
@@ -109,11 +110,26 @@ writeHPMCounterM idx rs1 = csrw csrIdx rs1
   where csrIdx = hpmcounter_idx_to_mcounter_csr_idx idx
 
 -- | Clear the provided HPM counter
-resetHPMCounter :: Integer -> HPMCounterIdx -> Template
-resetHPMCounter tmp idx = Sequence [ li32 tmpNonZero 0
+resetHPMCounterM :: Integer -> HPMCounterIdx -> Template
+resetHPMCounterM tmp idx = Sequence [ li32 tmpNonZero 0
                                    , csrw csrIdx tmpNonZero ]
   where csrIdx = hpmcounter_idx_to_mcounter_csr_idx idx
         tmpNonZero = max 1 tmp
+
+-- | Clear the provided HPM counter
+resetHPMCounter :: Integer -> HPMCounterIdx -> Template
+resetHPMCounter tmp idx = Sequence [ li32 tmpNonZero 0
+                                   , csrw csrIdx tmpNonZero ]
+  where csrIdx = hpmcounter_idx_to_counter_csr_idx idx
+        tmpNonZero = max 1 tmp
+
+
+surroundWithUHPMAccess_core :: Bool -> HPMEventIdx -> Template -> Integer -> Integer -> Template
+surroundWithUHPMAccess_core shrink evt x tmpReg hpmCntIdx = Random $ do
+  let prologue = resetHPMCounter tmpReg hpmCntIdx
+  let epilogue = readHPMCounter  tmpReg hpmCntIdx
+  return $ if shrink then prologue <> x <> epilogue
+                     else NoShrink prologue <> x <> epilogue
 
 -- | 'surroundWithHPMAccess' wraps a 'Template' by setting up an HPM counter to
 --   count an event and before running the 'Template' and reading the HPM
@@ -132,7 +148,7 @@ surroundWithHPMAccess_core :: Bool -> HPMEventIdx -> Template -> Integer -> Inte
 surroundWithHPMAccess_core shrink evt x tmpReg hpmCntIdx instRet = Random $ do
   let prologue =    inhibitHPMCounter tmpReg hpmCntIdx
                  <> setupHPMEventSel tmpReg hpmCntIdx evt
-                 <> resetHPMCounter tmpReg hpmCntIdx
+                 <> resetHPMCounterM tmpReg hpmCntIdx
                  <> uniformTemplate [enableHPMCounterM tmpReg hpmCntIdx, Empty]
                  <> uniformTemplate [enableHPMCounterS tmpReg hpmCntIdx, Empty]
                  <> triggerHPMCounter tmpReg hpmCntIdx
