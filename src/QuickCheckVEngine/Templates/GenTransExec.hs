@@ -226,6 +226,9 @@ prepareSTCGen = Random $ do
   let mepc = 0x341
   let sepc = 0x141
   let satp = 0x180
+  let medeleg = 0x302
+  let sedeleg = 0x102
+  let stval = 0x143
   return $ instSeq [ (lui s1 0x100)
                    , (csrrc 0 mstatus s1)
                    , (lui s1 0x1)
@@ -236,6 +239,9 @@ prepareSTCGen = Random $ do
                    , (auipc s2 0)
                    , (addi s2 s2 16)
                    , (csrrw 0 mepc s2)
+                   , (lui s2 0xa)
+                   , (csrrw 0 medeleg s2)
+                   --, (csrrw 0 sedeleg s2)
                    ]
                    <>
                      (setUpPageTable)
@@ -254,6 +260,8 @@ prepareSTCGen = Random $ do
                    , (csrrw 0 satp s0)
                    , (addi s1 s1 256)
                    , (csrrc 0 sstatus s1)
+                   , (lui s2 2)
+                   --, (csrrw 0 sedeleg s2)
                    ]
                    <>
                      (enableHPMCounterS counterReg hpmCntIdx)
@@ -261,6 +269,7 @@ prepareSTCGen = Random $ do
                      (li64 s2 0x80004000)
                    <>
             instSeq[ (csrrw 0 sepc s2)
+                   , (csrrw 0 stval s2)
                    , (sret)
                    ]
 
@@ -411,7 +420,6 @@ gen_sbc_exceptions_verify = Random $ do
                     ]
 
 -- | Verify Speculative Translation Constraint (STC)
--- TODO
 gen_stc_verify = Random $ do
   let lxReg = 1
   let addrReg = 2
@@ -422,14 +430,15 @@ gen_stc_verify = Random $ do
   let addrReg3 = 18
   let hpmCntIdx_dcache_miss = 3
   let hpmEventIdx_dcache_miss = 0x31
+  let uepc = 0x041
   size <- getSize
   return $ Sequence [ NoShrink(prepareSTCGen)
+                    , NoShrink(Single $ sfence 0 0)
                     , NoShrink(li64 addrReg1 0x80010000)
-                    , NoShrink(li64 addrReg2 0x80001000)
+                    , NoShrink(li64 addrReg2 0x80012000)
                     , NoShrink(li64 addrReg3 0x80008000)
-                    , NoShrink(Single $ csrrw tmpReg 0xc03 0)
-                    --, (replicateTemplate (20) (genSTCTorture))
-                    --, surroundWithUHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (20) (genSTCTorture)) counterReg hpmCntIdx_dcache_miss
-                    --, NoShrink(Single $ csrrw counterReg 0xc03 0)
+                    , NoShrink(Single $ csrrs tmpReg 0xc03 0)
+                    , (replicateTemplate (20) (genSTCTorture))
+                    , NoShrink(Single $ csrrs counterReg 0xc03 0)
                     , NoShrink(SingleAssert (sub counterReg counterReg tmpReg) 0)
                     ]
