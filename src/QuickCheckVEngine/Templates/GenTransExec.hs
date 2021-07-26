@@ -149,7 +149,9 @@ genSBC_Excps_Torture tmpReg = Random $ do
   longImm <- bits 20
   src1 <- sbcRegs
   src2 <- sbcRegs
+  src3 <- sbcRegs
   dest <- sbcRegs
+  let rm = 0x7 -- dynamic rounding mode
   let fenceOp1 = 17
   let fenceOp2 = 18
   return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
@@ -158,6 +160,8 @@ genSBC_Excps_Torture tmpReg = Random $ do
                           , (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
                           , (1, uniformTemplate $ rv32_i_exc)
                           , (1, uniformTemplate $ rv32_xcheri_mem src1 src2 imm 0xb tmpReg)
+                          , (1, uniformTemplate $ rv32_f_macc src1 src2 src3 dest rm)
+                          , (1, uniformTemplate $ rv32_f_arith src1 src2 dest rm)
                           ])
 
 
@@ -176,6 +180,18 @@ genSTCTorture = Random $ do
                             (1, uniformTemplate $ rv64_i_mem src1 src2 dest imm)
                           --, (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
                           ])
+
+prepareSBCExcpsGen :: Template
+prepareSBCExcpsGen = Random $ do
+  let fcsr = 0x003
+  let mstatus = 0x300
+  let a0 = 10
+  return $ instSeq [ (lui a0 2)
+                   , (csrrs 0 mstatus a0)
+                   , (addi a0 0 192)
+                   , (csrrs 0 fcsr a0)
+                   ]
+
 
 setUpPageTable :: Template
 setUpPageTable = Random $ do
@@ -377,39 +393,22 @@ gen_sbc_jumps_verify = Random $ do
 -- | Verify the exception conditions of Speculative Branching Constraint (SBC)
 gen_sbc_exceptions_verify = Random $ do
   let zeroReg = 0
-  let capReg = 22
-  let authReg = 23
-  let tmpReg = 21
+  let capReg = 12
+  let authReg = 13
+  let excReg = 14
+  let tmpReg = 11
+  let counterReg = 31
   let addr = 0x80002000
   let hpmCntIdx_wild_excps = 3
   let hpmEventIdx_wild_excps = 0x72
   size <- getSize
-  let a0 = 10
-  let t1 = 6
-  let t2 = 7
-  let ft2 = 7
-  let fa6 = 16
-  let a1 = 11
-  let a2 = 12
-  return $ Sequence [ NoShrink (Single $ lui a0 2)
-                    , NoShrink (Single $ csrrs 0 0x300 a0)
-                    , NoShrink (Single $ auipc t1 0)
-                    , NoShrink (Single $ addi t1 t1 48)
-                    , NoShrink (Single $ lui t2 262144)
-                    , NoShrink (Single $ sd t1 t2 0)
-                    , NoShrink (Single $ flw ft2 t1 0)
-                    , NoShrink (Single $ fld ft2 t1 0)
-                    , NoShrink (Single $ addi a0 0 96)
-                    , NoShrink (Single $ encode "00000000 00110101 00010000 01110011")
-                    , NoShrink (Single $ fadd_s a2 a0 a1 0x7)
-                    , NoShrink (Single $ fsqrt_s fa6 ft2 0x7)
-                    , NoShrink (Single $ fsw t1 ft2 0)
+  return $ Sequence [ NoShrink (prepareSBCExcpsGen)
+                    , NoShrink ((makeCap capReg authReg tmpReg addr 0x100 0))
+                    , NoShrink ((makeCap_core excReg authReg tmpReg 0x80000000))
+                    , NoShrink (Single $ cspecialrw 0 28 excReg)
+                    , surroundWithHPMAccess_core False hpmEventIdx_wild_excps (replicateTemplate (size - 100) (genSBC_Excps_Torture tmpReg)) counterReg hpmCntIdx_wild_excps Nothing
+                    , NoShrink(SingleAssert (add counterReg counterReg zeroReg) 0)
                     ]
- -- return $ Sequence [ NoShrink ((li64 tmpReg 0x0))
- --                   , NoShrink ((makeCap capReg authReg tmpReg addr 0x100 0))
- --                   , surroundWithHPMAccess_core False hpmEventIdx_wild_excps (replicateTemplate (size - 100) (genSBC_Excps_Torture tmpReg)) tmpReg hpmCntIdx_wild_excps Nothing
- --                   , NoShrink(SingleAssert (add tmpReg tmpReg zeroReg) 0)
- --                   ]
 
 -- | Verify Speculative Translation Constraint (STC)
 -- TODO
@@ -429,7 +428,8 @@ gen_stc_verify = Random $ do
                     , NoShrink(li64 addrReg2 0x80001000)
                     , NoShrink(li64 addrReg3 0x80008000)
                     , NoShrink(Single $ csrrw tmpReg 0xc03 0)
-                    , (replicateTemplate (20) (genSTCTorture))
-                    , NoShrink(Single $ csrrw counterReg 0xc03 0)
+                    --, (replicateTemplate (20) (genSTCTorture))
+                    --, surroundWithUHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (20) (genSTCTorture)) counterReg hpmCntIdx_dcache_miss
+                    --, NoShrink(Single $ csrrw counterReg 0xc03 0)
                     , NoShrink(SingleAssert (sub counterReg counterReg tmpReg) 0)
                     ]
