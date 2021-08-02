@@ -298,16 +298,28 @@ gen_data_scc_verify = Random $ do
 
 genJump :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
 genJump memReg reg0 reg1 reg2 imm offset = Random $ do
-  imm_bits <- bits 5
   let czero = 0
-  return $ instSeq [ (cload reg0 memReg 0x1f)
-                   --, (cincoffsetimmediate reg0 reg0 imm)
-                   , (cjalr czero reg0)
-                   , (auipc reg1 0)
-                   , (cincoffsetimmediate reg1 reg1 offset)
-                   , (cload reg2 reg1 0x8)
+  let ra = 1
+  return $ instSeq [ --(cload reg0 memReg 0x1f)
+                     (cjalr ra reg1)
+                   , (cjalr czero ra)
                    ]
 
+genInstSCC :: Integer -> Integer -> Integer -> Integer -> Template
+genInstSCC memReg reg0 reg1 reg2 = Random $ do
+  let czero = 0
+  --return $ instSeq [ (cjalr czero reg0)
+  --                 , (auipc reg2 0)
+  --                 , (cload reg1 reg2 0x8)
+  --                 ]
+  --reg0 <- sbcRegs
+  --let reg1 = reg0 + 1
+  --let reg2 = reg0 - 1
+  return $ (Distribution [ (1, Single $ (cjalr czero reg0))
+                         , (2, Single $ (add 29 29 29))
+                         , (1, Single $ (cload reg1 reg2 0x8))
+                         , (1, Single $ (auipc reg2 0))
+                         ])
 
 -- | Verify instruction Speculative Capability Constraint (SCC)
 gen_inst_scc_verify = Random $ do
@@ -327,34 +339,59 @@ gen_inst_scc_verify = Random $ do
   let memReg = 19
   let memReg2 = 20
   let memReg3 = 21
+  let reg0 = 23
+  let reg1 = 24
+  let reg2 = 25
+  let mtcc = 28
   let startSeq = Sequence [NoShrink (Single $ cjalr zeroReg startReg)]
-  let trainSeq = replicateTemplate (1) (genJump memReg tmpReg pccReg loadReg 0x20 0x0)
+  let trainSeq = replicateTemplate (18) (genJump memReg tmpReg pccReg loadReg 0x20 0x0)
   let leakSeq = replicateTemplate (1) (genJump memReg2 tmpReg pccReg loadReg 0x20 0x100)
   let tortSeq = startSeq <> leakSeq
   return $ Sequence [ NoShrink (switchEncodingMode)
-                    , NoShrink (Single $ cspecialrw authReg2 0 0)
+                    , NoShrink (Single $ cspecialrw authReg2 0 0) -- read PCC
                     , NoShrink (makeCap_core jumpReg authReg2 tmpReg 0x80001000)
+                    , NoShrink (makeCap_core pccReg authReg2 tmpReg 0x80002000)
                     , NoShrink (makeCap_core memReg authReg2 tmpReg 0x80007000)
-                    , NoShrink (makeCap_core memReg2 authReg2 tmpReg 0x80008000)
-                    , NoShrink (makeCap_core memReg3 authReg2 tmpReg 0x80008100)
+                    , NoShrink (makeCap_core memReg2 authReg2 tmpReg 0x80007100)
+                    --, NoShrink (makeCap_core memReg3 authReg2 tmpReg 0x80008100)
                     , NoShrink (Single $ cmove startReg jumpReg)
                     , NoShrink (Single $ cstore jumpReg memReg 0x0c)
-                    , NoShrink (Single $ ccleartag tmpReg jumpReg)
+                    , NoShrink (Single $ cincoffsetimmediate tmpReg jumpReg 0x100)
+                    , NoShrink (Single $ ccleartag tmpReg tmpReg)
                     , NoShrink (Single $ cstore tmpReg memReg2 0x0c)
                     , NoShrink (Single $ cload tmpReg memReg2 0x1f)
-                    , NoShrink (Single $ cload tmpReg memReg3 0x8)
+                    --, NoShrink (Single $ cload tmpReg memReg3 0x8)
                     , startSeq
                     , NoShrink (trainSeq)
                     --, NoShrink (Single $ csetboundsimmediate startReg startReg 0x8)
                     --, NoShrink (Single $ lw loadReg startReg 0)
                     --, NoShrink (Single $ lw loadReg pccReg 0)
+                    , NoShrink (Single $ cload tmpReg jumpReg 0x8)
+                    , NoShrink (Single $ cincoffsetimmediate tmpReg jumpReg 0x40)
+                    , NoShrink (Single $ cload tmpReg tmpReg 0x8)
+                    , NoShrink (Single $ cincoffsetimmediate tmpReg jumpReg 0x80)
+                    , NoShrink (Single $ cload tmpReg tmpReg 0x8)
+                    , NoShrink (Single $ cincoffsetimmediate tmpReg jumpReg 0xc0)
+                    , NoShrink (Single $ cload tmpReg tmpReg 0x8)
+                    , NoShrink (Single $ cincoffsetimmediate tmpReg jumpReg 0x100)
+                    , NoShrink (Single $ cload tmpReg tmpReg 0x8)
                     , NoShrink (Single $ add pccReg zeroReg zeroReg)
                     , NoShrink (Single $ cmove jumpReg startReg)
-                    , NoShrink (Single $ csetboundsimmediate jumpReg jumpReg 0x70)
-                    , NoShrink (Single $ csetboundsimmediate tmpReg startReg 64)
-                    , NoShrink (Single $ cspecialrw 0 28 memReg2)
+                    -- zero out all sbcRegs
+                    , NoShrink (Single $ cmove 22 zeroReg)
+                    , NoShrink (Single $ cmove 23 zeroReg)
+                    , NoShrink (Single $ cmove 24 zeroReg)
+                    , NoShrink (Single $ cmove 25 zeroReg)
+                    , NoShrink (Single $ cmove 26 zeroReg)
+                    , NoShrink (Single $ cmove 27 zeroReg)
+                    , NoShrink (Single $ cmove 28 zeroReg)
+                    , NoShrink (Single $ cmove 29 zeroReg)
+                    , NoShrink (Single $ csetboundsimmediate jumpReg jumpReg 256)
+                    , NoShrink (Single $ csetboundsimmediate tmpReg startReg 256)
+                    , NoShrink (Single $ cspecialrw 0 mtcc jumpReg)
+                    , startSeq
                     , NoShrink (Single $ fence 3 3) -- fence rw, rw
-                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (tortSeq) counterReg hpmCntIdx_dcache_miss Nothing
+                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (64)(genInstSCC memReg2 reg0 reg1 reg2)) counterReg hpmCntIdx_dcache_miss Nothing
                     , NoShrink (SingleAssert (addi counterReg counterReg 0) 0)
                     ]
 
