@@ -167,19 +167,24 @@ genSBC_Excps_Torture tmpReg = Random $ do
 
 genSTCTorture :: Template
 genSTCTorture = Random $ do
-  imm_bits <- bits 12
+  imm_bits <- bits 10
   longImm <- bits 20
   src1 <- choose(16,18)
   src2 <- sbcRegs
   dest <- sbcRegs
   let fenceOp1 = 19
   let fenceOp2 = 20
+  let sstatus = 0x100
   let imm = (imm_bits `shiftR` 3) `shiftL` 3
-  return $ (Distribution  [ --(1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
-                          --, (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
-                            (1, uniformTemplate $ rv64_i_mem src1 src2 dest imm)
-                          --, (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
-                          ])
+  let access_inst = (Distribution  [ --(1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
+                                   --, (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
+                                       (1, uniformTemplate $ rv64_i_mem src1 src2 dest imm)
+                                   --, (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
+                                   ])
+  return $ Sequence [ access_inst
+                    , Single $ csrrs src2 sstatus 0
+                    , Single $ sret
+                    ]
 
 prepareSBCExcpsGen :: Template
 prepareSBCExcpsGen = Random $ do
@@ -471,7 +476,7 @@ gen_stc_verify = Random $ do
   size <- getSize
   return $ Sequence [ NoShrink(prepareSTCGen)
                     , NoShrink(Single $ sfence 0 0)
-                    , NoShrink(li64 addrReg1 0x80010000)
+                    , NoShrink(li64 addrReg1 0x80001800)
                     , NoShrink(li64 addrReg2 0x80012000)
                     , NoShrink(li64 addrReg3 0x80008000)
                     , NoShrink(Single $ csrrs tmpReg 0xc03 0)
