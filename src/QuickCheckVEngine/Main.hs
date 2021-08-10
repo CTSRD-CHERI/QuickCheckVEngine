@@ -314,6 +314,7 @@ main = withSocketsDo $ do
   failuresRef <- newIORef 0
   let doCheck a b = do res <- checkGen a b
                        case res of Failure {} -> modifyIORef failuresRef ((+) 1)
+                                   _ -> return ()
                        return res
   case (instTraceFile flags) of
     Just fileName -> do
