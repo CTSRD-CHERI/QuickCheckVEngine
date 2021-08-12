@@ -96,6 +96,7 @@ data Options = Options
     , optShrink        :: Bool
     , optSave          :: Bool
     , optContinueOnFail:: Bool
+    , optIgnoreAsserts :: Bool
     } deriving Show
 
 defaultOptions :: Options
@@ -119,6 +120,7 @@ defaultOptions = Options
     , optShrink        = True
     , optSave          = True
     , optContinueOnFail= False
+    , optIgnoreAsserts = False
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -180,6 +182,9 @@ options =
   , Option []        ["continue-on-fail"]
       (NoArg (\ opts -> opts { optContinueOnFail = True }))
         "Keep running tests after failure to find multiple failures"
+  , Option []        ["ignore-asserts"]
+      (NoArg (\ opts -> opts { optIgnoreAsserts = True }))
+        "Don't fail tests if assertions fail"
   ]
 
 commandOpts :: [String] -> IO (Options, [String])
@@ -258,7 +263,7 @@ main = withSocketsDo $ do
   alive <- newIORef True -- Cleared when either implementation times out, since they will may not be able to respond to future queries
   let checkSingle tc verbosity doShrink len onFail = do
         quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 1000 else 0))
-                             (prop connA connB alive onFail archDesc (timeoutDelay flags) verbosity (return tc))
+                             (prop connA connB alive onFail archDesc (timeoutDelay flags) verbosity (optIgnoreAsserts flags) (return tc))
   let check_mcause_on_trap tc traceA traceB =
         if or (map rvfiIsTrap traceA) || or (map rvfiIsTrap traceB)
            then tc <> TC (const []) [TS False [(csrrs 1 0x342 0, Nothing), (csrrs 1 0x343 0, Nothing), (csrrs 1 0xbc0 0, Nothing)]]
@@ -296,7 +301,7 @@ main = withSocketsDo $ do
                     else quickCheckWithResult
   let checkGen gen remainingTests =
                checkResult (Args Nothing remainingTests 1 (testLen flags) (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
-                           (prop connA connB alive checkTrapAndSave archDesc (timeoutDelay flags) (optVerbosity flags) gen)
+                           (prop connA connB alive checkTrapAndSave archDesc (timeoutDelay flags) (optVerbosity flags) (optIgnoreAsserts flags) gen)
   let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
             | skipped == 0 = do putStrLn $ "Reading trace from " ++ fileName
                                 trace <- read <$> readFile fileName

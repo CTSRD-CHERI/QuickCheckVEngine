@@ -118,8 +118,8 @@ zipWithPadding a b c f = go
 --   'TestCase -> IO ()' to be performed on failure that takes in the reduced
 --   'TestCase' which caused the failure
 prop :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> (TestCase -> IO ())
-     -> ArchDesc -> Int -> Int -> Gen TestCase -> Property
-prop connA connB alive onFail arch delay verbosity gen =
+     -> ArchDesc -> Int -> Int -> Bool -> Gen TestCase -> Property
+prop connA connB alive onFail arch delay verbosity ignoreAsserts gen =
   forAllShrink gen shrink mkProp
   where mkProp testCase = whenFail (onFail testCase) (doProp testCase)
         doProp testCase = monadicIO $ run $ do
@@ -133,13 +133,13 @@ prop connA connB alive onFail arch delay verbosity gen =
               Just (traceA, traceB) -> do
                 let diff = zipWithPadding rvfiEmptyHaltPacket rvfiEmptyHaltPacket Nothing
                                           (rvfiCheckAndShow $ has_xlen_64 arch)
-                                          traceA traceB (map snd rawInsts)
+                                          traceA traceB (if ignoreAsserts then [] else map snd rawInsts)
                 when (verbosity > 1) $ mapM_ (putStrLn . snd) diff
                 let implAAsserts = asserts (init traceA)
                 let implBAsserts = asserts (init traceB)
                 mapM_ (\s -> putStrLn ("Impl A failed assert: " ++ s)) implAAsserts
                 mapM_ (\s -> putStrLn ("Impl B failed assert: " ++ s)) implBAsserts
-                return $ property $ (and (map fst diff)) && (null implAAsserts) && (null implBAsserts)
+                return $ property $ (and (map fst diff)) && (ignoreAsserts || ((null implAAsserts) && (null implBAsserts)))
               _ -> return $ property False
           -- We don't want to shrink once one of the implementations has died,
           -- so always return that the property is true
