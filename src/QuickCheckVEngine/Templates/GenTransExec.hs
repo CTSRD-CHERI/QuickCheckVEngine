@@ -78,21 +78,6 @@ genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = Random $ do
                           , (1, Single $ cload tmpReg tmpReg 0x08)
                           ])
 
-genInstSCCTorture :: Template
-genInstSCCTorture = Random $ do
-  let src1 = 20
-  let src2 = 21
-  let tmpReg = 22
-  let tmpReg2 = 23
-  let capReg2 = 24
-  let imm = 0x40
-  let zeroReg = 0
-  let capReg = 11
-  return $ Sequence [ ( Single $ cjalr zeroReg capReg)
-                    , ( Single $ auipc capReg2 0x0)
-                    , ( Single $ cload tmpReg2 capReg2 0xb)
-                    ]
-
 
 genSBC_Cond_1_Torture :: Template
 genSBC_Cond_1_Torture = Random $ do
@@ -178,10 +163,8 @@ genSTCTorture = Random $ do
   let fenceOp2 = 20
   let sstatus = 0x100
   let imm = (imm_bits `shiftR` 3) `shiftL` 3
-  let access_inst = (Distribution  [ --(1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
-                                   --, (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
-                                       (1, uniformTemplate $ rv64_i_mem src1 src2 dest imm)
-                                   --, (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
+  let access_inst = (Distribution  [ (1, uniformTemplate $ rv64_i_mem src1 src2 dest imm)
+                                   , (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
                                    ])
   return $ Sequence [ access_inst
                     , Single $ csrrs src2 sstatus 0
@@ -248,7 +231,6 @@ prepareSTCGen = Random $ do
                    , (csrrw 0 mepc s2)
                    , (lui s2 0xa)
                    , (csrrw 0 medeleg s2)
-                   --, (csrrw 0 sedeleg s2)
                    ]
                    <>
                      (setUpPageTable)
@@ -268,7 +250,6 @@ prepareSTCGen = Random $ do
                    , (addi s1 s1 256)
                    , (csrrc 0 sstatus s1)
                    , (lui s2 2)
-                   --, (csrrw 0 sedeleg s2)
                    ]
                    <>
                      (enableHPMCounterS counterReg hpmCntIdx)
@@ -307,21 +288,13 @@ genJump :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Tem
 genJump memReg reg0 reg1 reg2 imm offset = Random $ do
   let czero = 0
   let ra = 1
-  return $ instSeq [ --(cload reg0 memReg 0x1f)
-                     (cjalr ra reg1)
+  return $ instSeq [ (cjalr ra reg1)
                    , (cjalr czero ra)
                    ]
 
 genInstSCC :: Integer -> Integer -> Integer -> Integer -> Template
 genInstSCC memReg reg0 reg1 reg2 = Random $ do
   let czero = 0
-  --return $ instSeq [ (cjalr czero reg0)
-  --                 , (auipc reg2 0)
-  --                 , (cload reg1 reg2 0x8)
-  --                 ]
-  --reg0 <- sbcRegs
-  --let reg1 = reg0 + 1
-  --let reg2 = reg0 - 1
   return $ (Distribution [ (1, Single $ (cjalr czero reg0))
                          , (2, Single $ (add 29 29 29))
                          , (1, Single $ (cload reg1 reg2 0x8))
@@ -360,19 +333,14 @@ gen_inst_scc_verify = Random $ do
                     , NoShrink (makeCap_core pccReg authReg2 tmpReg 0x80002000)
                     , NoShrink (makeCap_core memReg authReg2 tmpReg 0x80007000)
                     , NoShrink (makeCap_core memReg2 authReg2 tmpReg 0x80007100)
-                    --, NoShrink (makeCap_core memReg3 authReg2 tmpReg 0x80008100)
                     , NoShrink (Single $ cmove startReg jumpReg)
                     , NoShrink (Single $ cstore jumpReg memReg 0x0c)
                     , NoShrink (Single $ cincoffsetimmediate tmpReg jumpReg 0x100)
                     , NoShrink (Single $ ccleartag tmpReg tmpReg)
                     , NoShrink (Single $ cstore tmpReg memReg2 0x0c)
                     , NoShrink (Single $ cload tmpReg memReg2 0x1f)
-                    --, NoShrink (Single $ cload tmpReg memReg3 0x8)
                     , startSeq
                     , NoShrink (trainSeq)
-                    --, NoShrink (Single $ csetboundsimmediate startReg startReg 0x8)
-                    --, NoShrink (Single $ lw loadReg startReg 0)
-                    --, NoShrink (Single $ lw loadReg pccReg 0)
                     , NoShrink (Single $ cload tmpReg jumpReg 0x8)
                     , NoShrink (Single $ cincoffsetimmediate tmpReg jumpReg 0x40)
                     , NoShrink (Single $ cload tmpReg tmpReg 0x8)
