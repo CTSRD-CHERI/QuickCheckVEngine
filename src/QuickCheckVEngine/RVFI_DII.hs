@@ -85,7 +85,7 @@ recvRVFIPacket (RvfiDiiConnection _ vers name) _ = error (name ++ " invalid trac
 recvRVFITrace :: RvfiDiiConnection -> Int -> IO [RVFI_Packet]
 recvRVFITrace conn verbosity = do
   rvfiPkt <- recvRVFIPacket conn verbosity
-  when (verbosity > 1) $ putStrLn $ "\t" ++ show rvfiPkt
+  when (verbosity > 1) $ putStrLn $ "\t" ++ rvfiShowPacket rvfiPkt verbosity
   if rvfiIsHalt rvfiPkt
     then return [rvfiPkt]
     else do
@@ -102,9 +102,9 @@ rvfiNegotiateVersion sckt name verbosity = do
   -- high bits of that field to indicate their supported trace version
   rvfiPkt <- rvfiReadV1Response ((recvBlking sckt), name, verbosity)
   when (verbosity > 2) $
-    putStrLn ("Received initial packet from " ++ name ++ ": " ++ show rvfiPkt)
+    putStrLn ("Received initial packet from " ++ name ++ ": " ++ rvfiShowPacket rvfiPkt verbosity)
   unless (rvfiIsHalt rvfiPkt) $
-    error ("Received unexpected initial packet from " ++ name ++ ": " ++ show rvfiPkt)
+    error ("Received unexpected initial packet from " ++ name ++ ": " ++ rvfiShowPacket rvfiPkt verbosity)
   let supportedVer = rvfiHaltVersion rvfiPkt
   result <- diiSetVersion sckt (fromIntegral supportedVer) name verbosity
   when (result /= 2) $

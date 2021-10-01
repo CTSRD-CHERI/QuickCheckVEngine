@@ -59,6 +59,7 @@ module QuickCheckVEngine.RVFI_DII.RVFI (
 , rvfiReadDataPacketWithMagic
 , rvfiReadV1Response
 , rvfiReadV2Response
+, rvfiShowPacket
 , rvfi_rd_wdata_or_zero
 ) where
 
@@ -151,8 +152,17 @@ data RVFI_IntData = RVFI_IntData {
 , rvfi_rs2_rdata :: {-# UNPACK #-} !RV_WordXLEN
 , rvfi_rd_addr   :: {-# UNPACK #-} !RV_RegIdx
 , rvfi_rd_wdata  :: {-# UNPACK #-} !RV_WordXLEN
-  }
-  deriving (Show)
+}
+
+instance Show RVFI_IntData where
+  show tok =  (printf
+    "{RD: %02d, RWD: 0x%016x" (rvfi_rd_addr tok) (rvfi_rd_wdata tok)) ++
+    (if rvfi_rs1_addr tok /= 0 then
+      printf "RS1: %02d, RS1D: 0x%016x" (rvfi_rs1_addr tok) (rvfi_rs1_rdata tok)
+    else "") ++
+    (if rvfi_rs2_addr tok /= 0 then
+      printf "RS2: %02d, RS2D: 0x%016x" (rvfi_rs2_addr tok) (rvfi_rs2_rdata tok)
+    else "") ++ "}"
 
 data RVFI_MemAccessData = RVFI_MemAccessData {
  rvfi_mem_addr   :: {-# UNPACK #-} !RV_WordXLEN
@@ -161,6 +171,14 @@ data RVFI_MemAccessData = RVFI_MemAccessData {
 , rvfi_mem_rdata :: {-# UNPACK #-} !Basement.Types.Word256.Word256
 , rvfi_mem_wdata :: {-# UNPACK #-} !Basement.Types.Word256.Word256
 }
+
+instance Show RVFI_MemAccessData where
+  show tok =
+    (printf "{MA: 0x%016x MRM:0x%04x MRM:0x%04x" (rvfi_mem_addr tok) (rvfi_mem_rmask tok) (rvfi_mem_wmask tok)) ++
+    (if rvfi_mem_rmask tok /= 0 then printf " MRD: 0x%016x" (toNatural (rvfi_mem_rdata tok)) else "") ++
+    (if rvfi_mem_wmask tok /= 0 then printf " MWD: 0x%016x" (toNatural (rvfi_mem_wdata tok)) else "") ++
+    "}"
+
 
 hexStr :: BS.ByteString -> String
 hexStr msg = show (toLazyByteString (lazyByteStringHex msg))
@@ -183,7 +201,7 @@ connectionError (name, _) msg = do
 rvfiCheckMagicBytes :: BS.ByteString -> String -> ConnectionInfo -> IO ()
 rvfiCheckMagicBytes magicBytes expected conn = do
   let expBytes = C8.pack expected
-  connectionDebugMessage 3 conn ("read header magic bytes: " ++ show magicBytes)
+  connectionDebugMessage 4 conn ("read header magic bytes: " ++ show magicBytes)
   when (magicBytes /= expBytes) $
     connectionError conn ("received invalid data packet: got magic=" ++ show magicBytes ++ " but expected " ++ show expBytes)
   return ()
@@ -193,7 +211,7 @@ rvfiReadDataPacketWithMagic (reader, name, verbosity) size expectedMagic = do
   when (size < 8) $
     errorWithContext name ("Invalid packet size:" ++ show size)
   msg <- reader size
-  connectionDebugMessage 3 (name, verbosity) ("read packet: " ++ hexStr msg)
+  connectionDebugMessage 4 (name, verbosity) ("read packet: " ++ hexStr msg)
   let (magic, bytes) = BS.splitAt 8 msg
   rvfiCheckMagicBytes magic expectedMagic (name, verbosity)
   return bytes
@@ -203,14 +221,14 @@ type RVFIFeatures = Word64
 rvfiReadV2Response :: (Int64 -> IO BS.ByteString, String, Int) -> IO RVFI_Packet
 rvfiReadV2Response (reader, name, verbosity) = do
   let connInfo = (name, verbosity)
-  connectionDebugMessage 3 connInfo "reading V2 packet..."
+  connectionDebugMessage 4 connInfo "reading V2 packet..."
   headerBytes <- rvfiReadDataPacketWithMagic (reader, name, verbosity) 64 "trace-v2"
   let (traceSizeBytes, payloadBytes) = BS.splitAt 8 headerBytes
   let traceSize = runGet getWord64le traceSizeBytes
-  connectionDebugMessage 3 connInfo ("trace-v2 common payload bytes: " ++ hexStr payloadBytes)
+  connectionDebugMessage 4 connInfo ("trace-v2 common payload bytes: " ++ hexStr payloadBytes)
   -- Ensure that we read all bytes in the packet
   let (basicData, availableFeatures) = runGet (isolate 48 rvfiDecodeV2Header) payloadBytes
-  connectionDebugMessage 3 connInfo ("features: " ++ (printf "0x%016x" availableFeatures))
+  connectionDebugMessage 4 connInfo ("features: " ++ (printf "0x%016x" availableFeatures))
   (intData, rf1, numBytes1) <- rvfiMaybeReadIntData (reader, name, verbosity) availableFeatures
   (memData, rf2, numBytes2) <- rvfiMaybeReadMemData (reader, name, verbosity) rf1
   when (rf2 /= 0) $
@@ -311,7 +329,7 @@ rvfiDecodeMemData = do
 rvfiReadV1Response :: (Int64 -> IO BS.ByteString, String, Int) -> IO RVFI_Packet
 rvfiReadV1Response (reader, name, verbosity) = do
   msg <- reader 88
-  connectionDebugMessage 3 (name, verbosity) ("read packet: " ++ hexStr msg)
+  connectionDebugMessage 4 (name, verbosity) ("read packet: " ++ hexStr msg)
   -- Note: BS.reverse since the decode was written in BE order
   return $ runGet (isolate 88 rvfiDecodeV1Response) (BS.reverse msg)
 
@@ -382,12 +400,20 @@ rvfiEmptyHaltPacket = RVFI_Packet {
     , rvfi_mem_data = Nothing
     }
 
-instance Show RVFI_Packet where
-  show tok
+rvfiShowPacket :: RVFI_Packet -> Int -> String
+rvfiShowPacket tok verbosity
     | rvfiIsHalt tok = "halt token"
+    | verbosity > 2 =
+      (printf "O:%d Trap: %5s, PCRD: 0x%016x PCWD: 0x%016x, I: 0x%08x %s XL:%s"
+              (rvfi_order tok) (show $ rvfi_trap tok /= 0) (rvfi_pc_rdata tok)
+              (rvfi_pc_wdata tok) (rvfi_insn tok) (privString (rvfi_mode tok))
+              (xlenString (rvfi_ixl tok))) ++
+      " INT=" ++ (maybe "N/A" show $ rvfi_int_data tok) ++
+      " MEM=" ++ (maybe "N/A" show $ rvfi_mem_data tok) ++
+      " # " ++ (rv_pretty (toInteger (rvfi_insn tok)))
     | otherwise =
       printf
-        "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, MA: 0x%016x, MWD: 0x%016x, MWM: 0b%08b, I: 0x%016x %s XL:%s (%s)"
+        "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, MA: 0x%016x, MWD: 0x%016x, MWM: 0b%08b, I: 0x%08x %s XL:%s (%s)"
         (show $ rvfi_trap tok /= 0) -- Trap
         (rvfi_pc_wdata tok) -- PCWD
         (maybe 0 rvfi_rd_addr $ rvfi_int_data tok) -- RD
@@ -460,9 +486,10 @@ rvfiCheck is64 x y assert
 -- | Compare 2 'RVFI_Packet's and produce a 'String' output displaying the
 --   the content of the packet once only for equal inputs or the content of
 --   each input 'RVFI_Packet' if inputs are not succeeding the 'rvfiCheck'
-rvfiCheckAndShow :: Bool -> RVFI_Packet -> RVFI_Packet -> (Maybe Integer) -> (Bool, String)
-rvfiCheckAndShow is64 x y assert
-  | rvfiCheck is64 x y assert = (True,  "     " ++ show x ++ suffix)
-  | otherwise                 = (False, " A < " ++ show x ++ suffix ++ "\n B > " ++ show y ++ suffix)
+rvfiCheckAndShow :: Bool -> Int -> RVFI_Packet -> RVFI_Packet -> (Maybe Integer) -> (Bool, String)
+rvfiCheckAndShow is64 verbosity x y assert
+  | rvfiCheck is64 x y assert = (True,  "     " ++ rvfiShowPacket x verbosity ++ suffix)
+  | otherwise                 = (False, " A < " ++ rvfiShowPacket x verbosity ++ suffix ++
+                                        "\n B > " ++ rvfiShowPacket y verbosity ++ suffix)
     where suffix = case assert of Nothing -> ""
                                   Just i  -> printf " (assert rd_wdata == 0x%x)" i
