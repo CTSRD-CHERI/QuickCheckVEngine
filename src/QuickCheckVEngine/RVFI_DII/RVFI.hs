@@ -59,6 +59,7 @@ module QuickCheckVEngine.RVFI_DII.RVFI (
 , rvfiReadDataPacketWithMagic
 , rvfiReadV1Response
 , rvfiReadV2Response
+, rvfiShowPacket
 , rvfi_rd_wdata_or_zero
 ) where
 
@@ -156,8 +157,17 @@ data RVFI_IntData = RVFI_IntData {
 , rvfi_rs2_rdata :: {-# UNPACK #-} !RV_WordXLEN
 , rvfi_rd_addr   :: {-# UNPACK #-} !RV_RegIdx
 , rvfi_rd_wdata  :: {-# UNPACK #-} !RV_WordXLEN
-  }
-  deriving (Show)
+}
+
+instance Show RVFI_IntData where
+  show tok =  (printf
+    "{RD: %02d, RWD: 0x%016x" (rvfi_rd_addr tok) (rvfi_rd_wdata tok)) ++
+    (if rvfi_rs1_addr tok /= 0 then
+      printf "RS1: %02d, RS1D: 0x%016x" (rvfi_rs1_addr tok) (rvfi_rs1_rdata tok)
+    else "") ++
+    (if rvfi_rs2_addr tok /= 0 then
+      printf "RS2: %02d, RS2D: 0x%016x" (rvfi_rs2_addr tok) (rvfi_rs2_rdata tok)
+    else "") ++ "}"
 
 data RVFI_MemAccessData = RVFI_MemAccessData {
  rvfi_mem_addr   :: {-# UNPACK #-} !RV_WordXLEN
@@ -188,7 +198,7 @@ connectionError (name, _) msg = do
 rvfiCheckMagicBytes :: BS.ByteString -> String -> ConnectionInfo -> IO ()
 rvfiCheckMagicBytes magicBytes expected conn = do
   let expBytes = C8.pack expected
-  connectionDebugMessage 3 conn ("read header magic bytes: " ++ show magicBytes)
+  connectionDebugMessage 4 conn ("read header magic bytes: " ++ show magicBytes)
   when (magicBytes /= expBytes) $
     connectionError conn ("received invalid data packet: got magic=" ++ show magicBytes ++ " but expected " ++ show expBytes)
   return ()
@@ -198,7 +208,7 @@ rvfiReadDataPacketWithMagic (reader, name, verbosity) size expectedMagic = do
   when (size < 8) $
     errorWithContext name ("Invalid packet size:" ++ show size)
   msg <- reader size
-  connectionDebugMessage 3 (name, verbosity) ("read packet: " ++ hexStr msg)
+  connectionDebugMessage 4 (name, verbosity) ("read packet: " ++ hexStr msg)
   let (magic, bytes) = BS.splitAt 8 msg
   rvfiCheckMagicBytes magic expectedMagic (name, verbosity)
   return bytes
@@ -208,14 +218,14 @@ type RVFIFeatures = Word64
 rvfiReadV2Response :: (Int64 -> IO BS.ByteString, String, Int) -> IO RVFI_Packet
 rvfiReadV2Response (reader, name, verbosity) = do
   let connInfo = (name, verbosity)
-  connectionDebugMessage 3 connInfo "reading V2 packet..."
+  connectionDebugMessage 4 connInfo "reading V2 packet..."
   headerBytes <- rvfiReadDataPacketWithMagic (reader, name, verbosity) 64 "trace-v2"
   let (traceSizeBytes, payloadBytes) = BS.splitAt 8 headerBytes
   let traceSize = runGet getWord64le traceSizeBytes
-  connectionDebugMessage 3 connInfo ("trace-v2 common payload bytes: " ++ hexStr payloadBytes)
+  connectionDebugMessage 4 connInfo ("trace-v2 common payload bytes: " ++ hexStr payloadBytes)
   -- Ensure that we read all bytes in the packet
   let (basicData, availableFeatures) = runGet (isolate 48 rvfiDecodeV2Header) payloadBytes
-  connectionDebugMessage 3 connInfo ("features: " ++ (printf "0x%016x" availableFeatures))
+  connectionDebugMessage 4 connInfo ("features: " ++ (printf "0x%016x" availableFeatures))
   (intData, rf1, numBytes1) <- rvfiMaybeReadIntData (reader, name, verbosity) availableFeatures
   (memData, rf2, numBytes2) <- rvfiMaybeReadMemData (reader, name, verbosity) rf1
   when (rf2 /= 0) $
@@ -316,7 +326,7 @@ rvfiDecodeMemData = do
 rvfiReadV1Response :: (Int64 -> IO BS.ByteString, String, Int) -> IO RVFI_Packet
 rvfiReadV1Response (reader, name, verbosity) = do
   msg <- reader 88
-  connectionDebugMessage 3 (name, verbosity) ("read packet: " ++ hexStr msg)
+  connectionDebugMessage 4 (name, verbosity) ("read packet: " ++ hexStr msg)
   -- Note: BS.reverse since the decode was written in BE order
   return $ runGet (isolate 88 rvfiDecodeV1Response) (BS.reverse msg)
 
@@ -390,11 +400,11 @@ rvfiEmptyHaltPacket = RVFI_Packet {
 instance Show RVFI_MemAccessData where
   show tok =
     printf
-      "MA: 0x%016x, MWD: %s, MWM: 0b%08b, MRD: %s, MRM: 0b%08b "
+      "MA: 0x%016x,%s MWM: 0b%08b,%s MRM: 0b%08b "
       (rvfi_mem_addr tok) -- MA
-      (printMemData wmask wdata) -- MWD
+      (if wmask /= 0 then printf " MWD: %s," (printMemData wmask wdata) else "") -- MWD
       wmask -- MWM
-      (printMemData rmask rdata) -- MRD
+      (if rmask /= 0 then printf " MRD: %s," (printMemData rmask rdata) else "") -- MRD
       rmask -- MRM
     where rmask = rvfi_mem_rmask tok
           rdata = toInteger . toNatural . rvfi_mem_rdata $ tok
@@ -406,12 +416,20 @@ instance Show RVFI_MemAccessData where
             | mask <= 65535 = printf "0x%032x" value
             | otherwise = printf "0x%064x" value
 
-instance Show RVFI_Packet where
-  show tok
+rvfiShowPacket :: RVFI_Packet -> Int -> String
+rvfiShowPacket tok verbosity
     | rvfiIsHalt tok = "halt token"
+    | verbosity > 3 =
+      (printf "O:%d Trap: %5s, PCRD: 0x%016x PCWD: 0x%016x, I: 0x%08x %s XL:%s"
+              (rvfi_order tok) (show $ rvfi_trap tok /= 0) (rvfi_pc_rdata tok)
+              (rvfi_pc_wdata tok) (rvfi_insn tok) (privString (rvfi_mode tok))
+              (xlenString (rvfi_ixl tok))) ++
+      " INT=" ++ (maybe "N/A" show $ rvfi_int_data tok) ++
+      " MEM=" ++ (maybe "N/A" show $ rvfi_mem_data tok) ++
+      " # " ++ (rv_pretty (MkInstruction (toInteger (rvfi_insn tok))) (rvfi_ixl tok))
     | otherwise =
       printf
-        "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, %sI: 0x%016x %s XL:%s (%s)"
+        "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, %sI: 0x%08x %s XL:%s (%s)"
         (show $ rvfi_trap tok /= 0) -- Trap
         (rvfi_pc_wdata tok) -- PCWD
         (maybe 0 rvfi_rd_addr $ rvfi_int_data tok) -- RD
@@ -509,15 +527,15 @@ assertCheck is64 x asserts
 -- | Compare 2 'RVFI_Packet's and produce a 'String' output displaying the
 --   the content of the packet once only for equal inputs or the content of
 --   each input 'RVFI_Packet' if inputs are not succeeding the 'rvfiCheck'
-rvfiCheckAndShow :: Bool -> Bool -> Bool -> Maybe RVFI_Packet -> Maybe RVFI_Packet -> [(RVFI_Packet -> Bool, String, Integer, String)] -> (Bool, String)
-rvfiCheckAndShow pedantic singleImp is64 x y asserts
-  | singleImp, Just x' <- x, assertFails <- assertCheck is64 x' asserts = (null assertFails,  "     " ++ show x' ++ (suffix assertFails))
-  | Just x' <- x, Just y' <- y, isNothing (rvfiCheck pedantic is64 x' y'),  assertFails <- assertCheck is64 y' asserts = (null assertFails,  "     " ++ show x' ++ (suffix assertFails))
+rvfiCheckAndShow :: Bool -> Bool -> Bool -> Int -> Maybe RVFI_Packet -> Maybe RVFI_Packet -> [(RVFI_Packet -> Bool, String, Integer, String)] -> (Bool, String)
+rvfiCheckAndShow pedantic singleImp is64 verbosity x y asserts
+  | singleImp, Just x' <- x, assertFails <- assertCheck is64 x' asserts = (null assertFails,  "     " ++ rvfiShowPacket x' verbosity ++ (suffix assertFails))
+  | Just x' <- x, Just y' <- y, isNothing (rvfiCheck pedantic is64 x' y'),  assertFails <- assertCheck is64 y' asserts = (null assertFails,  "     " ++ rvfiShowPacket x' verbosity ++ (suffix assertFails))
   | Just x' <- x, Just y' <- y, mismatch <- rvfiCheck pedantic is64 x' y' =
     (False, unpack (Diff.pretty (def {Diff.separatorText = Just . pack $ "^ A, B v: " ++ fromJust mismatch})
-         (pack $ "     " ++ show x' ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x))
-         (pack $ "     " ++ show y' ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))))
-  | otherwise = (False,      " A < " ++ maybe "No report received" show x ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x)
-                        ++ "\n B > " ++ maybe "No report received" show y ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))
+         (pack $ "     " ++ rvfiShowPacket x' verbosity ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x))
+         (pack $ "     " ++ rvfiShowPacket y' verbosity ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))))
+  | otherwise = (False,      " A < " ++ maybe "No report received" (flip rvfiShowPacket verbosity) x ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x)
+                        ++ "\n B > " ++ maybe "No report received" (flip rvfiShowPacket verbosity) y ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))
     where suffix assertFails = foldr (\(_,f,v,_) acc -> printf "%s (assert %s == 0x%x)" acc f v) "" asserts
                                ++ foldl (\x y -> x ++ "\n       " ++ y) "" assertFails

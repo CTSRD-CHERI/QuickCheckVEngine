@@ -280,15 +280,16 @@ main = withSocketsDo $ do
   -- parse command line arguments
   rawArgs <- getArgs
   (flags, _) <- commandOpts rawArgs
-  when (optVerbosity flags > 1) $ print flags
+  let verbosity = optVerbosity flags
+  when (verbosity > 1) $ print flags
   let checkRegex incReg excReg str = (str =~ (fromMaybe ".*" incReg)) && (not $ str =~ fromMaybe "a^" excReg)
   let archDesc = arch flags
   let csrFilter idx = checkRegex (csrIncludeRegex flags) (csrExcludeRegex flags) (fromMaybe "reserved" $ csrs_nameFromIndex idx)
   let testParams = T.TestParams { T.archDesc  = archDesc
                                 , T.csrFilter = csrFilter }
   -- initialize model and implementation sockets
-  implA <- rvfiDiiOpen (impAIP flags) (impAPort flags) (optVerbosity flags) "implementation-A"
-  m_implB <- if optSingleImp flags then return Nothing else Just <$> rvfiDiiOpen (impBIP flags) (impBPort flags) (optVerbosity flags) "implementation-B"
+  implA <- rvfiDiiOpen (impAIP flags) (impAPort flags) verbosity "implementation-A"
+  m_implB <- if optSingleImp flags then return Nothing else Just <$> rvfiDiiOpen (impBIP flags) (impBPort flags) verbosity "implementation-B"
 
   addrInstr <- mapM (resolve "127.0.0.1") (instrPort flags)
   instrSoc <- mapM (open "instruction-generator-port") addrInstr
@@ -308,9 +309,9 @@ main = withSocketsDo $ do
               p _ = True
   let askAndSave sourceFile contents m_trace testTrans = do
         writeFile "last_failure.S" ("# last failing test case:\n" ++ contents)
-        case m_trace of Just trace | optVerbosity flags > 0 -> do
+        case m_trace of Just trace | verbosity > 0 -> do
                           putStrLn "Replaying shrunk failed test case:"
-                          checkSingle (testTrans trace) 2 False (testLen flags) (const $ return ())
+                          checkSingle (testTrans trace) 3 False (testLen flags) (const $ return ())
                           return ()
                         _ -> return ()
         when (optSave flags) $ do
@@ -334,12 +335,12 @@ main = withSocketsDo $ do
       saveOnFail sourceFile test testTrans = runImpls implA m_implB alive (timeoutDelay flags) 0 Nothing test onTrace onDeath onDeath
         where onDeath test = do putStrLn "Failure rerunning test"
                                 askAndSave sourceFile (show test) Nothing testTrans
-              onTrace trace = askAndSave sourceFile (showAnnotatedTrace (isNothing m_implB) archDesc trace) (Just trace) testTrans
+              onTrace trace = askAndSave sourceFile (showAnnotatedTrace (isNothing m_implB) archDesc verbosity trace) (Just trace) testTrans
   let checkTrapAndSave sourceFile test = saveOnFail sourceFile test (check_mcause_on_trap :: Test TestResult -> Test TestResult)
-  let checkResult = if optVerbosity flags > 1 then verboseCheckWithResult else quickCheckWithResult
+  let checkResult = if verbosity > 1 then verboseCheckWithResult else quickCheckWithResult
   let checkGen gen remainingTests =
-        checkResult (Args Nothing remainingTests 1 (testLen flags) (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
-                    (prop implA m_implB alive (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) (optVerbosity flags) (if (optSaveAll flags) then (saveDir flags) else Nothing) (optIgnoreAsserts flags) (optStrict flags) gen)
+        checkResult (Args Nothing remainingTests 1 (testLen flags) (verbosity > 0) (if optShrink flags then 1000 else 0))
+                    (prop implA m_implB alive (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) verbosity (if (optSaveAll flags) then (saveDir flags) else Nothing) (optIgnoreAsserts flags) (optStrict flags) gen)
   failuresRef <- newIORef 0
   let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
         | skipped == 0 = do putStrLn $ "Reading trace from " ++ fileName
@@ -348,7 +349,7 @@ main = withSocketsDo $ do
                               Just memInit -> do putStrLn $ "Reading memory initialisation from file " ++ memInit
                                                  readDataFile testParams memInit
                               Nothing -> return mempty
-                            res <- checkSingle (wrapTest $ initTrace <> trace) (optVerbosity flags) (optShrink flags) (testLen flags) (checkTrapAndSave (Just fileName))
+                            res <- checkSingle (wrapTest $ initTrace <> trace) verbosity (optShrink flags) (testLen flags) (checkTrapAndSave (Just fileName))
                             case res of Failure {} -> do putStrLn "Failure."
                                                          modifyIORef failuresRef (1 +)
                                                          unless (optContinueOnFail flags) $ writeIORef alive False

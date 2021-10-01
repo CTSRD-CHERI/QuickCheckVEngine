@@ -86,7 +86,7 @@ instance {-# OVERLAPPING #-} Show (Test TestResult) where
 
 showTraceInput t = show ((\(x, _, _) -> x) <$> t)
 
-showAnnotatedTrace singleImp arch t = showTestWithComments t (\(x, _, _) -> show x) (\(_, a, b) -> Just . unlines . (("# " ++) <$>) . lines . (\(a, b) -> b) $ rvfiCheckAndShow True singleImp (has_xlen_64 arch) a b [])
+showAnnotatedTrace singleImp arch verbosity t = showTestWithComments t (\(x, _, _) -> show x) (\(_, a, b) -> Just . unlines . (("# " ++) <$>) . lines . (\(a, b) -> b) $ rvfiCheckAndShow True singleImp (has_xlen_64 arch) verbosity a b [])
 
 bypassShrink :: ShrinkStrategy
 bypassShrink = sequenceShrink f'
@@ -197,7 +197,7 @@ prop connA m_connB alive onFail arch delay verbosity saveDir ignoreAsserts stric
         colourRed = "\ESC[31m"
         colourEnd = "\ESC[0m"
         colourise (b, s) = (b, (if b then colourGreen else colourRed) ++ s ++ colourEnd)
-        diffFunc asserts (DII_Instruction _ _, a, b) = colourise $ rvfiCheckAndShow strict (isNothing m_connB) (has_xlen_64 arch) a b asserts
+        diffFunc asserts (DII_Instruction _ _, a, b) = colourise $ rvfiCheckAndShow strict (isNothing m_connB) (has_xlen_64 arch) verbosity a b asserts
         diffFunc _ (DII_End _, _, _) = (True, "Test end")
         diffFunc _ _ = (True, "")
         handleAsserts (ReportAssert False s, _) = do putStrLn $ "Failed assert: " ++ s
