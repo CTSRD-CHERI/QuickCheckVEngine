@@ -98,7 +98,7 @@ gen_rv64_i_cache :: Template
 gen_rv64_i_cache = gen_cache False True True False
 
 gen_rv32_Xcheri_cache :: Template
-gen_rv32_Xcheri_cache = gen_cache False True False True
+gen_rv32_Xcheri_cache = gen_cache False False False True
 
 gen_rv64_Xcheri_cache :: Template
 gen_rv64_Xcheri_cache = gen_cache False False True True
@@ -136,17 +136,17 @@ gen_cache has_a has_zifencei has_xlen_64 has_caplen = Random $
 
      aq       <- bits 1
      rl       <- bits 1
-     offseta  <- elements [1, 4, 16, 64, 65]
-     offsetb  <- elements [1, 4, 16, 64, 65]
-     offsetc  <- elements [1, 4, 16, 64, 65]
-     upperIa  <- elements [0x40000, 0x40100, 0x40200, 0x40300, 0x40400, 0x40500]
-     upperIb  <- elements [0x40000, 0x40100, 0x40200, 0x40300, 0x40400, 0x40500]
-     upperIc  <- elements [0x40000, 0x40100, 0x40200, 0x40300, 0x40400, 0x40500]
+     offseta  <- elements [0, 8, 16, 64]
+     offsetb  <- elements [0, 8, 16, 64]
+     offsetc  <- elements [0, 8, 16, 64]
+     upperIa  <- elements [0x40000, 0x40080, 0x40100, 0x40180, 0x40200, 0x40280]
+     upperIb  <- elements [0x40000, 0x40080, 0x40100, 0x40180, 0x40200, 0x40280]
+     upperIc  <- elements [0x40000, 0x40080, 0x40100, 0x40180, 0x40200, 0x40280]
      let prologue_list = [ lui 1 upperIa
                          , slli 1 1 1
                          , addi 1 1 offseta
                          , lui 2 upperIb
-                         , slli 2 2 2
+                         , slli 2 2 1
                          , addi 2 2 offsetb
                          , lui 3 upperIc
                          , slli 3 3 1
@@ -167,11 +167,11 @@ gen_cache has_a has_zifencei has_xlen_64 has_caplen = Random $
                                    src2 <- elements [1, 2, 3]
                                    return $ uniformTemplate $ rv64_i_store src1 src2 0)] | has_xlen_64]
               ++ [[(2, Random $ do srcAddr <- elements [1, 2, 3]
-                                   return $ instSeq [ lq 13 srcAddr 0,
+                                   return $ instSeq [ (if has_xlen_64 then lq else ld) 13 srcAddr 0,
                                                       cgettag 13 13])
                   ,(2, Random $ do srcData <- elements [1, 2, 3, 4, 5]
                                    srcAddr <- elements [1, 2, 3]
-                                   return $ Single $ sq srcAddr srcData 0)] | has_caplen]
+                                   return $ Single $ (if has_xlen_64 then sq else sd) srcAddr srcData 0)] | has_caplen]
      let prologue = instSeq prologue_list
      return $ prologue
               <> replicateTemplate (size - length prologue_list - 1)
