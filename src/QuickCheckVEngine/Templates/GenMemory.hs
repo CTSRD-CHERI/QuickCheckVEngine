@@ -45,6 +45,8 @@ module QuickCheckVEngine.Templates.GenMemory (
 , gen_rv64_i_cache
 , gen_rv32_Xcheri_cache
 , gen_rv64_Xcheri_cache
+, gen_rv32_zifencei_Xcheri_cache
+, gen_rv64_zifencei_Xcheri_cache
 , gen_pte_perms
 , gen_pte_trans_core
 , gen_pte_trans
@@ -102,6 +104,12 @@ gen_rv32_Xcheri_cache = gen_cache False False False True
 
 gen_rv64_Xcheri_cache :: Template
 gen_rv64_Xcheri_cache = gen_cache False False True True
+
+gen_rv32_zifencei_Xcheri_cache :: Template
+gen_rv32_zifencei_Xcheri_cache = gen_cache False True False True
+
+gen_rv64_zifencei_Xcheri_cache :: Template
+gen_rv64_zifencei_Xcheri_cache = gen_cache False True True True
 
 gen_memory :: Bool -> Bool -> Bool -> Bool -> Template
 gen_memory has_a has_zifencei has_xlen_64 has_caplen = Random $
