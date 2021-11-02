@@ -70,8 +70,11 @@ gen_cheri_a = Random $ do
   addr <- elements [0x80000000, 0x80001000, 0x80004000]
   return $ (NoShrink $ li64 addrReg addr)
            <>
-           Sequence [ NoShrink $ Single $ fence_i -- fence
-                    , Single $ cload dataReg addrReg 0x14 -- lr.q.ddc
-                    , Single $ cstore dataReg addrReg 0x14 -- sc.q.ddc
+           Sequence [ switchEncodingMode
+                    , NoShrink $ Single $ fence_i -- fence
+                    --, Single $ cload dataReg addrReg 0x14 -- lr.q.ddc
+                    --, Single $ cstore dataReg addrReg 0x14 -- sc.q.ddc
+                    , Single $ lr_q dataReg addrReg 0 0
+                    , Single $ sc_q dataReg addrReg dataReg 0 0
                     , NoShrink $ Single $ fence_i -- fence
                     , Single $ cload dataReg addrReg 0x17 ] -- lq.ddc

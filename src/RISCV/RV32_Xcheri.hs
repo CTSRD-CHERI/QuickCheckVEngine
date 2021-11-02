@@ -91,6 +91,9 @@ module RISCV.RV32_Xcheri (
 , cstore
 , lq
 , sq
+, lr_q
+, sc_q
+, amoswap_q
 -- * RISC-V CHERI, others
 , rv32_xcheri_disass
 , rv32_xcheri_extract
@@ -104,7 +107,7 @@ module RISCV.RV32_Xcheri (
 , rv32_xcheri_control
 ) where
 
-import RISCV.Helpers (reg, int, prettyR, prettyI, prettyL, prettyS, prettyR_2op, ExtractedRegs)
+import RISCV.Helpers (reg, int, prettyR, prettyI, prettyL, prettyS, prettyR_2op, prettyR_A_1op, prettyR_A, ExtractedRegs)
 import InstrCodec (DecodeBranch, (-->), encode)
 import RISCV.RV32_I
 
@@ -209,6 +212,12 @@ lq_raw                             =                                        "imm
 lq cd rs1 imm                      = encode lq_raw                           imm       rs1          cd
 sq_raw                             =                                        "imm[11:5] cs2[4:0] rs1[4:0] 100 imm[4:0] 0100011"
 sq rs1 cs2 imm                     = encode sq_raw                           imm       cs2      rs1
+lr_q_raw                           =                                        "00010 aq[0] rl[0]    00000 rs1[4:0] 100 rd[4:0] 0101111"
+lr_q rd rs1 aq rl                  = encode lr_q_raw                               aq    rl             rs1          rd
+sc_q_raw                           =                                        "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
+sc_q rd rs1 rs2 aq rl              = encode sc_q_raw                               aq    rl    rs2      rs1          rd
+amoswap_q_raw                      =                                        "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
+amoswap_q rd rs1 rs2 aq rl         = encode amoswap_q_raw                               aq    rl    rs2      rs1          rd
 
 -- | Pretty-print a capability load instruction
 prettyCLoad :: Integer -> Integer -> Integer -> String
@@ -342,7 +351,9 @@ rv32_xcheri_disass = [ cgetperm_raw                    --> prettyR_2op "cgetperm
                      , cgetflags_raw                   --> prettyR_2op "cgetflags"
                      , csetflags_raw                   --> prettyR "csetflags"
                      , sq_raw                          --> prettyS "sq"
-                     , lq_raw                          --> prettyL "lq" ]
+                     , lq_raw                          --> prettyL "lq"
+                     , lr_q_raw                        --> prettyR_A_1op "lr.q"
+                     , sc_q_raw                        --> prettyR_A "sc.q" ]
 
 extract_cspecialrw :: Integer -> Integer -> Integer -> ExtractedRegs
 extract_cspecialrw idx rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode cspecialrw_raw idx y z)
