@@ -212,9 +212,10 @@ allTests = [
            -- Note: no rv64 specific control flow instructions
            , ("muldiv",     "M Extension Verification",                               has_m,                                    const $ repeatTemplateTillEnd gen_rv32_m)
            , ("muldiv64",   "RV64 M Extension Verification",                          andPs [has_m, has_xlen_64],               const $ repeatTemplateTillEnd gen_rv64_m)
-           , ("atomic",     "A Extension Verification",                               has_a,                                    const $ repeatTemplateTillEnd gen_rv32_a)
+           , ("atomic",     "A Extension Verification",                               has_a,                                    \arch -> repeatTemplateTillEnd (gen_rv32_a $ has_cheri arch))
            , ("memAmo",     "AMO Memory Verification",                                has_a,                                    const $ repeatTemplateTillEnd gen_rv32_i_a_memory)
-           , ("atomic64",   "RV64 A Extension Verification",                          andPs [has_a, has_xlen_64],               const $ repeatTemplateTillEnd gen_rv64_a)
+           , ("atomic64",   "RV64 A Extension Verification",                          andPs [has_a, has_xlen_64],               \arch -> repeatTemplateTillEnd (gen_rv64_a $ has_cheri arch))
+           , ("capatomic",  "Xcheri A Extension Verification",                        andPs [has_a, has_xlen_64],               const $ repeatTemplateTillEnd gen_cheri_a)
            , ("memAmo64",   "RV64 AMO Memory Verification",                           andPs [has_a, has_xlen_64],               const $ repeatTemplateTillEnd gen_rv64_i_a_memory)
            , ("compressed", "C Extension Verification",                               has_c,                                    const $ repeatTemplateTillEnd gen_rv_c)
            , ("float",      "F Extension Verification",                               has_f,                                    const $ repeatTemplateTillEnd gen_rv32_f)

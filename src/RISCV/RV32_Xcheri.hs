@@ -100,6 +100,7 @@ module RISCV.RV32_Xcheri (
 , rv32_xcheri_arithmetic
 , rv32_xcheri_misc
 , rv32_xcheri_mem
+, rv32_a_xcheri
 , rv32_xcheri_control
 ) where
 
@@ -567,6 +568,31 @@ rv32_xcheri_mem    srcAddr srcData imm mop dest =
   --, sd          srcAddr srcData     imm
   --, lq     dest srcAddr dest        imm
   --, sq          srcAddr srcData     imm
+  ]
+
+-- | List of cheri memory instructions
+rv32_a_xcheri :: Integer -> Integer -> Integer -> [Integer]
+rv32_a_xcheri      srcAddr srcData dest =
+  [ cload  dest    srcAddr         0x10 -- lr.b.ddc
+  , cload  dest    srcAddr         0x11 -- lr.h.ddc
+  , cload  dest    srcAddr         0x12 -- lr.w.ddc
+  , cload  dest    srcAddr         0x13 -- lr.d.ddc
+  , cload  dest    srcAddr         0x14 -- lr.q.ddc
+  , cload  dest    srcAddr         0x18 -- lr.b.cap
+  , cload  dest    srcAddr         0x19 -- lr.h.cap
+  , cload  dest    srcAddr         0x1a -- lr.w.cap
+  , cload  dest    srcAddr         0x1b -- lr.d.cap
+  , cload  dest    srcAddr         0x1c -- lr.q.cap
+  , cstore         srcData srcAddr 0x10 -- sc.b.ddc
+  , cstore         srcData srcAddr 0x11 -- sc.h.ddc
+  , cstore         srcData srcAddr 0x12 -- sc.w.ddc
+  , cstore         srcData srcAddr 0x13 -- sc.d.ddc
+  , cstore         srcData srcAddr 0x14 -- sc.q.ddc
+  , cstore         srcData srcAddr 0x18 -- sc.b.cap
+  , cstore         srcData srcAddr 0x19 -- sc.h.cap
+  , cstore         srcData srcAddr 0x1a -- sc.w.cap
+  , cstore         srcData srcAddr 0x1b -- sc.d.cap
+  , cstore         srcData srcAddr 0x1c -- sc.q.cap
   ]
 
 -- | List of cheri instructions

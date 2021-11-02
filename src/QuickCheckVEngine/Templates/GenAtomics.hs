@@ -34,21 +34,25 @@
 module QuickCheckVEngine.Templates.GenAtomics (
   gen_rv32_a
 , gen_rv64_a
+, gen_cheri_a
 ) where
 
+import Test.QuickCheck
+import RISCV
 import RISCV.RV32_A
 import RISCV.RV64_A
+import RISCV.RV32_Xcheri
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
-gen_rv32_a :: Template
-gen_rv32_a = genAtomics False
+gen_rv32_a :: Bool -> Template
+gen_rv32_a has_cap = genAtomics False has_cap
 
-gen_rv64_a :: Template
-gen_rv64_a = genAtomics True
+gen_rv64_a :: Bool -> Template
+gen_rv64_a has_cap = genAtomics True has_cap
 
-genAtomics :: Bool -> Template
-genAtomics has_xlen_64 = Random $ do
+genAtomics :: Bool -> Bool -> Template
+genAtomics has_xlen_64 has_cap = Random $ do
   aq   <- bits 1
   rl   <- bits 1
   src1 <- src
@@ -56,4 +60,18 @@ genAtomics has_xlen_64 = Random $ do
   dest <- dest
   let insts = rv32_a src1 src2 dest aq rl
               ++ if has_xlen_64 then rv64_a src1 src2 dest aq rl else []
+              ++ if has_cap then rv32_a_xcheri src1 src2 dest else []
   return $ uniformTemplate insts
+
+gen_cheri_a :: Template
+gen_cheri_a = Random $ do
+  let addrReg = 2
+  let dataReg = 1
+  addr <- elements [0x80000000, 0x80001000, 0x80004000]
+  return $ (NoShrink $ li64 addrReg addr)
+           <>
+           Sequence [ NoShrink $ Single $ fence_i -- fence
+                    , Single $ cload dataReg addrReg 0x14 -- lr.q.ddc
+                    , Single $ cstore dataReg addrReg 0x14 -- sc.q.ddc
+                    , NoShrink $ Single $ fence_i -- fence
+                    , Single $ cload dataReg addrReg 0x17 ] -- lq.ddc
