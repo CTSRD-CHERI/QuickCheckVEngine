@@ -68,7 +68,7 @@ import QuickCheckVEngine.RVFI_DII
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
--- | Turns a file representation of some data into a 'TestCase' that initializes
+-- | Turns a file representation of some data into a 'Test' that initializes
 --   memory with that data.
 --   Format:
 --   0xADDR0 0xDATA 0xDATA 0xDATA...
@@ -76,17 +76,17 @@ import QuickCheckVEngine.Templates.Utils
 --   Example:
 --   80000000 13050000 ef008014 13051000 ef000014
 --   80000010 13052000 ef008013 13053000 ef000013
-readDataFile :: FilePath -> IO TestCase
+readDataFile :: FilePath -> IO (Test Integer)
 readDataFile inFile = do
   handle <- openFile inFile ReadMode
   contents <- hGetContents handle
-  testCase <- generate $ readData (lines contents)
-  putStrLn $ show (testCaseInstCount testCase)
-  return testCase
-  where readData ss = genTemplateUnsized $
-          Sequence (map (\(addr:ws) -> writeData addr ws) write_args)
+  test <- generate $ readData (lines contents)
+  putStrLn $ show (length test)
+  return test
+  where readData ss = genTest $
+          sequenceTemplate (map (\(addr:ws) -> writeData addr ws) write_args)
           <> (li64 1 0x80000000)
-          <> (Single $ jalr 0 1 0)
+          <> (inst $ jalr 0 1 0)
           where write_args = map (map (fst . head . readHex) . words) ss
 
 -- | Retrieve an instruction from 'Socket' to an external instruction server
@@ -112,17 +112,17 @@ zipWithPadding a b c f = go
     go (x:xs) (y:ys) []     = f x y c : go xs ys []
     go (x:xs) (y:ys) (z:zs) = f x y z : go xs ys zs
 
--- | The core QuickCheck property sending the 'TestCase' to the tested RISC-V
+-- | The core QuickCheck property sending the 'Test' to the tested RISC-V
 --   implementations as 'DII_Packet's and checking the returned 'RVFI_Packet's
 --   for equivalence. It receives among other things a callback function
---   'TestCase -> IO ()' to be performed on failure that takes in the reduced
---   'TestCase' which caused the failure
-prop :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> (TestCase -> IO ())
-     -> ArchDesc -> Int -> Int -> Bool -> Gen TestCase -> Property
+--   'Test -> IO ()' to be performed on failure that takes in the reduced
+--   'Test' which caused the failure
+prop :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> (Test Integer -> IO ())
+     -> ArchDesc -> Int -> Int -> Bool -> Gen (Test Integer) -> Property
 prop connA connB alive onFail arch delay verbosity ignoreAsserts gen =
   forAllShrink gen shrink mkProp
-  where mkProp testCase = whenFail (onFail testCase) (doProp testCase)
-        doProp testCase = monadicIO $ run $ do
+  where mkProp test = whenFail (onFail test) (doProp test)
+        doProp test = monadicIO $ run $ do
           let (rawInsts, asserts) = fromTestCase testCase
           let instTrace = map diiInstruction (map fst rawInsts)
           let insts = instTrace ++ [diiEnd]

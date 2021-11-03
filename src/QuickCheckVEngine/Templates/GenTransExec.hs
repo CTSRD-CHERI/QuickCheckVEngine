@@ -59,7 +59,7 @@ import QuickCheckVEngine.Templates.GenMemory
 import Data.Bits
 
 genDataSCCTorture :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
-genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = Random $ do
+genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = randomTemplate $ do
   srcAddr  <- src
   srcData  <- src
   dest     <- dest
@@ -72,15 +72,15 @@ genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = Random $ do
   src1     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   src2     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   let rv32_xcheri_misc_alt = filter (/= (cspecialrw tmpReg csrAddr src1)) (rv32_xcheri_misc src1 src2 csrAddr imm tmpReg)
-  return $  (Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic src1 src2 imm tmpReg)
-                          , (1, uniformTemplate $ rv32_xcheri_misc_alt)
-                          , (1, Single $ cinvoke src2 src1)
-                          , (1, Single $ cload tmpReg tmpReg 0x08)
-                          ])
+  return $  (uniformTemplate [ instUniform $ rv32_xcheri_arithmetic src1 src2 imm tmpReg
+                             , instUniform $ rv32_xcheri_misc_alt
+                             , inst $ cinvoke src2 src1
+                             , inst $ cload tmpReg tmpReg 0x08
+                             ])
 
 
 genSBC_Cond_1_Torture :: Template
-genSBC_Cond_1_Torture = Random $ do
+genSBC_Cond_1_Torture = randomTemplate $ do
   imm_rand      <- bits 12
   longImm_rand  <- bits 20
   fenceOp1      <- bits 3
@@ -99,16 +99,16 @@ genSBC_Cond_1_Torture = Random $ do
   let imm = (imm_rand `shiftR` 0x3) `shiftL` 0x3
   -- long immediate has to be divisible by 4
   let longImm = (longImm_rand `shiftR` 0x2) `shiftL` 0x2
-  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 imm tmpReg)
-                          , (1, uniformTemplate $ rv32_i_arith src1 src2 imm longImm tmpReg)
-                          , (1, uniformTemplate $ rv64_i_mem addrReg srcData dest imm)
-                          , (1, uniformTemplate $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2)
-                          , (1, Single $ jal zeroReg longImm)
-                          , (1, uniformTemplate $ rv32_xcheri_mem capsrc1 capsrc2 imm 0xb tmpReg)
-                          ])
+  return $ uniformTemplate [ instUniform $ rv64_i_arith src1 src2 imm tmpReg
+                           , instUniform $ rv32_i_arith src1 src2 imm longImm tmpReg
+                           , instUniform $ rv64_i_mem addrReg srcData dest imm
+                           , instUniform $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2
+                           , inst $ jal zeroReg longImm
+                           , instUniform $ rv32_xcheri_mem capsrc1 capsrc2 imm 0xb tmpReg
+                           ]
 
 genSBC_Jumps_Torture :: Template
-genSBC_Jumps_Torture = Random $ do
+genSBC_Jumps_Torture = randomTemplate $ do
   imm_branches <- bits 7
   longImm_jumps <- bits 8
   imm <- bits 12
@@ -122,14 +122,14 @@ genSBC_Jumps_Torture = Random $ do
   let retReg = 1
   dest_jumps <- frequency [ (1, return zeroReg), (1, return retReg) ]
   let regJump = 10
-  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
-                          , (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
-                          , (1, uniformTemplate $ rv32_i_ctrl_jumps regJump dest_jumps imm_jumps longImm_jumps)
-                          , (1, uniformTemplate $ rv32_i_ctrl_branches src1 src2 imm_branches)
-                          ])
+  return $ uniformTemplate [ instUniform $ rv64_i_arith src1 src2 dest imm
+                           , instUniform $ rv32_i_arith src1 src2 dest imm longImm
+                           , instUniform $ rv32_i_ctrl_jumps regJump dest_jumps imm_jumps longImm_jumps
+                           , instUniform $ rv32_i_ctrl_branches src1 src2 imm_branches
+                           ]
 
 genSBC_Excps_Torture :: Integer -> Template
-genSBC_Excps_Torture tmpReg = Random $ do
+genSBC_Excps_Torture tmpReg = randomTemplate $ do
   imm <- bits 12
   longImm <- bits 20
   src1 <- sbcRegs
@@ -139,21 +139,21 @@ genSBC_Excps_Torture tmpReg = Random $ do
   let rm = 0x7 -- dynamic rounding mode
   let fenceOp1 = 17
   let fenceOp2 = 18
-  return $ (Distribution  [ (1, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
-                          , (1, uniformTemplate $ rv32_i_arith src1 src2 dest imm longImm)
-                          , (1, uniformTemplate $ rv64_i_mem src1 src2 dest imm)
-                          , (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
-                          , (1, uniformTemplate $ rv32_i_exc)
-                          , (1, uniformTemplate $ rv32_xcheri_mem src1 src2 imm 0xb tmpReg)
-                          , (1, uniformTemplate $ rv32_xcheri_arithmetic src1 src2 imm dest)
-                          , (1, uniformTemplate $ rv32_xcheri_inspection src1 dest)
-                          , (1, uniformTemplate $ rv32_f_macc src1 src2 src3 dest rm)
-                          , (1, uniformTemplate $ rv32_f_arith src1 src2 dest rm)
-                          ])
+  return $ uniformTemplate [ instUniform $ rv64_i_arith src1 src2 dest imm
+                           , instUniform $ rv32_i_arith src1 src2 dest imm longImm
+                           , instUniform $ rv64_i_mem src1 src2 dest imm
+                           , instUniform $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2
+                           , instUniform $ rv32_i_exc
+                           , instUniform $ rv32_xcheri_mem src1 src2 imm 0xb tmpReg
+                           , instUniform $ rv32_xcheri_arithmetic src1 src2 imm dest
+                           , instUniform $ rv32_xcheri_inspection src1 dest
+                           , instUniform $ rv32_f_macc src1 src2 src3 dest rm
+                           , instUniform $ rv32_f_arith src1 src2 dest rm
+                           ]
 
 
 genSTCTorture :: Template
-genSTCTorture = Random $ do
+genSTCTorture = randomTemplate $ do
   imm_bits <- bits 10
   longImm <- bits 20
   src1 <- choose(16,18)
@@ -163,16 +163,16 @@ genSTCTorture = Random $ do
   let fenceOp2 = 20
   let sstatus = 0x100
   let imm = (imm_bits `shiftR` 3) `shiftL` 3
-  let access_inst = (Distribution  [ (1, uniformTemplate $ rv64_i_mem src1 src2 dest imm)
-                                   , (1, uniformTemplate $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2)
-                                   ])
-  return $ Sequence [ access_inst
-                    , Single $ csrrs src2 sstatus 0
-                    , Single $ sret
-                    ]
+  let access_inst = uniformTemplate [ instUniform $ rv64_i_mem src1 src2 dest imm
+                                    , instUniform $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2
+                                    ]
+  return $ sequenceTemplate [ access_inst
+                            , inst $ csrrs src2 sstatus 0
+                            , inst $ sret
+                            ]
 
 prepareSBCExcpsGen :: Template
-prepareSBCExcpsGen = Random $ do
+prepareSBCExcpsGen = randomTemplate $ do
   let fcsr = 0x003
   let mstatus = 0x300
   let a0 = 10
@@ -184,27 +184,27 @@ prepareSBCExcpsGen = Random $ do
 
 
 setUpPageTable :: Template
-setUpPageTable = Random $ do
+setUpPageTable = randomTemplate $ do
   let a0 = 10
   let t0 = 6
-  return $ Sequence [ NoShrink( li64 a0 0x80002000)
-                    , NoShrink( li64 t0 0x20000c01)
-                    , NoShrink(Single $ sd a0 t0 0)
-                    , NoShrink( li64 t0 0x20000801)
-                    , NoShrink(Single $ sd a0 t0 16)
-                    , NoShrink( li64 a0 0x80003000)
-                    , NoShrink( li64 t0 0x2000004b)
-                    , NoShrink(Single $ sd a0 t0 0)
-                    , NoShrink( li64 t0 0x20000447)
-                    , NoShrink(Single $ sd a0 t0 8)
-                    , NoShrink( li64 t0 0x2000105b)
-                    , NoShrink(Single $ sd a0 t0 32)
-                    , NoShrink( li64 t0 0x20001457)
-                    , NoShrink(Single $ sd a0 t0 40)
-                    ]
+  return $ sequenceTemplate [ noShrink( li64 a0 0x80002000)
+                            , noShrink( li64 t0 0x20000c01)
+                            , noShrink(inst $ sd a0 t0 0)
+                            , noShrink( li64 t0 0x20000801)
+                            , noShrink(inst $ sd a0 t0 16)
+                            , noShrink( li64 a0 0x80003000)
+                            , noShrink( li64 t0 0x2000004b)
+                            , noShrink(inst $ sd a0 t0 0)
+                            , noShrink( li64 t0 0x20000447)
+                            , noShrink(inst $ sd a0 t0 8)
+                            , noShrink( li64 t0 0x2000105b)
+                            , noShrink(inst $ sd a0 t0 32)
+                            , noShrink( li64 t0 0x20001457)
+                            , noShrink(inst $ sd a0 t0 40)
+                            ]
 
 prepareSTCGen :: Template
-prepareSTCGen = Random $ do
+prepareSTCGen = randomTemplate $ do
   let s0 = 8
   let s1 = 9
   let s2 = 18
@@ -261,7 +261,7 @@ prepareSTCGen = Random $ do
                    , (sret)
                    ]
 
-gen_data_scc_verify = Random $ do
+gen_data_scc_verify = randomTemplate $ do
   let capReg = 1
   let tmpReg0 = 30
   let tmpReg1 = 31
@@ -272,37 +272,37 @@ gen_data_scc_verify = Random $ do
   let hpmEventIdx_dcache_miss = 0x31
   let hpmCntIdx = 3
   size <- getSize
-  return $ Sequence [ NoShrink (makeCap capReg  authReg tmpReg1 0x80010000     8 0)
-                    , NoShrink (makeCap bitsReg authReg tmpReg1 0x80014000 0x100 0)
-                    , NoShrink (Single $ csealentry sldReg bitsReg)
-                    , NoShrink (Single $ candperm nopermReg bitsReg 0)
-                    , NoShrink (Single $ ccleartag bitsReg bitsReg)
-                    , NoShrink (Single $ lw tmpReg1 capReg 0)
-                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) (genDataSCCTorture capReg tmpReg1 bitsReg sldReg nopermReg authReg)) tmpReg0 hpmCntIdx Nothing
-                    , NoShrink (SingleAssert (addi tmpReg0 tmpReg0 0) 0)
-                    ]
+  return $ sequenceTemplate [ noShrink (makeCap capReg  authReg tmpReg1 0x80010000     8 0)
+                            , noShrink (makeCap bitsReg authReg tmpReg1 0x80014000 0x100 0)
+                            , noShrink (inst $ csealentry sldReg bitsReg)
+                            , noShrink (inst $ candperm nopermReg bitsReg 0)
+                            , noShrink (inst $ ccleartag bitsReg bitsReg)
+                            , noShrink (inst $ lw tmpReg1 capReg 0)
+                            , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (size - 100) (genDataSCCTorture capReg tmpReg1 bitsReg sldReg nopermReg authReg)) tmpReg0 hpmCntIdx Nothing
+                            , noShrink (assertSingle (addi tmpReg0 tmpReg0 0) 0)
+                            ]
 
 
 
 genJump :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
-genJump memReg reg0 reg1 reg2 imm offset = Random $ do
+genJump memReg reg0 reg1 reg2 imm offset = randomTemplate $ do
   let czero = 0
   let ra = 1
-  return $ instSeq [ (cjalr ra reg1)
-                   , (cjalr czero ra)
+  return $ instSeq [ cjalr ra reg1
+                   , cjalr czero ra
                    ]
 
 genInstSCC :: Integer -> Integer -> Integer -> Integer -> Template
-genInstSCC memReg reg0 reg1 reg2 = Random $ do
+genInstSCC memReg reg0 reg1 reg2 = randomTemplate $ do
   let czero = 0
-  return $ (Distribution [ (1, Single $ (cjalr czero reg0))
-                         , (2, Single $ (add 29 29 29))
-                         , (1, Single $ (cload reg1 reg2 0x8))
-                         , (1, Single $ (auipc reg2 0))
-                         ])
+  return $ instDist [ (1, cjalr czero reg0)
+                    , (2, add 29 29 29)
+                    , (1, cload reg1 reg2 0x8)
+                    , (1, auipc reg2 0)
+                    ]
 
 -- | Verify instruction Speculative Capability Constraint (SCC)
-gen_inst_scc_verify = Random $ do
+gen_inst_scc_verify = randomTemplate $ do
   let hpmEventIdx_dcache_miss = 0x31
   let hpmCntIdx_dcache_miss = 3
   let rand = 7
@@ -323,56 +323,56 @@ gen_inst_scc_verify = Random $ do
   let reg1 = 24
   let reg2 = 25
   let mtcc = 28
-  let startSeq = Sequence [NoShrink (Single $ cjalr zeroReg startReg)]
+  let startSeq = noShrink (inst $ cjalr zeroReg startReg)
   let trainSeq = replicateTemplate (18) (genJump memReg tmpReg pccReg loadReg 0x20 0x0)
   let leakSeq = replicateTemplate (1) (genJump memReg2 tmpReg pccReg loadReg 0x20 0x100)
   let tortSeq = startSeq <> leakSeq
-  return $ Sequence [ NoShrink (switchEncodingMode)
-                    , NoShrink (Single $ cspecialrw authReg2 0 0) -- read PCC
-                    , NoShrink (makeCap_core jumpReg authReg2 tmpReg 0x80001000)
-                    , NoShrink (makeCap_core pccReg authReg2 tmpReg 0x80002000)
-                    , NoShrink (makeCap_core memReg authReg2 tmpReg 0x80007000)
-                    , NoShrink (makeCap_core memReg2 authReg2 tmpReg 0x80007100)
-                    , NoShrink (Single $ cmove startReg jumpReg)
-                    , NoShrink (Single $ cstore jumpReg memReg 0x0c)
-                    , NoShrink (Single $ cincoffsetimmediate tmpReg jumpReg 0x100)
-                    , NoShrink (Single $ ccleartag tmpReg tmpReg)
-                    , NoShrink (Single $ cstore tmpReg memReg2 0x0c)
-                    , NoShrink (Single $ cload tmpReg memReg2 0x1f)
-                    , startSeq
-                    , NoShrink (trainSeq)
-                    , NoShrink (Single $ cload tmpReg jumpReg 0x8)
-                    , NoShrink (Single $ cincoffsetimmediate tmpReg jumpReg 0x40)
-                    , NoShrink (Single $ cload tmpReg tmpReg 0x8)
-                    , NoShrink (Single $ cincoffsetimmediate tmpReg jumpReg 0x80)
-                    , NoShrink (Single $ cload tmpReg tmpReg 0x8)
-                    , NoShrink (Single $ cincoffsetimmediate tmpReg jumpReg 0xc0)
-                    , NoShrink (Single $ cload tmpReg tmpReg 0x8)
-                    , NoShrink (Single $ cincoffsetimmediate tmpReg jumpReg 0x100)
-                    , NoShrink (Single $ cload tmpReg tmpReg 0x8)
-                    , NoShrink (Single $ add pccReg zeroReg zeroReg)
-                    , NoShrink (Single $ cmove jumpReg startReg)
-                    -- zero out all sbcRegs
-                    , NoShrink (Single $ cmove 22 zeroReg)
-                    , NoShrink (Single $ cmove 23 zeroReg)
-                    , NoShrink (Single $ cmove 24 zeroReg)
-                    , NoShrink (Single $ cmove 25 zeroReg)
-                    , NoShrink (Single $ cmove 26 zeroReg)
-                    , NoShrink (Single $ cmove 27 zeroReg)
-                    , NoShrink (Single $ cmove 28 zeroReg)
-                    , NoShrink (Single $ cmove 29 zeroReg)
-                    , NoShrink (Single $ csetboundsimmediate jumpReg jumpReg 256)
-                    , NoShrink (Single $ csetboundsimmediate tmpReg startReg 256)
-                    , NoShrink (Single $ cspecialrw 0 mtcc jumpReg)
-                    , startSeq
-                    , NoShrink (Single $ fence 3 3) -- fence rw, rw
-                    , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (64)(genInstSCC memReg2 reg0 reg1 reg2)) counterReg hpmCntIdx_dcache_miss Nothing
-                    , NoShrink (SingleAssert (addi counterReg counterReg 0) 0)
-                    ]
+  return $ sequenceTemplate [ noShrink (switchEncodingMode)
+                            , noShrink (inst $ cspecialrw authReg2 0 0) -- read PCC
+                            , noShrink (makeCap_core jumpReg authReg2 tmpReg 0x80001000)
+                            , noShrink (makeCap_core pccReg authReg2 tmpReg 0x80002000)
+                            , noShrink (makeCap_core memReg authReg2 tmpReg 0x80007000)
+                            , noShrink (makeCap_core memReg2 authReg2 tmpReg 0x80007100)
+                            , noShrink (inst $ cmove startReg jumpReg)
+                            , noShrink (inst $ cstore jumpReg memReg 0x0c)
+                            , noShrink (inst $ cincoffsetimmediate tmpReg jumpReg 0x100)
+                            , noShrink (inst $ ccleartag tmpReg tmpReg)
+                            , noShrink (inst $ cstore tmpReg memReg2 0x0c)
+                            , noShrink (inst $ cload tmpReg memReg2 0x1f)
+                            , startSeq
+                            , noShrink (trainSeq)
+                            , noShrink (inst $ cload tmpReg jumpReg 0x8)
+                            , noShrink (inst $ cincoffsetimmediate tmpReg jumpReg 0x40)
+                            , noShrink (inst $ cload tmpReg tmpReg 0x8)
+                            , noShrink (inst $ cincoffsetimmediate tmpReg jumpReg 0x80)
+                            , noShrink (inst $ cload tmpReg tmpReg 0x8)
+                            , noShrink (inst $ cincoffsetimmediate tmpReg jumpReg 0xc0)
+                            , noShrink (inst $ cload tmpReg tmpReg 0x8)
+                            , noShrink (inst $ cincoffsetimmediate tmpReg jumpReg 0x100)
+                            , noShrink (inst $ cload tmpReg tmpReg 0x8)
+                            , noShrink (inst $ add pccReg zeroReg zeroReg)
+                            , noShrink (inst $ cmove jumpReg startReg)
+                            -- zero out all sbcRegs
+                            , noShrink (inst $ cmove 22 zeroReg)
+                            , noShrink (inst $ cmove 23 zeroReg)
+                            , noShrink (inst $ cmove 24 zeroReg)
+                            , noShrink (inst $ cmove 25 zeroReg)
+                            , noShrink (inst $ cmove 26 zeroReg)
+                            , noShrink (inst $ cmove 27 zeroReg)
+                            , noShrink (inst $ cmove 28 zeroReg)
+                            , noShrink (inst $ cmove 29 zeroReg)
+                            , noShrink (inst $ csetboundsimmediate jumpReg jumpReg 256)
+                            , noShrink (inst $ csetboundsimmediate tmpReg startReg 256)
+                            , noShrink (inst $ cspecialrw 0 mtcc jumpReg)
+                            , startSeq
+                            , noShrink (inst $ fence 3 3) -- fence rw, rw
+                            , surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (replicateTemplate (64)(genInstSCC memReg2 reg0 reg1 reg2)) counterReg hpmCntIdx_dcache_miss Nothing
+                            , noShrink (assertSingle (addi counterReg counterReg 0) 0)
+                            ]
 
 
 -- | Verify condition 1 of Speculative Branching Constraint (SBC)
-gen_sbc_cond_1_verify = Random $ do
+gen_sbc_cond_1_verify = randomTemplate $ do
   let tmpReg1 = 1
   let tmpReg2 = 2
   let tmpReg3 = 3
@@ -389,16 +389,16 @@ gen_sbc_cond_1_verify = Random $ do
   size <- getSize
   let inner_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (replicateTemplate (size - 100) ( (genSBC_Cond_1_Torture))) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))
   let outer_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_traps inner_hpm_access tmpReg4 hpmCntIdx_traps Nothing
-  return $ Sequence [ NoShrink ( (li64 addrReg addrVal))
-                    , NoShrink ( (makeCap capReg authReg tmpReg5 addrVal 0x10000 0))
-                    , outer_hpm_access
-                    , NoShrink (Single $ sub tmpReg3 tmpReg3 tmpReg2)
-                    , NoShrink (Single $ sub tmpReg1 tmpReg1 tmpReg3)
-                    , NoShrink (SingleAssert (sub tmpReg1 tmpReg1 tmpReg4) 2)
-                    ]
+  return $ sequenceTemplate [ noShrink ( (li64 addrReg addrVal))
+                            , noShrink ( (makeCap capReg authReg tmpReg5 addrVal 0x10000 0))
+                            , outer_hpm_access
+                            , noShrink (inst $ sub tmpReg3 tmpReg3 tmpReg2)
+                            , noShrink (inst $ sub tmpReg1 tmpReg1 tmpReg3)
+                            , noShrink (assertSingle (sub tmpReg1 tmpReg1 tmpReg4) 2)
+                            ]
 
 -- | Verify the jumping conditions of Speculative Branching Constraint (SBC)
-gen_sbc_jumps_verify = Random $ do
+gen_sbc_jumps_verify = randomTemplate $ do
   let zeroReg = 0
   let tmpReg = 21
   let regJump = 10
@@ -406,13 +406,13 @@ gen_sbc_jumps_verify = Random $ do
   let hpmCntIdx_wild_jumps = 3
   let hpmEventIdx_wild_jumps = 0x71
   size <- getSize
-  return $ Sequence [ NoShrink ((li64 regJump addrVal))
-                    , surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (replicateTemplate (size - 100) (genSBC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
-                    , NoShrink(SingleAssert (add tmpReg tmpReg zeroReg) 0)
-                    ]
+  return $ sequenceTemplate [ noShrink ((li64 regJump addrVal))
+                            , surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (replicateTemplate (size - 100) (genSBC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
+                            , noShrink(assertSingle (add tmpReg tmpReg zeroReg) 0)
+                            ]
 
 -- | Verify the exception conditions of Speculative Branching Constraint (SBC)
-gen_sbc_exceptions_verify = Random $ do
+gen_sbc_exceptions_verify = randomTemplate $ do
   let zeroReg = 0
   let capReg = 12
   let authReg = 13
@@ -423,16 +423,16 @@ gen_sbc_exceptions_verify = Random $ do
   let hpmCntIdx_wild_excps = 3
   let hpmEventIdx_wild_excps = 0x72
   size <- getSize
-  return $ Sequence [ NoShrink (prepareSBCExcpsGen)
-                    , NoShrink ((makeCap capReg authReg tmpReg addr 0x100 0))
-                    , NoShrink ((makeCap_core excReg authReg tmpReg 0x80000000))
-                    , NoShrink (Single $ cspecialrw 0 28 excReg)
-                    , surroundWithHPMAccess_core False hpmEventIdx_wild_excps (replicateTemplate (size - 100) (genSBC_Excps_Torture tmpReg)) counterReg hpmCntIdx_wild_excps Nothing
-                    , NoShrink(SingleAssert (add counterReg counterReg zeroReg) 0)
-                    ]
+  return $ sequenceTemplate [ noShrink (prepareSBCExcpsGen)
+                            , noShrink ((makeCap capReg authReg tmpReg addr 0x100 0))
+                            , noShrink ((makeCap_core excReg authReg tmpReg 0x80000000))
+                            , noShrink (inst $ cspecialrw 0 28 excReg)
+                            , surroundWithHPMAccess_core False hpmEventIdx_wild_excps (replicateTemplate (size - 100) (genSBC_Excps_Torture tmpReg)) counterReg hpmCntIdx_wild_excps Nothing
+                            , noShrink(assertSingle (add counterReg counterReg zeroReg) 0)
+                            ]
 
 -- | Verify Speculative Translation Constraint (STC)
-gen_stc_verify = Random $ do
+gen_stc_verify = randomTemplate $ do
   let lxReg = 1
   let addrReg = 2
   let tmpReg = 31
@@ -444,13 +444,13 @@ gen_stc_verify = Random $ do
   let hpmEventIdx_dcache_miss = 0x31
   let uepc = 0x041
   size <- getSize
-  return $ Sequence [ NoShrink(prepareSTCGen)
-                    , NoShrink(Single $ sfence 0 0)
-                    , NoShrink(li64 addrReg1 0x80001800)
-                    , NoShrink(li64 addrReg2 0x80012000)
-                    , NoShrink(li64 addrReg3 0x80008000)
-                    , NoShrink(Single $ csrrs tmpReg 0xc03 0)
-                    , (replicateTemplate (20) (genSTCTorture))
-                    , NoShrink(Single $ csrrs counterReg 0xc03 0)
-                    , NoShrink(SingleAssert (sub counterReg counterReg tmpReg) 0)
-                    ]
+  return $ sequenceTemplate [ noShrink(prepareSTCGen)
+                            , noShrink(inst $ sfence 0 0)
+                            , noShrink(li64 addrReg1 0x80001800)
+                            , noShrink(li64 addrReg2 0x80012000)
+                            , noShrink(li64 addrReg3 0x80008000)
+                            , noShrink(inst $ csrrs tmpReg 0xc03 0)
+                            , (replicateTemplate (20) (genSTCTorture))
+                            , noShrink(inst $ csrrs counterReg 0xc03 0)
+                            , noShrink(assertSingle (sub counterReg counterReg tmpReg) 0)
+                            ]

@@ -41,7 +41,7 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
 genAll :: ArchDesc -> Template
-genAll desc = Random $ do
+genAll desc = randomTemplate $ do
   imm     <- bits 12
   src1    <- src
   src2    <- src
@@ -60,36 +60,36 @@ genAll desc = Random $ do
   uimm    <- bits 5
   offset  <- memOffset
   srcScr  <- elements [28, 29, 30, 31]
-  let insts = [[ (8, uniformTemplate (rv32_i_arith src1 src2 dest imm longImm))
-               , (8, uniformTemplate (rv32_i_ctrl src1 src2 dest imm longImm))
-               , (8, uniformTemplate (rv32_i_mem src1 src2 dest offset fOp1 fOp2))
-               , (32, Single $ lui dest 0x80008)
+  let insts = [[ (8, instUniform (rv32_i_arith src1 src2 dest imm longImm))
+               , (8, instUniform (rv32_i_ctrl src1 src2 dest imm longImm))
+               , (8, instUniform (rv32_i_mem src1 src2 dest offset fOp1 fOp2))
+               , (32, inst $ lui dest 0x80008)
                ]]
-           ++ [[ (8, uniformTemplate (rv64_i_arith src1 src2 dest imm))
-               , (8, uniformTemplate (rv64_i_mem src1 src2 dest offset))
+           ++ [[ (8, instUniform (rv64_i_arith src1 src2 dest imm))
+               , (8, instUniform (rv64_i_mem src1 src2 dest offset))
                ] | has_xlen_64 desc]
-           ++ [[ (8, uniformTemplate (rv32_m src1 src2 imm))
+           ++ [[ (8, instUniform (rv32_m src1 src2 imm))
                ] | has_m desc]
-           ++ [[ (8, uniformTemplate (rv64_m src1 src2 imm))
+           ++ [[ (8, instUniform (rv64_m src1 src2 imm))
                ] | has_m desc && has_xlen_64 desc]
-           ++ [[ (8, uniformTemplate (rv32_a src1 src2 dest aq rl))
+           ++ [[ (8, instUniform (rv32_a src1 src2 dest aq rl))
                ] | has_a desc]
-           ++ [[ (8, uniformTemplate (rv64_a src1 src2 dest aq rl))
+           ++ [[ (8, instUniform (rv64_a src1 src2 dest aq rl))
                ] | has_a desc && has_xlen_64 desc]
-           ++ [[ (8, uniformTemplate (rv32_f src1 src2 src3 dest rm imm))
+           ++ [[ (8, instUniform (rv32_f src1 src2 src3 dest rm imm))
                ] | has_f desc]
-           ++ [[ (8, uniformTemplate (rv64_f src1 dest rm))
+           ++ [[ (8, instUniform (rv64_f src1 dest rm))
                ] | has_f desc && has_xlen_64 desc]
-           ++ [[ (8, uniformTemplate (rv32_d src1 src2 src3 dest rm imm))
+           ++ [[ (8, instUniform (rv32_d src1 src2 src3 dest rm imm))
                ] | has_d desc]
-           ++ [[ (8, uniformTemplate (rv64_d src1 dest rm))
+           ++ [[ (8, instUniform (rv64_d src1 dest rm))
                ] | has_d desc && has_xlen_64 desc]
-           ++ [[ (8, uniformTemplate rv32_zifencei)
+           ++ [[ (8, instUniform rv32_zifencei)
                ] | has_ifencei desc]
-           ++ [[ (8, uniformTemplate (rv32_zicsr src1 dest imm uimm))
+           ++ [[ (8, instUniform (rv32_zicsr src1 dest imm uimm))
                ] | has_icsr desc]
-           ++ [[ (8, uniformTemplate (rv32_xcheri src1 src2 srcScr imm mop dest))
+           ++ [[ (8, instUniform (rv32_xcheri src1 src2 srcScr imm mop dest))
                ] | has_cheri desc]
-  return $ (if has_f desc || has_d desc then NoShrink (fp_prologue desc)
+  return $ (if has_f desc || has_d desc then noShrink (fp_prologue desc)
                                         else mempty)
-            <> repeatTemplateTillEnd (Distribution $ concat insts)
+            <> repeatTemplateTillEnd (distTemplate $ concat insts)

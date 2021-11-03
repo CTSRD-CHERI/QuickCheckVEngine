@@ -48,7 +48,7 @@ gen_rv64_a :: Template
 gen_rv64_a = genAtomics True
 
 genAtomics :: Bool -> Template
-genAtomics has_xlen_64 = Random $ do
+genAtomics has_xlen_64 = randomTemplate $ do
   aq   <- bits 1
   rl   <- bits 1
   src1 <- src
@@ -56,4 +56,4 @@ genAtomics has_xlen_64 = Random $ do
   dest <- dest
   let insts = rv32_a src1 src2 dest aq rl
               ++ if has_xlen_64 then rv64_a src1 src2 dest aq rl else []
-  return $ uniformTemplate insts
+  return $ instUniform insts

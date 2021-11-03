@@ -111,31 +111,31 @@ writeHPMCounterM idx rs1 = csrw csrIdx rs1
 
 -- | Clear the provided HPM counter
 resetHPMCounterM :: Integer -> HPMCounterIdx -> Template
-resetHPMCounterM tmp idx = Sequence [ li32 tmpNonZero 0
-                                   , csrw csrIdx tmpNonZero ]
+resetHPMCounterM tmp idx = sequenceTemplate [ li32 tmpNonZero 0
+                                            , csrw csrIdx tmpNonZero ]
   where csrIdx = hpmcounter_idx_to_mcounter_csr_idx idx
         tmpNonZero = max 1 tmp
 
 -- | Clear the provided HPM counter
 resetHPMCounter :: Integer -> HPMCounterIdx -> Template
-resetHPMCounter tmp idx = Sequence [ li32 tmpNonZero 0
-                                   , csrw csrIdx tmpNonZero ]
+resetHPMCounter tmp idx = sequenceTemplate [ li32 tmpNonZero 0
+                                           , csrw csrIdx tmpNonZero ]
   where csrIdx = hpmcounter_idx_to_counter_csr_idx idx
         tmpNonZero = max 1 tmp
 
 
 surroundWithUHPMAccess_core :: Bool -> HPMEventIdx -> Template -> Integer -> Integer -> Template
-surroundWithUHPMAccess_core shrink evt x tmpReg hpmCntIdx = Random $ do
+surroundWithUHPMAccess_core shrink evt x tmpReg hpmCntIdx = randomTemplate $ do
   let prologue = resetHPMCounter tmpReg hpmCntIdx
   let epilogue = readHPMCounter  tmpReg hpmCntIdx
   return $ if shrink then prologue <> x <> epilogue
-                     else NoShrink prologue <> x <> epilogue
+                     else noShrink prologue <> x <> epilogue
 
 -- | 'surroundWithHPMAccess' wraps a 'Template' by setting up an HPM counter to
 --   count an event and before running the 'Template' and reading the HPM
 --   counter's value after
 surroundWithHPMAccess :: Template -> Template
-surroundWithHPMAccess x = Random $ do
+surroundWithHPMAccess x = randomTemplate $ do
   evt <- oneof $ map return hpmevent_indices
   hpmCntIdx <- oneof $ map return hpmcounter_indices
   tmpReg <- dest
@@ -145,20 +145,20 @@ surroundWithHPMAccess x = Random $ do
 
 surroundWithHPMAccess_core :: Bool -> HPMEventIdx -> Template -> Integer -> Integer -> Maybe (Integer, Integer)
                            -> Template
-surroundWithHPMAccess_core shrink evt x tmpReg hpmCntIdx instRet = Random $ do
+surroundWithHPMAccess_core shrink evt x tmpReg hpmCntIdx instRet = randomTemplate $ do
   let prologue =    inhibitHPMCounter tmpReg hpmCntIdx
                  <> setupHPMEventSel tmpReg hpmCntIdx evt
                  <> resetHPMCounterM tmpReg hpmCntIdx
-                 <> uniformTemplate [enableHPMCounterM tmpReg hpmCntIdx, Empty]
-                 <> uniformTemplate [enableHPMCounterS tmpReg hpmCntIdx, Empty]
+                 <> uniformTemplate [enableHPMCounterM tmpReg hpmCntIdx, emptyTemplate]
+                 <> uniformTemplate [enableHPMCounterS tmpReg hpmCntIdx, emptyTemplate]
                  <> triggerHPMCounter tmpReg hpmCntIdx
   let epilogue = uniformTemplate [ readHPMCounter  tmpReg hpmCntIdx
                                  , readHPMCounterM tmpReg hpmCntIdx ]
   return $ if shrink then prologue <> surroundWithHPMAccess_raw x instRet <> epilogue
-                     else NoShrink prologue <> surroundWithHPMAccess_raw x instRet <> NoShrink epilogue
+                     else noShrink prologue <> surroundWithHPMAccess_raw x instRet <> noShrink epilogue
 
 
 surroundWithHPMAccess_raw :: Template -> Maybe (Integer, Integer) -> Template
 surroundWithHPMAccess_raw x instRet = case (instRet) of
-  Just (reg1, reg2) -> ((NoShrink (csrr reg1 0xB02)) <> x <> (NoShrink (csrr reg2 0xB02)))
+  Just (reg1, reg2) -> ((noShrink (csrr reg1 0xB02)) <> x <> (noShrink (csrr reg2 0xB02)))
   Nothing -> x

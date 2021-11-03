@@ -40,7 +40,7 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
 gen_rv_c :: Template
-gen_rv_c = Random $ do
+gen_rv_c = randomTemplate $ do
   imm       <- genCompressed_imm
   uimm      <- genCompressed_uimm
   nzimm     <- genCompressed_nzimm
@@ -60,4 +60,4 @@ gen_rv_c = Random $ do
                    rs1' rs1'_rd' rs1_nz rs1_rd_nz
                    rs2 rs2' rs2_nz
                    rd rd' rd_nz rd_nz_n2
-  return $ Distribution [ (9, uniformTemplate insts), (1, prepReg32 rd) ]
+  return $ distTemplate [ (9, instUniform insts), (1, prepReg32 rd) ]
