@@ -100,7 +100,7 @@ module RISCV.RV_C (
 , rv_c
 ) where
 
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 c_illegal_raw           =                            "000                                          00000000      000 00"
 c_illegal               = encode c_illegal_raw
@@ -219,7 +219,7 @@ rv_c :: Integer -> Integer -> Integer -> Integer
      -> Integer -> Integer -> Integer -> Integer
      -> Integer -> Integer -> Integer
      -> Integer -> Integer -> Integer -> Integer
-     -> [Integer]
+     -> [Instruction]
 rv_c imm uimm nzimm nzuimm
      rs1' rs1'_rd' rs1_nz rs1_rd_nz
      rs2 rs2' rs2_nz

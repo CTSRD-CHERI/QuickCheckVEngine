@@ -43,9 +43,9 @@ import QuickCheckVEngine.Templates.Utils
 
 -- | 'randomTest' provides a 'Template' for a random test
 randomTest :: ArchDesc -> Template
-randomTest arch = Random $ do
+randomTest arch = random $ do
   temp <- genRandomTest arch
-  return $ if has_f arch || has_d arch then NoShrink (fp_prologue arch) <> temp
+  return $ if has_f arch || has_d arch then shrinkScope $ noShrink (fp_prologue arch) <> temp
                                        else temp
 
 -- 'genRandomTest' is the recursive helper to implement 'randomTest'
@@ -62,10 +62,10 @@ genRandomTest arch = do
   fenceOp2  <- (bits 4)
   csrAddr   <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
   thisNested <- resize (remaining `Prelude.div` 2) (genRandomTest arch)
-  let test = Distribution [ (if remaining > 10 then 1 else 0, legalLoad arch)
-                          , (if remaining > 10 then 1 else 0, legalStore arch )
-                          , (10, uniformTemplate $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) --TODO re-add csrs
-                          , (if remaining > 10 then 1 else 0, surroundWithMemAccess arch thisNested) ]
+  let test = dist [ (if remaining > 10 then 1 else 0, legalLoad arch)
+                  , (if remaining > 10 then 1 else 0, legalStore arch )
+                  , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) --TODO re-add csrs
+                  , (if remaining > 10 then 1 else 0, surroundWithMemAccess arch thisNested) ]
   if remaining > 10
     then do nextNested <- resize (remaining `Prelude.div` 2) (genRandomTest arch)
             return $ test <> nextNested

@@ -125,7 +125,7 @@ module RISCV.RV32_I (
 
 import RISCV.Helpers (prettyR, prettyI, prettyI_sig, prettyU, prettyU_jal, prettyB, prettyF
                      ,prettySfence, prettyS, prettyL, ExtractedRegs)
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 import Prelude hiding (and, or)
 
 add_raw          =                   "0000000 rs2[4:0] rs1[4:0] 000 rd[4:0] 0110011"
@@ -334,33 +334,33 @@ rv32_i_extract = [ add_raw    --> extract_2op add_raw
 --               , sfence_raw --> noextract
                  ]
 
-shrink_arith :: Integer -> Integer -> Integer -> [Integer]
+shrink_arith :: Integer -> Integer -> Integer -> [Instruction]
 shrink_arith rs2 rs1 rd = [addi rd 0 0, addi rd 0 1, addi rd 0 0xfff, addi rd rs1 0, addi rd rs2 0]
 
-shrink_addi :: Integer -> Integer -> Integer -> [Integer]
+shrink_addi :: Integer -> Integer -> Integer -> [Instruction]
 shrink_addi imm rs rd = if imm == 0 then [] else [addi rd rs 0]
 
-shrink_imm :: Integer -> Integer -> Integer -> [Integer]
+shrink_imm :: Integer -> Integer -> Integer -> [Instruction]
 shrink_imm imm rs rd = [addi rd 0 0, addi rd 0 1, addi rd rs imm, addi rd 0 imm, addi rd rs 0]
 
-shrink_uimm :: Integer -> Integer -> [Integer]
+shrink_uimm :: Integer -> Integer -> [Instruction]
 shrink_uimm uimm rd = [addi rd 0 0, addi rd 0 0xfff]
 
-shrink_branch :: Integer -> Integer -> Integer -> [Integer]
+shrink_branch :: Integer -> Integer -> Integer -> [Instruction]
 shrink_branch imm rs2 rs1 = [sltu 1 rs1 rs2 , sltu 1 rs2 rs1, slt 1 rs1 rs2, slt 1 rs2 rs1, jal 0 imm]
 
-shrink_load :: Integer -> Integer -> Integer -> [Integer]
+shrink_load :: Integer -> Integer -> Integer -> [Instruction]
 shrink_load imm rs rd = []
 --shrink_load imm rs rd = [ecall, addi rd 0 0]
 
-shrink_store :: Integer -> Integer -> Integer -> [Integer]
+shrink_store :: Integer -> Integer -> Integer -> [Instruction]
 shrink_store imm rs2 rs1 = []
 --shrink_store imm rs2 rs1 = [ecall]
 
-shrink_illegal :: [Integer]
+shrink_illegal :: [Instruction]
 shrink_illegal = [ecall]
 
-rv32_i_shrink :: [DecodeBranch [Integer]]
+rv32_i_shrink :: [DecodeBranch [Instruction]]
 rv32_i_shrink = [ add_raw    --> shrink_arith
                 , slt_raw    --> shrink_arith
                 , sltu_raw   --> shrink_arith
@@ -407,7 +407,7 @@ rv32_i_shrink = [ add_raw    --> shrink_arith
                 , ebreak_raw --> shrink_illegal ]
 
 -- | List of RV32 base integer arithmetic instructions
-rv32_i_arith :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_i_arith :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_i_arith src1 src2 dest imm longImm = [ add   dest  src1 src2
                                           , slt   dest  src1 src2
                                           , sltu  dest  src1 src2
@@ -430,18 +430,18 @@ rv32_i_arith src1 src2 dest imm longImm = [ add   dest  src1 src2
                                           , lui   dest            longImm ]
 
 -- | List of RV32 base integer control instructions
-rv32_i_ctrl :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_i_ctrl :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_i_ctrl src1 src2 dest imm longImm = [ auipc dest           longImm ]
                                          ++ (rv32_i_ctrl_jumps src1 dest imm longImm)
                                          ++ (rv32_i_ctrl_branches src1 src2 imm)
 
 -- | List of RV32 base integer control instructions: jumps
-rv32_i_ctrl_jumps :: Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_i_ctrl_jumps :: Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_i_ctrl_jumps src1 dest imm longImm = [ jal  dest longImm
                                           , jalr dest src1 imm ]
 
 -- | List of RV32 base integer control instructions: branches
-rv32_i_ctrl_branches :: Integer -> Integer -> Integer -> [Integer]
+rv32_i_ctrl_branches :: Integer -> Integer -> Integer -> [Instruction]
 rv32_i_ctrl_branches src1 src2 imm = [ beq  src1 src2 imm
                                      , bne  src1 src2 imm
                                      , bge  src1 src2 imm
@@ -451,7 +451,7 @@ rv32_i_ctrl_branches src1 src2 imm = [ beq  src1 src2 imm
 
 
 -- | List of RV32 base integer exception-related instructions
-rv32_i_exc :: [Integer]
+rv32_i_exc :: [Instruction]
 rv32_i_exc = [ ecall
              , mret
              , sret
@@ -460,7 +460,7 @@ rv32_i_exc = [ ecall
              , resrvd ]
 
 -- | List of RV32 base integer load instructions
-rv32_i_load :: Integer -> Integer -> Integer -> [Integer]
+rv32_i_load :: Integer -> Integer -> Integer -> [Instruction]
 rv32_i_load src dest imm = [ lb  dest src imm
                            , lbu dest src imm
                            , lh  dest src imm
@@ -468,18 +468,18 @@ rv32_i_load src dest imm = [ lb  dest src imm
                            , lw  dest src imm ]
 
 -- | List of RV32 base integer store instructions
-rv32_i_store :: Integer -> Integer -> Integer -> [Integer]
+rv32_i_store :: Integer -> Integer -> Integer -> [Instruction]
 rv32_i_store srcAddr srcData imm = [ sb srcAddr srcData imm
                                    , sh srcAddr srcData imm
                                    , sw srcAddr srcData imm ]
 
 -- | List of RV32 base integer fence instructions
-rv32_i_fence :: Integer -> Integer -> [Integer]
+rv32_i_fence :: Integer -> Integer -> [Instruction]
 rv32_i_fence fenceOp1 fenceOp2 = [fence fenceOp1 fenceOp2]
 
 -- | List of RV32 base integer memory instructions
 rv32_i_mem :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer
-           -> [Integer] --TODO alignment
+           -> [Instruction] --TODO alignment
 rv32_i_mem srcAddr srcData dest imm fenceOp1 fenceOp2 =
      (rv32_i_load srcAddr dest imm)
   ++ (rv32_i_store srcAddr srcData imm)
@@ -488,7 +488,7 @@ rv32_i_mem srcAddr srcData dest imm fenceOp1 fenceOp2 =
 -- | List of RV32 base integer instructions
 rv32_i :: Integer -> Integer -> Integer -> Integer
        -> Integer -> Integer -> Integer
-       -> [Integer]
+       -> [Instruction]
 rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2 =
      (rv32_i_arith srcAddr srcData dest imm longImm)
   ++ rv32_i_exc

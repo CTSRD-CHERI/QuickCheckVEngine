@@ -63,6 +63,7 @@ module RISCV (
 , module RISCV.HPMEvents
 , PrivMode
 , XLen
+, Instruction (..)
 ) where
 
 import RISCV.ArchDesc
@@ -84,3 +85,4 @@ import RISCV.RV64_D
 import RISCV.RV_C
 import RISCV.RV_CSRs
 import RISCV.HPMEvents
+import InstrCodec (Instruction (..))

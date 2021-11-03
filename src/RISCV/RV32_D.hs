@@ -80,7 +80,7 @@ module RISCV.RV32_D (
 import RISCV.Helpers (prettyR, prettyL, prettyS, prettyR4_rm, prettyR_rm,
                       prettyR_IF_1op, prettyR_FF_1op_rm, prettyR_FI_1op_rm,
                       prettyR_IF_1op_rm, prettyS_F)
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 fld_raw                    =                      "imm[11:0]            rs1[4:0]     011  rd[4:0] 0000111"
 fld rd rs1 imm             = encode fld_raw        imm                  rs1               rd
@@ -165,23 +165,23 @@ rv32_d_disass = [ fld_raw       --> prettyL           "fld"
                 , fcvt_d_wu_raw --> prettyR_FI_1op_rm "fcvt.d.wu" ]
 
 -- | List of RV32 double-precision floating-point load instructions
-rv32_d_load :: Integer -> Integer -> Integer -> [Integer]
+rv32_d_load :: Integer -> Integer -> Integer -> [Instruction]
 rv32_d_load src1 dest imm = [ fld dest src1 imm ]
 
 -- | List of RV32 double-precision floating-point store instructions
-rv32_d_store :: Integer -> Integer -> Integer -> [Integer]
+rv32_d_store :: Integer -> Integer -> Integer -> [Instruction]
 rv32_d_store src1 src2 imm = [ fsd src1 src2 imm ]
 
 -- | List of RV32 double-precision floating-point multiply-accumulate
 --   instructions
-rv32_d_macc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_d_macc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_d_macc src1 src2 src3 dest rm = [ fmadd_d  dest src1 src2 src3 rm
                                      , fmsub_d  dest src1 src2 src3 rm
                                      , fnmsub_d dest src1 src2 src3 rm
                                      , fnmadd_d dest src1 src2 src3 rm ]
 
 -- | List of RV32 double-precision floating-point arithmetic instructions
-rv32_d_arith :: Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_d_arith :: Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_d_arith src1 src2 dest rm = [ fadd_d    dest src1 src2 rm
                                  , fsub_d    dest src1 src2 rm
                                  , fmul_d    dest src1 src2 rm
@@ -205,7 +205,7 @@ rv32_d_arith src1 src2 dest rm = [ fadd_d    dest src1 src2 rm
 
 -- | List of RV32 double-precision floating-point instructions
 rv32_d :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer
-       -> [Integer]
+       -> [Instruction]
 rv32_d src1 src2 src3 dest rm imm =    (rv32_d_arith src1 src2 dest rm)
                                     ++ (rv32_d_macc src1 src2 src3 dest rm)
                                     ++ (rv32_d_load src1 dest imm)

@@ -52,7 +52,7 @@ gen_rv64_a :: Bool -> Template
 gen_rv64_a has_cap = genAtomics True has_cap
 
 genAtomics :: Bool -> Bool -> Template
-genAtomics has_xlen_64 has_cap = Random $ do
+genAtomics has_xlen_64 has_cap = random $ do
   aq   <- bits 1
   rl   <- bits 1
   src1 <- src
@@ -61,20 +61,20 @@ genAtomics has_xlen_64 has_cap = Random $ do
   let insts = rv32_a src1 src2 dest aq rl
               ++ if has_xlen_64 then rv64_a src1 src2 dest aq rl else []
               ++ if has_cap then rv32_a_xcheri src1 src2 dest else []
-  return $ uniformTemplate insts
+  return $ instUniform insts
 
 gen_cheri_a :: Template
-gen_cheri_a = Random $ do
+gen_cheri_a = random $ do
   let addrReg = 2
   let dataReg = 1
   addr <- elements [0x80000000, 0x80001000, 0x80004000]
-  return $ (NoShrink $ li64 addrReg addr)
-           <>
-           Sequence [ switchEncodingMode
-                    , NoShrink $ Single $ fence_i -- fence
-                    --, Single $ cload dataReg addrReg 0x14 -- lr.q.ddc
-                    --, Single $ cstore dataReg addrReg 0x14 -- sc.q.ddc
-                    , Single $ lr_q dataReg addrReg 0 0
-                    , Single $ sc_q dataReg addrReg dataReg 0 0
-                    , NoShrink $ Single $ fence_i -- fence
-                    , Single $ cload dataReg addrReg 0x17 ] -- lq.ddc
+  return . shrinkScope $ (noShrink $ li64 addrReg addr)
+                         <>
+                         mconcat [ switchEncodingMode
+                                 , noShrink . inst $ fence_i -- fence
+                                 --, inst $ cload dataReg addrReg 0x14 -- lr.q.ddc
+                                 --, inst $ cstore dataReg addrReg 0x14 -- sc.q.ddc
+                                 , inst $ lr_q dataReg addrReg 0 0
+                                 , inst $ sc_q dataReg addrReg dataReg 0 0
+                                 , noShrink . inst $ fence_i -- fence
+                                 , inst $ cload dataReg addrReg 0x17 ] -- lq.ddc

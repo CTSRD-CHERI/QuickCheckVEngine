@@ -53,7 +53,7 @@ module RISCV.RV64_M (
 ) where
 
 import RISCV.Helpers (prettyR)
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 mulw_raw         =                  "0000001 rs2[4:0] rs1[4:0] 000 rd[4:0] 0111011"
 mulw rd rs1 rs2  = encode mulw_raw           rs2      rs1          rd
@@ -76,7 +76,7 @@ rv64_m_disass = [ mulw_raw  --> prettyR "mulw"
                 ]
 
 -- | List of RV64 multiply/divide instructions
-rv64_m :: Integer -> Integer -> Integer -> [Integer]
+rv64_m :: Integer -> Integer -> Integer -> [Instruction]
 rv64_m src1 src2 dest = [ mulw  dest src1 src2
                         , divw  dest src1 src2
                         , divuw dest src1 src2

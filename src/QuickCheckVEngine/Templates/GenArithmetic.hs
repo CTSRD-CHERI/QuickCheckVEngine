@@ -45,22 +45,22 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
 gen_rv32_i_arithmetic :: Template
-gen_rv32_i_arithmetic = Random $ do
+gen_rv32_i_arithmetic = random $ do
   imm  <- bits 12
   src1 <- src
   src2 <- src
   dest <- dest
   lImm <- bits 20
-  return $ Distribution [ (4, prepReg32 dest)
-                        , (8, uniformTemplate $ rv32_i_arith src1 src2 dest imm lImm) ]
+  return $ dist [ (4, prepReg32 dest)
+                , (8, instUniform $ rv32_i_arith src1 src2 dest imm lImm) ]
 
 gen_rv64_i_arithmetic :: Template
-gen_rv64_i_arithmetic = Random $ do
+gen_rv64_i_arithmetic = random $ do
   imm  <- bits 12
   src1 <- src
   src2 <- src
   dest <- dest
-  return $ Distribution [ (4, prepReg64 dest)
-                        , (8, gen_rv32_i_arithmetic)
-                        , (8, uniformTemplate $ rv64_i_arith src1 src2 dest imm)
-                        ]
+  return $ dist [ (4, prepReg64 dest)
+                , (8, gen_rv32_i_arithmetic)
+                , (8, instUniform $ rv64_i_arith src1 src2 dest imm)
+                ]

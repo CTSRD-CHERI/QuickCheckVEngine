@@ -60,22 +60,22 @@ import QuickCheckVEngine.Templates.Utils.General
 
 randomCInvoke :: Integer -> Integer -> Integer -> Integer -> Template
 randomCInvoke cs1 cs2 typeReg tmpReg =
-     Distribution [ (1, instSeq [ addi 0 tmpReg 0xffd
-                                , candperm cs1 cs1 tmpReg ])
-                  , (9, Empty) ] -- clear X perm?
-  <> Distribution [ (9, instSeq [ addi tmpReg 0 0xffd
-                                , candperm cs2 cs2 tmpReg ])
-                  , (1, Empty) ]
-  <> Distribution [ (1, instSeq [ addi tmpReg 0 0xeff
-                                , candperm cs1 cs1 tmpReg ])
-                  , (9, Empty) ] -- clear CInvoke perm?
-  <> Distribution [ (1, instSeq [ addi tmpReg 0 0xeff
-                                , candperm cs2 cs2 tmpReg ])
-                  , (9, Empty) ]
-  <> Distribution [ (9, Single $ cseal cs1 cs1 typeReg)
-                  , (1, Empty) ] -- seal?
-  <> Distribution [ (9, Single $ cseal cs2 cs2 typeReg)
-                  , (1, Empty) ]
+     dist [ (1, instSeq [ addi 0 tmpReg 0xffd
+                        , candperm cs1 cs1 tmpReg ])
+          , (9, mempty) ] -- clear X perm?
+  <> dist [ (9, instSeq [ addi tmpReg 0 0xffd
+                        , candperm cs2 cs2 tmpReg ])
+          , (1, mempty) ]
+  <> dist [ (1, instSeq [ addi tmpReg 0 0xeff
+                        , candperm cs1 cs1 tmpReg ])
+          , (9, mempty) ] -- clear CInvoke perm?
+  <> dist [ (1, instSeq [ addi tmpReg 0 0xeff
+                        , candperm cs2 cs2 tmpReg ])
+          , (9, mempty) ]
+  <> dist [ (9, inst $ cseal cs1 cs1 typeReg)
+          , (1, mempty) ] -- seal?
+  <> dist [ (9, inst $ cseal cs2 cs2 typeReg)
+          , (1, mempty) ]
   <> instSeq [ cinvoke cs2 cs1
              , cmove 31 1 ]
 
@@ -88,19 +88,19 @@ clearASR tmp1 tmp2 = instSeq [ cspecialrw tmp1 0 0, -- Get PCC
 
 makeCap :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
 makeCap dst source tmp base len offset =
-  Sequence [ makeCap_core dst source tmp base
-           , li64 tmp len
-           , Single $ csetbounds dst dst tmp
-           , li64 tmp offset
-           , Single $ cincoffset dst dst tmp ]
+  mconcat [ makeCap_core dst source tmp base
+          , li64 tmp len
+          , inst $ csetbounds dst dst tmp
+          , li64 tmp offset
+          , inst $ cincoffset dst dst tmp ]
 
 makeCap_core :: Integer -> Integer -> Integer -> Integer -> Template
 makeCap_core dst source tmp base =
-  Sequence [ li64 tmp base
-           , Single $ csetaddr dst source tmp]
+  mconcat [ li64 tmp base
+          , inst $ csetaddr dst source tmp]
 
 makeShortCap :: Template
-makeShortCap = Random $ do
+makeShortCap = random $ do
   dst <- dest
   source <- src
   tmp <- src
@@ -113,7 +113,7 @@ makeShortCap = Random $ do
                      cincoffsetimmediate dst dst (offset Data.Bits..&. 0xfff)]
 
 legalCapLoad :: Integer -> Integer -> Template
-legalCapLoad addrReg targetReg = Random $ do
+legalCapLoad addrReg targetReg = random $ do
   tmpReg <- src
   return $ instSeq [ andi addrReg addrReg 0xff
                    , lui tmpReg 0x40004
@@ -122,7 +122,7 @@ legalCapLoad addrReg targetReg = Random $ do
                    , cload targetReg addrReg 0x17 ]
 
 legalCapStore :: Integer -> Template
-legalCapStore addrReg = Random $ do
+legalCapStore addrReg = random $ do
   tmpReg  <- src
   dataReg <- dest
   return $ instSeq [ andi addrReg addrReg 0xff
@@ -132,7 +132,7 @@ legalCapStore addrReg = Random $ do
                    , cstore dataReg addrReg 0x4 ]
 
 loadTags :: Integer -> Integer -> Template
-loadTags addrReg capReg = Random $ do
+loadTags addrReg capReg = random $ do
   tmpReg <- src
   dataReg <- dest
   return $ ( instSeq [ lui tmpReg 0x40004
@@ -140,29 +140,29 @@ loadTags addrReg capReg = Random $ do
                      , csetaddr addrReg addrReg tmpReg
                      , ccleartag tmpReg capReg ])
            <> maybeCapStore addrReg tmpReg capReg
-           <> Single (cincoffsetimmediate addrReg addrReg 16)
+           <> inst (cincoffsetimmediate addrReg addrReg 16)
            <> maybeCapStore addrReg tmpReg capReg
-           <> Single (cincoffsetimmediate addrReg addrReg 16)
+           <> inst (cincoffsetimmediate addrReg addrReg 16)
            <> maybeCapStore addrReg tmpReg capReg
-           <> Single (cincoffsetimmediate addrReg addrReg 16)
+           <> inst (cincoffsetimmediate addrReg addrReg 16)
            <> maybeCapStore addrReg tmpReg capReg
-           <> Single (cincoffsetimmediate addrReg addrReg 16)
+           <> inst (cincoffsetimmediate addrReg addrReg 16)
            <> maybeCapStore addrReg tmpReg capReg
-           <> Single (cincoffsetimmediate addrReg addrReg 16)
-           <> Single (cincoffsetimmediate addrReg addrReg (4096 - (16 * 5)))
-           <> Single (cloadtags dataReg addrReg)
-              where maybeCapStore addrReg capReg tmpReg = uniformTemplate [Single $ sq addrReg capReg 0,
-                                                                           Single $ sq addrReg tmpReg 0 ]
+           <> inst (cincoffsetimmediate addrReg addrReg 16)
+           <> inst (cincoffsetimmediate addrReg addrReg (4096 - (16 * 5)))
+           <> inst (cloadtags dataReg addrReg)
+              where maybeCapStore addrReg capReg tmpReg = instUniform [ sq addrReg capReg 0
+                                                                      , sq addrReg tmpReg 0 ]
 
 
 loadRegion ::  Integer -> Integer -> Integer -> Integer -> Template -> Template
 loadRegion numLines capReg cacheLSize tmpReg insts =
-   if numLines == 0 then Sequence [insts]
-   else if numLines == 1 then Sequence [insts, Single (cload tmpReg capReg 0x0)]
-   else loadRegion (numLines - 1) capReg cacheLSize tmpReg (Sequence [insts, Single (cload tmpReg capReg 0x0), Single (cincoffsetimmediate capReg capReg cacheLSize)])
+   if numLines == 0 then insts
+   else if numLines == 1 then mconcat [insts, inst (cload tmpReg capReg 0x0)]
+   else loadRegion (numLines - 1) capReg cacheLSize tmpReg (mconcat [insts, inst (cload tmpReg capReg 0x0), inst (cincoffsetimmediate capReg capReg cacheLSize)])
 
 switchEncodingMode :: Template
-switchEncodingMode = Random $ do
+switchEncodingMode = random $ do
   tmpReg1 <- sbcRegs
   let tmpReg2 = tmpReg1 + 1
   mode    <- elements [0, 1]
@@ -173,7 +173,7 @@ switchEncodingMode = Random $ do
                    , cjalr 0 tmpReg1 ]
 
 cspecialRWChain :: Template
-cspecialRWChain = Random $ do
+cspecialRWChain = random $ do
   tmpReg1 <- src
   tmpReg2 <- src
   tmpReg3 <- src
@@ -186,15 +186,15 @@ cspecialRWChain = Random $ do
                    , cspecialrw tmpReg6 30 tmpReg5 ]
 
 tagCacheTest :: Template
-tagCacheTest = Random $ do
+tagCacheTest = random $ do
   addrReg   <- src
   targetReg <- dest
   return $     legalCapStore addrReg
             <> legalCapLoad addrReg targetReg
-            <> Single (cgettag targetReg targetReg)
+            <> inst (cgettag targetReg targetReg)
 
 genCHERIinspection :: Template
-genCHERIinspection = Random $ do
+genCHERIinspection = random $ do
   srcAddr  <- src
   srcData  <- src
   dest     <- dest
@@ -203,11 +203,11 @@ genCHERIinspection = Random $ do
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
   csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
-  return $ Distribution [ (1, uniformTemplate $ rv32_xcheri_inspection srcAddr dest)
-                        , (1, uniformTemplate $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
+  return $ dist [ (1, instUniform $ rv32_xcheri_inspection srcAddr dest)
+                , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
 
 genCHERIarithmetic :: Template
-genCHERIarithmetic = Random $ do
+genCHERIarithmetic = random $ do
   srcAddr  <- src
   srcData  <- src
   dest     <- dest
@@ -216,11 +216,11 @@ genCHERIarithmetic = Random $ do
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
   csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
-  return $ Distribution [ (1, uniformTemplate $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
-                        , (1, uniformTemplate $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
+  return $ dist [ (1, instUniform $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
+                , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
 
 genCHERImisc :: Template
-genCHERImisc = Random $ do
+genCHERImisc = random $ do
   srcAddr  <- src
   srcData  <- src
   dest     <- dest
@@ -230,11 +230,11 @@ genCHERImisc = Random $ do
   fenceOp2 <- bits 3
   srcScr   <- elements [0, 1, 28, 29, 30, 31]
   csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
-  return $ Distribution [ (1, uniformTemplate $ rv32_xcheri_misc srcAddr srcData srcScr imm dest)
-                        , (1, uniformTemplate $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
+  return $ dist [ (1, instUniform $ rv32_xcheri_misc srcAddr srcData srcScr imm dest)
+                , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
 
 genCHERIcontrol :: Template
-genCHERIcontrol = Random $ do
+genCHERIcontrol = random $ do
   srcAddr  <- src
   srcData  <- src
   dest     <- dest
@@ -243,6 +243,6 @@ genCHERIcontrol = Random $ do
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
   csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
-  return $ Distribution [ (2, uniformTemplate $ rv32_xcheri_control srcAddr srcData dest)
-                        , (1, Single (csetbounds dest srcData srcAddr))
-                        , (2, uniformTemplate $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
+  return $ dist [ (2, instUniform $ rv32_xcheri_control srcAddr srcData dest)
+                , (1, inst (csetbounds dest srcData srcAddr))
+                , (2, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr

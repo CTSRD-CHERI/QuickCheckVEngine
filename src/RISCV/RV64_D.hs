@@ -54,7 +54,7 @@ module RISCV.RV64_D (
 ) where
 
 import RISCV.Helpers (prettyR_FI_1op_rm, prettyR_IF_1op_rm, prettyR_FI_1op, prettyR_IF_1op)
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 fcvt_l_d_raw        =                      "1100001    00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
 fcvt_l_d rd rs1 rm  = encode fcvt_l_d_raw                    rs1      rm      rd
@@ -80,7 +80,7 @@ rv64_d_disass = [ fcvt_l_d_raw  --> prettyR_FI_1op_rm "fcvt.l.d"
                 ]
 
 -- | List of RV64 double-precision floating-point instructions
-rv64_d :: Integer -> Integer -> Integer -> [Integer]
+rv64_d :: Integer -> Integer -> Integer -> [Instruction]
 rv64_d src1 dest rm = [ fcvt_l_d  dest src1 rm
                       , fcvt_lu_d dest src1 rm
                       , fmv_x_d   dest src1

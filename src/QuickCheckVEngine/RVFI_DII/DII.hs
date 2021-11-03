@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternSynonyms #-}
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
@@ -47,11 +48,14 @@
 -}
 
 module QuickCheckVEngine.RVFI_DII.DII (
-  DII_Packet
+  DII_Packet (..)
 , diiInstruction
 , diiEnd
 , diiVersNegotiate
 , diiRequestVers
+, pattern DII_Instruction
+, pattern DII_End
+, pattern DII_SetVersion
 ) where
 
 import Data.Word
@@ -68,15 +72,21 @@ type DII_Time = Word16
 type DII_Instruction = Word32
 
 -- | A DII instruction command
-dii_cmd_instruction :: DII_Cmd
-dii_cmd_instruction = 1
+pattern DII_Instruction t i = DII_Packet { dii_cmd = 1
+                                         , dii_time = t
+                                         , dii_insn = i }
 -- | A DII end command
-dii_cmd_end :: DII_Cmd
-dii_cmd_end = 0
-
+pattern DII_End t = DII_Packet { dii_cmd = 0
+                               , dii_time = t
+                               , dii_insn = 0 }
+-- | A DII version negotiation command
+pattern DII_VersionNegotiate t = DII_Packet { dii_cmd = 0
+                                            , dii_time = t
+                                            , dii_insn = 0x56455253 } -- send 'V' 'E' 'R' 'S'
 -- | A set-version command
-dii_cmd_set_version :: DII_Cmd
-dii_cmd_set_version = 0x76 -- 'v'
+pattern DII_SetVersion t v = DII_Packet { dii_cmd = 0x76 -- 'v'
+                                        , dii_time = t
+                                        , dii_insn = v }
 
 -- | The 'DII_Packet' type captures the DII interface as defined in
 --   https://github.com/CTSRD-CHERI/TestRIG/blob/master/RVFI-DII.md
@@ -102,9 +112,7 @@ instance Binary DII_Packet where
                                , dii_time = time
                                , dii_insn = insn }
 instance Num DII_Packet where
-  fromInteger i = DII_Packet { dii_cmd  = dii_cmd_instruction
-                             , dii_time = 1
-                             , dii_insn = fromInteger i }
+  fromInteger i = DII_Instruction 1 (fromInteger i)
   (+)    = error "(+) is not defined on DII_Packet"
   (*)    = error "(*) is not defined on DII_Packet"
   abs    = error "abs is not defined on DII_Packet"
@@ -113,15 +121,11 @@ instance Num DII_Packet where
 
 -- | Construct a instruction 'DII_Packet'
 diiInstruction :: Integer -> DII_Packet
-diiInstruction inst = DII_Packet { dii_cmd  = dii_cmd_instruction
-                                 , dii_time = 1
-                                 , dii_insn = fromInteger inst }
+diiInstruction = DII_Instruction 1 . fromInteger
 
 -- | Construct an end 'DII_Packet'
 diiEnd :: DII_Packet
-diiEnd = DII_Packet { dii_cmd  = dii_cmd_end
-                    , dii_time = 1
-                    , dii_insn = 0 }
+diiEnd = DII_End 1
 
 -- | Construct a version negotiation 'DII_Packet'
 --   A version negotiation packet uses a 'dii_cmd_end' command with embedded
@@ -131,12 +135,8 @@ diiEnd = DII_Packet { dii_cmd  = dii_cmd_end
 --   of an implementation against an older version that does not yet include
 --   support for version 2 traces.
 diiVersNegotiate :: DII_Packet
-diiVersNegotiate = DII_Packet { dii_cmd  = dii_cmd_end
-                              , dii_time = 1
-                              , dii_insn = 0x56455253 } -- send 'V' 'E' 'R' 'S'
+diiVersNegotiate = DII_VersionNegotiate 1
 
 -- | Construct a version request 'DII_Packet'
 diiRequestVers :: Word32 -> DII_Packet
-diiRequestVers vers = DII_Packet { dii_cmd  = dii_cmd_set_version
-                                 , dii_time = 1
-                                 , dii_insn = vers }
+diiRequestVers = DII_SetVersion 1

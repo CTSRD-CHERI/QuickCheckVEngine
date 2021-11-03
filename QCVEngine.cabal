@@ -32,6 +32,8 @@ executable QCVEngine
                        QuickCheckVEngine.RVFI_DII,
                        QuickCheckVEngine.RVFI_DII.RVFI,
                        QuickCheckVEngine.RVFI_DII.DII,
+                       QuickCheckVEngine.TestTypes,
+                       QuickCheckVEngine.Test,
                        QuickCheckVEngine.Template,
                        QuickCheckVEngine.Templates.Utils,
                        QuickCheckVEngine.Templates.Utils.General,

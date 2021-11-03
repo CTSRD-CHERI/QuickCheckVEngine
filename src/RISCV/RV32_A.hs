@@ -59,7 +59,7 @@ module RISCV.RV32_A (
 ) where
 
 import RISCV.Helpers (prettyR_A_1op, prettyR_A)
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 lr_w_raw                   =                      "00010 aq[0] rl[0]    00000 rs1[4:0] 010 rd[4:0] 0101111"
 lr_w rd rs1 aq rl          = encode lr_w_raw             aq    rl             rs1          rd
@@ -99,7 +99,7 @@ rv32_a_disass = [ lr_w_raw      --> prettyR_A_1op "lr.w"
                 , amomaxu_w_raw --> prettyR_A     "amomaxu.w" ]
 
 -- | List of RV32 atomic instructions
-rv32_a :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_a :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_a src1 src2 dest aq rl = [ lr_w      dest src1      aq rl
                               , sc_w      dest src1 src2 aq rl
                               , amoswap_w dest src1 src2 aq rl

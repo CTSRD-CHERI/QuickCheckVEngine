@@ -52,7 +52,7 @@ module RISCV.RV64_F (
 ) where
 
 import RISCV.Helpers (prettyR_IF_1op_rm, prettyR_FI_1op_rm)
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 fcvt_l_s_raw                             =                       "1100000 00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
 fcvt_l_s rd rs1 rm                       = encode fcvt_l_s_raw                  rs1      rm      rd
@@ -72,7 +72,7 @@ rv64_f_disass = [ fcvt_l_s_raw  --> prettyR_IF_1op_rm "fcvt.l.s"
                 ]
 
 -- | List of RV64 floating-point arithmetic instructions
-rv64_f :: Integer -> Integer -> Integer -> [Integer]
+rv64_f :: Integer -> Integer -> Integer -> [Instruction]
 rv64_f src1 dest rm = [ fcvt_l_s  dest src1 rm
                       , fcvt_lu_s dest src1 rm
                       , fcvt_s_l  dest src1 rm

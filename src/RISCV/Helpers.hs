@@ -90,6 +90,7 @@ import Data.Maybe
 import Data.Word (Word8)
 import RISCV.RV_CSRs
 import Data.Bits
+import InstrCodec (Instruction)
 
 data PrivMode = PRV_U | PRV_S | PRV_Reserved | PRV_M deriving (Enum, Show, Eq)
 privString :: Maybe PrivMode -> String
@@ -325,4 +326,12 @@ prettyR4_rm instr rs3 rs2 rs1 rm rd =
 prettyS_F instr imm rs2 rs1 =
   concat [instr, " ", fpReg rs2, ", ", reg rs1, "(", int imm, ")"]
 
-type ExtractedRegs = (Bool, Maybe Integer, Maybe Integer, Maybe Integer, Integer -> Integer -> Integer -> Integer)
+type ExtractedRegs = ( Bool -- ^ is_bypass
+                     , Maybe Integer -- ^ rs2
+                     , Maybe Integer -- ^ rs1
+                     , Maybe Integer -- ^ rd
+                     ,    Integer -- ^ rs2
+                       -> Integer -- ^ rs1
+                       -> Integer -- ^ rd
+                       -> Instruction -- re-encode
+                     )

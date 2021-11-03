@@ -66,7 +66,7 @@ gen_rv64_fd :: Template
 gen_rv64_fd = genFP True True True
 
 genFP :: Bool -> Bool -> Bool -> Template
-genFP has_f has_d has_xlen_64 = Random $ do
+genFP has_f has_d has_xlen_64 = random $ do
   size <- getSize
   src1 <- src
   src2 <- src
@@ -78,12 +78,12 @@ genFP has_f has_d has_xlen_64 = Random $ do
               ++ [ rv32_d src1 src2 src3 dest rm imm | has_d ]
               ++ [ rv64_f src1 dest rm | has_f && has_xlen_64 ]
               ++ [ rv64_d src1 dest rm | has_d && has_xlen_64 ]
-  let epilogue = Single $ csrrs dest 0x003 0
+  let epilogue = inst $ csrrs dest 0x003 0
   let arch = archDesc_null { has_xlen_32 = True
                            , has_xlen_64 = has_xlen_64
                            , has_f       = has_f
                            , has_d       = has_d }
-  return $    NoShrink (fp_prologue arch)
-           <> replicateTemplate (size - fp_prologue_length arch - 1)
-                                (uniformTemplate $ concat insts)
-           <> NoShrink epilogue
+  return $ shrinkScope $    noShrink (fp_prologue arch)
+                         <> repeatN (size - fp_prologue_length arch - 1)
+                                    (instUniform $ concat insts)
+                         <> noShrink epilogue

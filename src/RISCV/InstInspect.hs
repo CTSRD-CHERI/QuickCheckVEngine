@@ -68,9 +68,12 @@ import RISCV.RV64_M
 import RISCV.RV64_A
 import RISCV.RV64_F
 import RISCV.RV64_D
+import RISCV.Helpers
+
+import Text.Printf
 
 -- | RISC-V instruction pretty printer
-rv_pretty :: Integer -> String
+rv_pretty :: Instruction -> String
 rv_pretty instr = case decode 32 instr instList of
   Nothing -> "Unknown instruction"
   Just i -> i
@@ -83,11 +86,16 @@ rv_pretty instr = case decode 32 instr instList of
                    ++ rv32_zifencei_disass
                    ++ rv32_xcheri_disass
 
+instance Show Instruction where
+  show i@(MkInstruction v) = printf ".4byte 0x%08x # %s" v (rv_pretty i)
+
+rv_extract :: Instruction -> ExtractedRegs
 rv_extract instr = case decode 32 instr extractList of
   Nothing -> (False, Nothing, Nothing, Nothing, (\a b c -> instr))
   Just i -> i
   where extractList = rv32_i_extract ++ rv32_xcheri_extract
 
+rv_shrink :: Instruction -> [Instruction]
 rv_shrink instr = case decode 32 instr shrinkList of
   Nothing -> []
   Just i -> i
