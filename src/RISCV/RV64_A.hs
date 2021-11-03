@@ -59,7 +59,7 @@ module RISCV.RV64_A (
 ) where
 
 import RISCV.Helpers (prettyR_A_1op, prettyR_A)
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 lr_d_raw                   =                      "00010 aq[0] rl[0]    00000 rs1[4:0] 011 rd[4:0] 0101111"
 lr_d rd rs1 aq rl          = encode lr_d_raw             aq    rl             rs1          rd
@@ -99,7 +99,7 @@ rv64_a_disass = [ lr_d_raw      --> prettyR_A_1op "lr.d"
                 , amomaxu_d_raw --> prettyR_A     "amomaxu.d" ]
 
 -- | List of RV64 atomic instructions
-rv64_a :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
+rv64_a :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv64_a src1 src2 dest aq rl = [ lr_d      dest src1 src2 aq rl
                               , sc_d      dest src1 src2 aq rl
                               , amoswap_d dest src1 src2 aq rl

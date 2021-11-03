@@ -398,7 +398,7 @@ instance Show RVFI_Packet where
         (rvfi_insn tok)
         (privString (rvfi_mode tok))
         (xlenString (rvfi_ixl tok))
-        (rv_pretty (toInteger (rvfi_insn tok))) -- Inst
+        (rv_pretty (MkInstruction (toInteger (rvfi_insn tok)))) -- Inst
 
 -- | Return 'True' for halt 'RVFI_Packet's
 rvfiIsHalt :: RVFI_Packet -> Bool

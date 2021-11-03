@@ -54,7 +54,7 @@ module RISCV.RV32_Zicsr (
 ) where
 
 import RISCV.Helpers (prettyCSR, prettyCSR_imm)
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 csrrw_raw          =                   "imm[11:0]  rs1[4:0] 001 rd[4:0] 1110011"
 csrrw rd csr rs1   = encode csrrw_raw   csr        rs1          rd
@@ -79,7 +79,7 @@ rv32_zicsr_disass = [ csrrw_raw  --> prettyCSR     "csrrw"
                     , csrrci_raw --> prettyCSR_imm "csrrci" ]
 
 -- | List of RISC-V control and status register instructions
-rv32_zicsr :: Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_zicsr :: Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_zicsr src dest csr uimm = [ csrrw  dest csr src
                                , csrrs  dest csr src
                                , csrrc  dest csr src

@@ -76,7 +76,7 @@ import QuickCheckVEngine.Templates.Utils
 --   Example:
 --   80000000 13050000 ef008014 13051000 ef000014
 --   80000010 13052000 ef008013 13053000 ef000013
-readDataFile :: FilePath -> IO (Test Integer)
+readDataFile :: FilePath -> IO (Test Instruction)
 readDataFile inFile = do
   handle <- openFile inFile ReadMode
   contents <- hGetContents handle
@@ -117,8 +117,8 @@ zipWithPadding a b c f = go
 --   for equivalence. It receives among other things a callback function
 --   'Test -> IO ()' to be performed on failure that takes in the reduced
 --   'Test' which caused the failure
-prop :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> (Test Integer -> IO ())
-     -> ArchDesc -> Int -> Int -> Bool -> Gen (Test Integer) -> Property
+prop :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> (Test Instruction -> IO ())
+     -> ArchDesc -> Int -> Int -> Bool -> Gen (Test Instruction) -> Property
 prop connA connB alive onFail arch delay verbosity ignoreAsserts gen =
   forAllShrink gen shrink mkProp
   where mkProp test = whenFail (onFail test) (doProp test)

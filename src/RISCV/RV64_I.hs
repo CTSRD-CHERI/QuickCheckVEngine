@@ -72,7 +72,7 @@ module RISCV.RV64_I (
 ) where
 
 import RISCV.Helpers (prettyI, prettyI_sig, prettyR, prettyL, prettyS)
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 lwu_raw            =                   "imm[11:0] rs1[4:0] 110 rd[4:0] 0000011"
 lwu rd rs1 imm     = encode lwu_raw     imm       rs1          rd
@@ -125,7 +125,7 @@ rv64_i_disass = [ lwu_raw    --> prettyL "lwu"
                 ]
 
 -- | List of RV64 base integer arithmetic instructions
-rv64_i_arith :: Integer -> Integer -> Integer -> Integer -> [Integer]
+rv64_i_arith :: Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv64_i_arith src1 src2 dest imm = [ addiw  dest src1      imm
                                   , slli64 dest src1      imm
                                   , srli64 dest src1      imm
@@ -141,22 +141,22 @@ rv64_i_arith src1 src2 dest imm = [ addiw  dest src1      imm
                                   ]
 
 -- | List of RV64 base integer load instructions
-rv64_i_load :: Integer -> Integer -> Integer -> [Integer]
+rv64_i_load :: Integer -> Integer -> Integer -> [Instruction]
 rv64_i_load src dest imm = [ lwu dest src imm
                            , ld  dest src imm
                            ]
 
 -- | List of RV64 base integer store instructions
-rv64_i_store :: Integer -> Integer -> Integer -> [Integer]
+rv64_i_store :: Integer -> Integer -> Integer -> [Instruction]
 rv64_i_store srcAddr srcData imm = [sd srcAddr srcData imm]
 
 -- | List of RV64 base integer memory instructions
-rv64_i_mem :: Integer -> Integer -> Integer -> Integer -> [Integer] --TODO alignment
+rv64_i_mem :: Integer -> Integer -> Integer -> Integer -> [Instruction] --TODO alignment
 rv64_i_mem srcAddr srcData dest imm =
   (rv64_i_load srcAddr dest imm) ++ (rv64_i_store srcAddr srcData imm)
 
 -- | List of RV64 base integer instructions
-rv64_i :: Integer -> Integer -> Integer -> Integer -> [Integer]
+rv64_i :: Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv64_i srcAddr srcData dest imm =
      rv64_i_arith srcAddr srcData dest imm
   ++ rv64_i_mem srcAddr srcData dest imm

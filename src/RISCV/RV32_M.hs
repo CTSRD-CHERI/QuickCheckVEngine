@@ -58,7 +58,7 @@ module RISCV.RV32_M (
 import Prelude hiding (rem, div)
 
 import RISCV.Helpers (prettyR)
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 mul_raw           =                   "0000001 rs2[4:0] rs1[4:0] 000 rd[4:0] 0110011"
 mul rd rs1 rs2    = encode mul_raw             rs2      rs1          rd
@@ -89,7 +89,7 @@ rv32_m_disass = [ mul_raw    --> prettyR "mul"
                 , remu_raw   --> prettyR "remu" ]
 
 -- | List of RV32 multiply/divide instructions
-rv32_m :: Integer -> Integer -> Integer -> [Integer]
+rv32_m :: Integer -> Integer -> Integer -> [Instruction]
 rv32_m src1 src2 dest = [ mul    dest src1 src2
                         , mulh   dest src1 src2
                         , mulhsu dest src1 src2

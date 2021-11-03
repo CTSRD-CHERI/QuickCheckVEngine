@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeSynonymInstances #-}
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
@@ -68,22 +67,20 @@ import Data.Semigroup
 import RISCV
 import Data.Kind
 import Control.Applicative
-
-type Instruction = Integer
-
-data Assert = AssertLastVal Integer
-            | AssertCompound Integer
+import Text.Printf
 
 data MetaInfo t = MetaShrink
                 | MetaNoShrink
                 | MetaCustomShrink (t -> [Test t])
-                | MetaAssert Assert
+                | MetaAssertLastVal Integer
+                | MetaAssertCompound ([Integer] -> Bool)
 
 discardCustomShrinks :: MetaInfo a -> MetaInfo b
 discardCustomShrinks MetaShrink = MetaShrink
 discardCustomShrinks MetaNoShrink = MetaNoShrink
 discardCustomShrinks (MetaCustomShrink _) = MetaCustomShrink (const []) -- Nothing sensible to do here!
-discardCustomShrinks (MetaAssert x) = MetaAssert x
+discardCustomShrinks (MetaAssertLastVal x) = MetaAssertLastVal x
+discardCustomShrinks (MetaAssertCompound x) = MetaAssertCompound x
 
 instance Functor MetaInfo where
   fmap _ = discardCustomShrinks
@@ -125,7 +122,7 @@ repeatTemplateTillEnd :: Template -> Template
 repeatTemplateTillEnd t = TemplateRandom $ replicateTemplate <$> getSize <*> pure t
 
 assertLastVal :: Template -> Integer -> Template
-assertLastVal t v = TemplateMeta (MetaAssert $ AssertLastVal v) t
+assertLastVal t v = TemplateMeta (MetaAssertLastVal v) t
 
 assertSingle :: Instruction -> Integer -> Template
 assertSingle i v = assertLastVal (TemplateSingle i) v
@@ -149,6 +146,9 @@ shrinkUnit :: Template -> Template
 shrinkUnit = TemplateMeta MetaShrink
 
 --------------------------------------------------------------------------------
+
+instance Show Instruction where
+  show i@(MkInstruction inst) = printf ".4byte 0x%08x # %s" inst (rv_pretty i)
 
 data Test t = TestEmpty
             | TestSingle t
@@ -175,6 +175,15 @@ instance Traversable Test where
   traverse f (TestSingle x) = TestSingle <$> f x
   traverse f (TestSequence x y) = liftA2 TestSequence (traverse f x) (traverse f y)
   traverse f (TestMeta m x) = TestMeta (discardCustomShrinks m) <$> traverse f x
+instance Show t => Show (Test t) where
+  show TestEmpty = ""
+  show (TestSingle x) = show x
+  show (TestSequence x y) = show x ++ "\n" ++ show y
+  show (TestMeta MetaShrink x) = "#>START_SHRINK\n" ++ show x ++ "\n#>END_SHRINK"
+  show (TestMeta MetaNoShrink x) = "#>START_NOSHRINK\n" ++ show x ++ "\n#>END_NOSHRINK"
+  show (TestMeta (MetaCustomShrink _) x) = show x -- Cannot serialise function
+  show (TestMeta (MetaAssertLastVal v) x) = printf "%s\n#>ASSERT rd_wdata == 0x%x" (show x) v
+  show (TestMeta (MetaAssertCompound _) x) = show x -- Cannot serialise function
 
 genTest :: Template -> Gen (Test Instruction)
 genTest TemplateEmpty = return TestEmpty

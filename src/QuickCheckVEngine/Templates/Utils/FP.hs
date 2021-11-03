@@ -41,7 +41,7 @@ import InstrCodec
 import RISCV
 import QuickCheckVEngine.Template
 
-prologue_list :: ArchDesc -> [Integer]
+prologue_list :: ArchDesc -> [Instruction]
 prologue_list arch = [ lui 1 2
                      , csrrs 0 0x300 1 -- mstatus
                      , csrrs 0 0x003 0 -- fcsr

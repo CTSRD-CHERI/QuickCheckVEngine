@@ -44,6 +44,8 @@ import Data.Maybe
 import Data.Bits
 import Test.QuickCheck
 
+newtype Instruction = MkInstruction Integer deriving Eq
+
 type BitList = [Bool]
 
 data Token =
@@ -197,10 +199,10 @@ instance Apply f a => Apply (Integer -> f) a where
   apply f [] = error "Format error: too few pattern vars"
   apply f (arg:args) = apply (f (fromBitList arg)) args
 
-decodeOne :: Apply f a => String -> f -> (Integer, Int) -> Maybe a
+decodeOne :: Apply f a => String -> f -> (Instruction, Int) -> Maybe a
 decodeOne fmt rhs =
   let toks = tokenise fmt
-  in  \(subj, w) ->
+  in  \(MkInstruction subj, w) ->
         let
           subj' = w#subj
         in
@@ -208,13 +210,13 @@ decodeOne fmt rhs =
           then Just $ apply rhs (args subj' (tag toks))
           else Nothing
 
-type DecodeBranch a = (Integer, Int) -> Maybe a
+type DecodeBranch a = (Instruction, Int) -> Maybe a
 
 infix 9 -->
-(-->) :: Apply f a => String -> f -> (Integer, Int) -> Maybe a
+(-->) :: Apply f a => String -> f -> (Instruction, Int) -> Maybe a
 pat --> rhs = decodeOne pat rhs
 
-decode :: Int -> Integer -> [(Integer, Int) -> Maybe a] -> Maybe a
+decode :: Int -> Instruction -> [(Instruction, Int) -> Maybe a] -> Maybe a
 decode n subj alts =
   case catMaybes [alt (subj, n) | alt <- alts] of
     [] -> Nothing
@@ -239,14 +241,14 @@ scatter (tok:toks) env =
 class Encode a b | b -> a where
   enc :: [a] -> String -> b
 
-instance Encode Integer Integer where
-  enc args fmt = fromBitList (scatter toks (zip (rangedVars toks) args))
+instance Encode Integer Instruction where
+  enc args fmt = MkInstruction $ fromBitList (scatter toks (zip (rangedVars toks) args))
     where toks = tokenise fmt
 
-instance Encode (Gen Integer) (Gen Integer) where
+instance Encode (Gen Integer) (Gen Instruction) where
   enc args fmt = do
       vals <- sequence args
-      return $ fromBitList (scatter toks (zip (rangedVars toks) vals))
+      return . MkInstruction $ fromBitList (scatter toks (zip (rangedVars toks) vals))
     where toks = tokenise fmt
 
 instance Encode a b => Encode a (a -> b) where

@@ -81,7 +81,7 @@ import RISCV.Helpers (prettyR, prettyL, prettyS, prettyR4_rm, prettyR_rm,
                       prettyR_FI_1op, prettyR_FF_1op, prettyR_IF_1op,
                       prettyR_FF_1op_rm, prettyR_FI_1op_rm, prettyR_IF_1op_rm,
                       prettyS_F)
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 flw_raw                    =                      "imm[11:0]            rs1[4:0]     010  rd[4:0] 0000111"
 flw rd rs1 imm             = encode flw_raw        imm                  rs1               rd
@@ -168,22 +168,22 @@ rv32_f_disass = [ flw_raw       --> prettyL           "flw"
                 ]
 
 -- | List of RV32 floating-point load instructions
-rv32_f_load :: Integer -> Integer -> Integer -> [Integer]
+rv32_f_load :: Integer -> Integer -> Integer -> [Instruction]
 rv32_f_load src1 dest imm = [ flw dest src1 imm ]
 
 -- | List of RV32 floating-point store instructions
-rv32_f_store :: Integer -> Integer -> Integer -> [Integer]
+rv32_f_store :: Integer -> Integer -> Integer -> [Instruction]
 rv32_f_store src1 src2 imm = [ fsw src1 src2 imm ]
 
 -- | List of RV32 floating-point multiply-accumulate instructions
-rv32_f_macc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_f_macc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_f_macc src1 src2 src3 dest rm = [ fmadd_s  dest src1 src2 src3 rm
                                      , fmsub_s  dest src1 src2 src3 rm
                                      , fnmsub_s dest src1 src2 src3 rm
                                      , fnmadd_s dest src1 src2 src3 rm ]
 
 -- | List of RV32 floating-point arithmetic instructions
-rv32_f_arith :: Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_f_arith :: Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_f_arith src1 src2 dest rm = [ fadd_s    dest src1 src2 rm
                                  , fsub_s    dest src1 src2 rm
                                  , fmul_s    dest src1 src2 rm
@@ -207,7 +207,7 @@ rv32_f_arith src1 src2 dest rm = [ fadd_s    dest src1 src2 rm
 
 -- | List of RV32 floating-point arithmetic instructions
 rv32_f :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer
-       -> [Integer]
+       -> [Instruction]
 rv32_f src1 src2 src3 dest rm imm =    (rv32_f_arith src1 src2 dest rm)
                                     ++ (rv32_f_macc src1 src2 src3 dest rm)
                                     ++ (rv32_f_load src1 dest imm)

@@ -53,7 +53,7 @@ module RISCV.RV32_Zifencei (
 , rv32_zifencei
 ) where
 
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 fence_i_raw =                    "0000 0000 0000 00000 001 00000 0001111"
 fence_i     = encode fence_i_raw
@@ -63,5 +63,5 @@ rv32_zifencei_disass :: [DecodeBranch String]
 rv32_zifencei_disass = [fence_i_raw --> "fence.i"]
 
 -- | List of RISC-V instruction-fetch fence instructions
-rv32_zifencei :: [Integer]
+rv32_zifencei :: [Instruction]
 rv32_zifencei = [fence_i]

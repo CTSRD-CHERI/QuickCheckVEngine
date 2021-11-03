@@ -104,7 +104,7 @@ module RISCV.RV32_Xcheri (
 ) where
 
 import RISCV.Helpers (reg, int, prettyR, prettyI, prettyL, prettyS, prettyR_2op, ExtractedRegs)
-import InstrCodec (DecodeBranch, (-->), encode)
+import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 import RISCV.RV32_I
 
 -- Capability Inspection
@@ -400,34 +400,34 @@ rv32_xcheri_extract = [ cgetperm_raw                    --> extract_1op cgetperm
                       , lq_raw                          --> extract_imm lq_raw
                       ]
 
-shrink_cgetperm :: Integer -> Integer -> [Integer]
+shrink_cgetperm :: Integer -> Integer -> [Instruction]
 shrink_cgetperm cs rd = [addi rd 0 0, addi rd 0 0x7ff]
 
-shrink_cgettype :: Integer -> Integer -> [Integer]
+shrink_cgettype :: Integer -> Integer -> [Instruction]
 shrink_cgettype cs rd = [addi rd 0 0, addi rd 0 6, addi rd 0 0xfff]
 
-shrink_cgetbase :: Integer -> Integer -> [Integer]
+shrink_cgetbase :: Integer -> Integer -> [Instruction]
 shrink_cgetbase cs rd = [addi rd 0 0]
 
-shrink_cgetlen :: Integer -> Integer -> [Integer]
+shrink_cgetlen :: Integer -> Integer -> [Instruction]
 shrink_cgetlen cs rd = [addi rd 0 0, addi rd 0 0xfff, cgetbase rd cs]
 
-shrink_cgettag :: Integer -> Integer -> [Integer]
+shrink_cgettag :: Integer -> Integer -> [Instruction]
 shrink_cgettag cs rd = [addi rd 0 1, addi rd 0 0]
 
-shrink_cgetsealed :: Integer -> Integer -> [Integer]
+shrink_cgetsealed :: Integer -> Integer -> [Instruction]
 shrink_cgetsealed cs rd = [addi rd 0 1, addi rd 0 0, cgettype rd cs]
 
-shrink_cgetoffset :: Integer -> Integer -> [Integer]
+shrink_cgetoffset :: Integer -> Integer -> [Instruction]
 shrink_cgetoffset cs rd = [addi rd 0 0, cgetaddr rd cs]
 
-shrink_cgetflags :: Integer -> Integer -> [Integer]
+shrink_cgetflags :: Integer -> Integer -> [Instruction]
 shrink_cgetflags cs rd = [addi rd 0 0, addi rd 0 1]
 
-shrink_cgetaddr :: Integer -> Integer -> [Integer]
+shrink_cgetaddr :: Integer -> Integer -> [Instruction]
 shrink_cgetaddr cs rd = [addi rd cs 0]
 
-shrink_cap :: Integer -> Integer -> [Integer]
+shrink_cap :: Integer -> Integer -> [Instruction]
 shrink_cap cs cd = [ecall,
                     cmove cd cs,
                     cgetaddr cd cs,
@@ -440,32 +440,32 @@ shrink_cap cs cd = [ecall,
                     cgetflags cd cs
                    ]
 
-shrink_capcap :: Integer -> Integer -> Integer -> [Integer]
+shrink_capcap :: Integer -> Integer -> Integer -> [Instruction]
 shrink_capcap cs2 cs1 cd = (shrink_cap cs2 cd) ++ (shrink_cap cs1 cd)
 
-shrink_capint :: Integer -> Integer -> Integer -> [Integer]
+shrink_capint :: Integer -> Integer -> Integer -> [Instruction]
 shrink_capint rs cs cd = shrink_cap cs cd
 
-shrink_capimm :: Integer -> Integer -> Integer -> [Integer]
+shrink_capimm :: Integer -> Integer -> Integer -> [Instruction]
 shrink_capimm imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
 
-shrink_cmove :: Integer -> Integer -> [Integer]
+shrink_cmove :: Integer -> Integer -> [Instruction]
 shrink_cmove cs cd = [cgetaddr cd cs]
 
-shrink_cinvoke :: Integer -> Integer -> [Integer]
+shrink_cinvoke :: Integer -> Integer -> [Instruction]
 shrink_cinvoke cs2 cs1 = shrink_capcap cs2 cs1 31
 
 shrink_ctestsubset cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
 
 shrink_cfromptr rs cs cd = [csetoffset cd cs rs] ++ shrink_capint rs cs cd
 
-shrink_cload :: Integer -> Integer -> Integer -> [Integer]
+shrink_cload :: Integer -> Integer -> Integer -> [Instruction]
 shrink_cload cb cd mop = [addi 0 0 0];
 
-shrink_cstore :: Integer -> Integer -> Integer -> [Integer]
+shrink_cstore :: Integer -> Integer -> Integer -> [Instruction]
 shrink_cstore rs2 cs1 mop = [addi 0 0 0];
 
-rv32_xcheri_shrink :: [DecodeBranch [Integer]]
+rv32_xcheri_shrink :: [DecodeBranch [Instruction]]
 rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
                      , cgettype_raw                    --> shrink_cgettype
                      , cgetbase_raw                    --> shrink_cgetbase
@@ -510,7 +510,7 @@ rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
                      ]
 
 -- | List of cheri inspection instructions
-rv32_xcheri_inspection :: Integer -> Integer -> [Integer]
+rv32_xcheri_inspection :: Integer -> Integer -> [Instruction]
 rv32_xcheri_inspection src dest = [ cgetperm                    dest src
                                   , cgettype                    dest src
                                   , cgetbase                    dest src
@@ -524,7 +524,7 @@ rv32_xcheri_inspection src dest = [ cgetperm                    dest src
                                   , crepresentablealignmentmask dest src]
 
 -- | List of cheri arithmetic instructions
-rv32_xcheri_arithmetic :: Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_xcheri_arithmetic :: Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_arithmetic src1 src2 imm dest =
   [ csetoffset          dest src1 src2
   , csetaddr            dest src1 src2
@@ -539,7 +539,7 @@ rv32_xcheri_arithmetic src1 src2 imm dest =
   , ctestsubset         dest src1 src2 ]
 
 -- | List of cheri miscellaneous instructions
-rv32_xcheri_misc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_xcheri_misc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_misc src1 src2 srcScr imm dest =
   [ cseal       dest src1 src2
   , cunseal     dest src1 src2
@@ -553,12 +553,12 @@ rv32_xcheri_misc src1 src2 srcScr imm dest =
   , cspecialrw  dest srcScr src1 ]
 
 -- | List of cheri control instructions
-rv32_xcheri_control :: Integer -> Integer -> Integer -> [Integer]
+rv32_xcheri_control :: Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_control src1 src2 dest = [ cjalr    dest src1
                                      , cinvoke  src2 src1 ]
 
 -- | List of cheri memory instructions
-rv32_xcheri_mem :: Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_xcheri_mem :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_mem    srcAddr srcData imm mop dest =
   [ cload  dest    srcAddr         mop
   , cstore         srcData srcAddr mop
@@ -570,7 +570,7 @@ rv32_xcheri_mem    srcAddr srcData imm mop dest =
   ]
 
 -- | List of cheri instructions
-rv32_xcheri :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> [Integer]
+rv32_xcheri :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri src1 src2 srcScr imm mop dest =
      rv32_xcheri_inspection src1 dest
   ++ rv32_xcheri_arithmetic src1 src2 imm dest
