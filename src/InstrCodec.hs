@@ -46,6 +46,10 @@ import Test.QuickCheck
 
 newtype Instruction = MkInstruction Integer deriving Eq
 
+instance Integral Instruction where
+  toInteger (MkInstruction i) = i
+  quotRem _ = error "Cannot divide instructions"
+
 type BitList = [Bool]
 
 data Token =

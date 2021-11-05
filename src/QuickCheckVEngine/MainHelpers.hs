@@ -98,20 +98,6 @@ genInstrServer sckt = do
   return $ unsafePerformIO $ do sendAll sckt (encode seed)
                                 (decode . BS.reverse) <$> Network.Socket.ByteString.Lazy.recv sckt 4
 
--- | Helper that zips three lists of potentially unequal lengths, padding the
---   shorter with a default element.
-zipWithPadding :: a -> b -> c -> (a -> b -> c -> d) -> [a] -> [b] -> [c] -> [d]
-zipWithPadding a b c f = go
-  where
-    go []     []     []     = []
-    go []     []     (z:zs) = f a b z : go [] [] zs
-    go []     (y:ys) []     = f a y c : go [] ys []
-    go []     (y:ys) (z:zs) = f a y z : go [] ys zs
-    go (x:xs) []     []     = f x b c : go xs [] []
-    go (x:xs) []     (z:zs) = f x b z : go xs [] zs
-    go (x:xs) (y:ys) []     = f x y c : go xs ys []
-    go (x:xs) (y:ys) (z:zs) = f x y z : go xs ys zs
-
 -- | The core QuickCheck property sending the 'Test' to the tested RISC-V
 --   implementations as 'DII_Packet's and checking the returned 'RVFI_Packet's
 --   for equivalence. It receives among other things a callback function
@@ -123,17 +109,15 @@ prop connA connB alive onFail arch delay verbosity ignoreAsserts gen =
   forAllShrink gen shrink mkProp
   where mkProp test = whenFail (onFail test) (doProp test)
         doProp test = monadicIO $ run $ do
-          let (rawInsts, asserts) = fromTestCase testCase
-          let instTrace = map diiInstruction (map fst rawInsts)
-          let insts = instTrace ++ [diiEnd]
+          let instTrace = diiInstruction <$> test
+          let insts = instTrace <> singleTest diiEnd
           currentlyAlive <- readIORef alive
           if currentlyAlive then do
             m_traces <- doRVFIDII connA connB alive delay verbosity insts
             case m_traces of
-              Just (traceA, traceB) -> do
-                let diff = zipWithPadding rvfiEmptyHaltPacket rvfiEmptyHaltPacket Nothing
-                                          (rvfiCheckAndShow $ has_xlen_64 arch)
-                                          traceA traceB (if ignoreAsserts then [] else map snd rawInsts)
+              Just traces -> do
+                let diffFunc m_assert (i, a, b) = rvfiCheckAndShow (has_xlen_64 arch) a b m_assert
+                let diff = mapWithAssertLastVal diffFunc traces
                 when (verbosity > 1) $ mapM_ (putStrLn . snd) diff
                 let implAAsserts = asserts (init traceA)
                 let implBAsserts = asserts (init traceB)
@@ -146,6 +130,8 @@ prop connA connB alive onFail arch delay verbosity ignoreAsserts gen =
           else do putStrLn "Warning: reporting success since implementations not running"
                   return $ property True
 
+type Report = (DII_Packet, Maybe RVFI_Packet, Maybe RVFI_Packet)
+
 -- | Send a sequence of instructions ('[DII_Packet]') to the implementations
 --   running behind the two provided 'Sockets's and recieve their respective
 --   RVFI traces ('[RVFI_Packet]'). If all went well, return
@@ -153,31 +139,31 @@ prop connA connB alive onFail arch delay verbosity ignoreAsserts gen =
 --   'IORef Bool' for alive to 'False' indicating that further interaction with
 --   the implementations is futile
 doRVFIDII :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> Int
-          -> Int -> [DII_Packet] -> IO (Maybe ([RVFI_Packet], [RVFI_Packet]))
+          -> Int -> Test DII_Packet -> IO (Maybe (Test Report))
 doRVFIDII connA connB alive delay verbosity insts = do
   currentlyAlive <- readIORef alive
   if currentlyAlive then do
     result <- try $ do
       let doLog = verbosity > 1
+      let errorTrace = fmap (flip (,) Nothing)
       -- Send to implementations
       sendDIITrace connA insts
       when doLog $ putStrLn "Done sending instructions to implementation A"
       sendDIITrace connB insts
       when doLog $ putStrLn "Done sending instructions to implementation B"
       -- Receive from implementations
-      m_traceA <- timeout delay $ recvRVFITrace connA verbosity
+      m_traceA <- timeout delay $ recvRVFITrace connA verbosity insts
       when doLog $ putStrLn "Done receiving reports from implementation A"
-      m_traceB <- timeout delay $ recvRVFITrace connB verbosity
+      m_traceAB <- timeout delay $ recvRVFITrace connB verbosity (fromMaybe (errorTrace insts) m_traceA)
       when doLog $ putStrLn "Done receiving reports from implementation B"
       --
-      return (m_traceA, m_traceB)
+      when (isNothing m_traceA || isNothing m_traceAB) $ writeIORef alive False
+      when (isNothing m_traceA) $ putStrLn "Error: implementation A timeout. Forcing all future tests to report 'SUCCESS'"
+      when (isNothing m_traceAB) $ putStrLn "Error: implementation B timeout. Forcing all future tests to report 'SUCCESS'"
+      --
+      return $ fromMaybe (errorTrace m_traceA) m_traceAB
     case result of
-      Right (Just traceA, Just traceB) -> return $ Just (traceA, traceB)
-      Right (a, b) -> do
-        writeIORef alive False
-        when (isNothing a) $ putStrLn "Error: implementation A timeout. Forcing all future tests to report 'SUCCESS'"
-        when (isNothing b) $ putStrLn "Error: implementation B timeout. Forcing all future tests to report 'SUCCESS'"
-        return Nothing
+      Right x -> Just $ (\((x,y),z) -> (x,y,z)) <$> x
       Left (SomeException e) -> do
         writeIORef alive False
         putStrLn ("Error: exception on IO with implementations. Forcing all future tests to report 'SUCCESS': " ++ show e)

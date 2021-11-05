@@ -84,6 +84,9 @@ rv_pretty instr = case decode 32 instr instList of
                    ++ rv32_zifencei_disass
                    ++ rv32_xcheri_disass
 
+instance Show Instruction where
+  show = rv_pretty
+
 rv_extract :: Instruction -> ExtractedRegs
 rv_extract instr = case decode 32 instr extractList of
   Nothing -> (False, Nothing, Nothing, Nothing, (\a b c -> instr))

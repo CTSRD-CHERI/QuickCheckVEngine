@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
@@ -59,37 +60,34 @@ module QuickCheckVEngine.Template (
 , shrinkUnit
 , (<>)
 , Test
+, mapWithAssertLastVal
 , genTest
 ) where
 
 import Test.QuickCheck
 import Data.Semigroup
-import RISCV
+import RISCV (Instruction)
 import Data.Kind
 import Control.Applicative
 import Text.Printf
 
-data MetaInfo t = MetaShrink
+data Report = ReportAssert Bool String
+
+instance Show Report where
+  show (ReportAssert b s) = (if b then "Passed" else "Failed") ++ " assert: " ++ s
+
+data MetaInfo r = MetaShrink -- XXX TODO add api for MetaShrink
                 | MetaNoShrink
-                | MetaCustomShrink (t -> [Test t])
+                | MetaCustomShrink (r -> [Test Instruction]) -- XXX TODO should be a test of r as input to allow bypass shrinking
                 | MetaAssertLastVal Integer
-                | MetaAssertCompound ([Integer] -> Bool)
+                | MetaAssertCompound (Test r -> (Bool, String))
+                | MetaReport Report
 
-discardCustomShrinks :: MetaInfo a -> MetaInfo b
-discardCustomShrinks MetaShrink = MetaShrink
-discardCustomShrinks MetaNoShrink = MetaNoShrink
-discardCustomShrinks (MetaCustomShrink _) = MetaCustomShrink (const []) -- Nothing sensible to do here!
-discardCustomShrinks (MetaAssertLastVal x) = MetaAssertLastVal x
-discardCustomShrinks (MetaAssertCompound x) = MetaAssertCompound x
-
-instance Functor MetaInfo where
-  fmap _ = discardCustomShrinks
-
-data Template = TemplateEmpty
-              | TemplateSingle Instruction
-              | TemplateSequence Template Template
-              | TemplateMeta (MetaInfo Instruction) Template
-              | TemplateRandom (Gen Template)
+data Template r = TemplateEmpty
+                | TemplateSingle Instruction
+                | TemplateSequence Template Template
+                | TemplateMeta (MetaInfo r) Template
+                | TemplateRandom (Gen Template)
 
 instance Semigroup Template where
   x <> y = TemplateSequence x y
@@ -147,60 +145,81 @@ shrinkUnit = TemplateMeta MetaShrink
 
 --------------------------------------------------------------------------------
 
-instance Show Instruction where
-  show i@(MkInstruction inst) = printf ".4byte 0x%08x # %s" inst (rv_pretty i)
+data Test r t = TestEmpty
+              | TestSingle t
+              | TestSequence (Test r t) (Test r t)
+              | TestMeta (MetaInfo r) (Test r t)
 
-data Test t = TestEmpty
-            | TestSingle t
-            | TestSequence (Test t) (Test t)
-            | TestMeta (MetaInfo t) (Test t)
-
-instance Semigroup (Test t) where
+instance Semigroup (Test r t) where
   x <> y = TestSequence x y
-instance Monoid (Test t) where
+instance Monoid (Test r t) where
   mempty = TestEmpty
   mappend = (<>)
-instance Functor Test where
+instance Functor (Test r) where
   fmap f TestEmpty = TestEmpty
   fmap f (TestSingle x) = TestSingle $ f x
   fmap f (TestSequence x y) = TestSequence (fmap f x) (fmap f y)
-  fmap f (TestMeta m x) = TestMeta (fmap f m) (fmap f x)
-instance Foldable Test where
+  fmap f (TestMeta m x) = TestMeta m (fmap f x)
+instance Foldable (Test r) where
   foldr _ z TestEmpty = z
   foldr f z (TestSingle x) = f x z
   foldr f z (TestSequence x y) = foldr f (foldr f z y) x
   foldr f z (TestMeta _ x) = foldr f z x
-instance Traversable Test where
+instance Traversable (Test r) where
   traverse _ TestEmpty = pure TestEmpty
   traverse f (TestSingle x) = TestSingle <$> f x
   traverse f (TestSequence x y) = liftA2 TestSequence (traverse f x) (traverse f y)
-  traverse f (TestMeta m x) = TestMeta (discardCustomShrinks m) <$> traverse f x
-instance Show t => Show (Test t) where
+  traverse f (TestMeta m x) = TestMeta m <$> traverse f x
+instance Show t, Integral t => Show (Test r t) where
   show TestEmpty = ""
-  show (TestSingle x) = show x
+  show (TestSingle x) = printf ".4byte 0x%08x # %s" (toInteger x) (show x)
   show (TestSequence x y) = show x ++ "\n" ++ show y
   show (TestMeta MetaShrink x) = "#>START_SHRINK\n" ++ show x ++ "\n#>END_SHRINK"
   show (TestMeta MetaNoShrink x) = "#>START_NOSHRINK\n" ++ show x ++ "\n#>END_NOSHRINK"
   show (TestMeta (MetaCustomShrink _) x) = show x -- Cannot serialise function
   show (TestMeta (MetaAssertLastVal v) x) = printf "%s\n#>ASSERT rd_wdata == 0x%x" (show x) v
   show (TestMeta (MetaAssertCompound _) x) = show x -- Cannot serialise function
+  show (TestMeta (MetaReport r) x) = "# REPORT     '" ++ show r ++ "' {\n" ++ show x ++ "\n# } END REPORT '" ++ show r ++ "'"
 
-genTest :: Template -> Gen (Test Instruction)
+-- XXX TODO won't work if there are empties at the end of the tree
+mapWithAssertLastVal :: (Maybe Integer -> a -> b) -> Test r a -> Test r b
+mapWithAssertLastVal = go Nothing
+  where go _ _ TestEmpty = TestEmpty
+        go v f (TestSingle x) = TestSingle (f v x)
+        go v f (TestSequence x y) = TestSequence (go Nothing f x) (go v f y)
+        go _ f (TestMeta m@(MetaAssertLastVal v) x) = TestMeta m (go (Just v) f x)
+        go v f (TestMeta m x) = TestMeta m (go v f x)
+
+runAsserts :: Test r r -> (Test r r, [(Bool, String)])
+runAsserts TestEmpty = TestEmpty
+runAsserts (TestSingle x) = TestSingle Nothing
+runAsserts (TestSequence x y) = TestSequence (assertCompound x) (assertCompound y)
+-- TODO Fold in mapWithAssertLastVal here somehow?
+runAsserts (TestMeta (MetaAssertCompound f) x) = TestMeta m' x'
+  where m' = MetaReport $ uncurry ReportAssert (f x)
+        x' = runAssertCompound x
+runAsserts (TestMeta m x) = TestMeta m (runAsserts x)
+
+gatherReports :: Test r t -> [(Report, Test r t)]
+gatherReports (TestSequence x y) = gatherReports x ++ gatherReports y
+gatherReports (TestMeta (MetaReport r) x) = (r, x) : gatherReports x
+gatherReports (TestMeta _ x) = gatherReports x
+gatherReports _ = []
+
+singleTest :: t -> (forall r. Test r t)
+singleTest = TestSingle
+
+genTest :: Template r -> Gen (Test r Instruction)
 genTest TemplateEmpty = return TestEmpty
 genTest (TemplateSingle x) = return $ TestSingle x
 genTest (TemplateSequence x y) = TestSequence <$> genTest x <*> genTest y
 genTest (TemplateMeta m x) = TestMeta m <$> genTest x
 genTest (TemplateRandom g) = genTest =<< g
 
-class DefaultShrink t where
-  defaultShrink :: t -> [Test t]
-instance DefaultShrink Instruction where
-  defaultShrink = error "todo rvshrink"
-
-instance DefaultShrink a => Arbitrary (Test a) where
+instance Arbitrary (Test r r) where
   arbitrary = return TestEmpty
-  shrink = shrinkHelper defaultShrink
-    where shrinkHelper :: (a -> [Test a]) -> (Test a) -> [Test a]
+  shrink = shrinkHelper (const [])
+    where shrinkHelper :: (r -> [Test Instruction]) -> Test r r -> [Test r r]
           shrinkHelper _ TestEmpty = []
           shrinkHelper f (TestSingle x) = TestEmpty : f x
           shrinkHelper f (TestSequence x y) =

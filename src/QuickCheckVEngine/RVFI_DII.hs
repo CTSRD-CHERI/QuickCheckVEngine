@@ -60,6 +60,7 @@ import Data.Binary
 import Data.Binary.Get
 import qualified Data.ByteString.Lazy as BS
 import Data.Int
+import Data.IORef
 import Network.Socket
 import Network.Socket.ByteString.Lazy
 import QuickCheckVEngine.RVFI_DII.DII
@@ -71,8 +72,8 @@ data RvfiDiiConnection = RvfiDiiConnection Socket Int String
 sendDIIPacket :: Socket -> DII_Packet -> IO ()
 sendDIIPacket sckt inst = sendAll sckt $ BS.reverse (encode inst)
 
--- | Send an instruction trace (a '[DII_Packet]')
-sendDIITrace :: RvfiDiiConnection -> [DII_Packet] -> IO ()
+-- | Send an instruction trace (a 'Foldable t => t DII_Packet')
+sendDIITrace :: Foldable t => RvfiDiiConnection -> t DII_Packet -> IO ()
 sendDIITrace (RvfiDiiConnection sckt _ _) trace = mapM_ (sendDIIPacket sckt) trace
 
 -- | Receive a single 'RVFI_Packet'
@@ -82,15 +83,17 @@ recvRVFIPacket (RvfiDiiConnection sock 2 name) verbosity = rvfiReadV2Response ((
 recvRVFIPacket (RvfiDiiConnection _ vers name) _ = error (name ++ " invalid trace version" ++ show vers)
 
 -- | Receive an execution trace (a '[RVFI_Packet]')
-recvRVFITrace :: RvfiDiiConnection -> Int -> IO [RVFI_Packet]
-recvRVFITrace conn verbosity = do
-  rvfiPkt <- recvRVFIPacket conn verbosity
-  when (verbosity > 1) $ putStrLn $ "\t" ++ show rvfiPkt
-  if rvfiIsHalt rvfiPkt
-    then return [rvfiPkt]
-    else do
-      morePkts <- recvRVFITrace conn verbosity
-      return (rvfiPkt : morePkts)
+recvRVFITrace :: Traversable t => RvfiDiiConnection -> Int -> t a -> IO (t (a, Maybe RVFI_Packet))
+recvRVFITrace conn verbosity tStruct = do
+  activeRef <- newIORef True
+  let recv x = do active <- readIORef activeRef
+                  if active then do
+                    rvfiPkt <- recvRVFIPacket conn verbosity
+                    when (verbosity > 1) $ putStrLn $ "\t" ++ show rvfiPkt
+                    when (rvfiIsHalt rvfiPkt) $ writeIORef activeRef False
+                    return (x, Just rvfiPkt)
+                  else return (x, Nothing)
+  traverse recv tStruct
 
 -- | Perform a trace version negotiation with an implementation and return the
 -- | accepted version.
