@@ -111,7 +111,7 @@ genRandomCHERITest arch = Random $ do
                         , (10, randomCInvoke srcAddr srcData tmpReg tmpReg2)
                         , (10, makeShortCap)
                         , (10, clearASR tmpReg tmpReg2)
-                        , (10, loadTags srcAddr srcData)
+                        , (if has_nocloadtags arch then 0 else 10, loadTags srcAddr srcData)
                         ]
 
 randomCHERITest :: ArchDesc -> Template

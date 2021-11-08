@@ -54,19 +54,20 @@ import Data.Char (toLower)
 -- | The 'ArchDesc' type is a record type with 'Bool' fields indicating the
 --   presence of a RISC-V extension. It can be used to select a subset of
 --   instructions to generate when used in functions to generate 'Template's.
-data ArchDesc = ArchDesc { has_xlen_32 :: Bool
-                         , has_xlen_64 :: Bool
-                         , has_i       :: Bool
-                         , has_m       :: Bool
-                         , has_s       :: Bool
-                         , has_a       :: Bool
-                         , has_f       :: Bool
-                         , has_d       :: Bool
-                         , has_c       :: Bool
-                         , has_n       :: Bool
-                         , has_icsr    :: Bool
-                         , has_ifencei :: Bool
-                         , has_cheri   :: Bool }
+data ArchDesc = ArchDesc { has_xlen_32     :: Bool
+                         , has_xlen_64     :: Bool
+                         , has_i           :: Bool
+                         , has_m           :: Bool
+                         , has_s           :: Bool
+                         , has_a           :: Bool
+                         , has_f           :: Bool
+                         , has_d           :: Bool
+                         , has_c           :: Bool
+                         , has_n           :: Bool
+                         , has_icsr        :: Bool
+                         , has_ifencei     :: Bool
+                         , has_cheri       :: Bool
+                         , has_nocloadtags :: Bool }
 
 -- | The 'Show' instance for 'ArchDesc' renders an approximation of a RISC-V
 --   archstring
@@ -84,59 +85,63 @@ instance Show ArchDesc where
                 ++ ext has_n "n"
                 ++ intercalate "_" [ x | x <- [ ext has_icsr "Zicsr"
                                               , ext has_ifencei "Zifencei"
-                                              , ext has_cheri "Xcheri" ]
+                                              , ext has_cheri "Xcheri"
+                                              , ext has_nocloadtags "Xnocloadtags" ]
                                        , not $ null x ]
             where ext pred str = if pred a then str else ""
 
 -- | 'archDesc_null' is an 'ArchDesc' with all its fields set to 'False'
-archDesc_null  = ArchDesc { has_xlen_32 = False
-                          , has_xlen_64 = False
-                          , has_i       = False
-                          , has_m       = False
-                          , has_s       = False
-                          , has_a       = False
-                          , has_f       = False
-                          , has_d       = False
-                          , has_c       = False
-                          , has_n       = False
-                          , has_icsr    = False
-                          , has_ifencei = False
-                          , has_cheri   = False
+archDesc_null  = ArchDesc { has_xlen_32     = False
+                          , has_xlen_64     = False
+                          , has_i           = False
+                          , has_m           = False
+                          , has_s           = False
+                          , has_a           = False
+                          , has_f           = False
+                          , has_d           = False
+                          , has_c           = False
+                          , has_n           = False
+                          , has_icsr        = False
+                          , has_ifencei     = False
+                          , has_cheri       = False
+                          , has_nocloadtags = False
                           }
 
 -- | 'archDesc_rv32i' is an 'ArchDesc' with its 'has_xlen_32' and 'has_i' fields
 --   set to 'True' and all others set to 'False'
-archDesc_rv32i = ArchDesc { has_xlen_32 = True
-                          , has_xlen_64 = False
-                          , has_i       = True
-                          , has_m       = False
-                          , has_s       = False
-                          , has_a       = False
-                          , has_f       = False
-                          , has_d       = False
-                          , has_c       = False
-                          , has_n       = False
-                          , has_icsr    = False
-                          , has_ifencei = False
-                          , has_cheri   = False
+archDesc_rv32i = ArchDesc { has_xlen_32     = True
+                          , has_xlen_64     = False
+                          , has_i           = True
+                          , has_m           = False
+                          , has_s           = False
+                          , has_a           = False
+                          , has_f           = False
+                          , has_d           = False
+                          , has_c           = False
+                          , has_n           = False
+                          , has_icsr        = False
+                          , has_ifencei     = False
+                          , has_cheri       = False
+                          , has_nocloadtags = False
                           }
 
 -- | 'fromString' expects a valid RISC-V archstring and turns it into an
 --   'ArchDesc'
 fromString :: String -> ArchDesc
-fromString str = ArchDesc { has_xlen_32 = True
-                          , has_xlen_64 = rv64
-                          , has_i       = i
-                          , has_m       = m
-                          , has_s       = s
-                          , has_a       = a
-                          , has_f       = f
-                          , has_d       = d
-                          , has_c       = c
-                          , has_n       = n
-                          , has_icsr    = icsr
-                          , has_ifencei = ifencei
-                          , has_cheri   = cheri
+fromString str = ArchDesc { has_xlen_32     = True
+                          , has_xlen_64     = rv64
+                          , has_i           = i
+                          , has_m           = m
+                          , has_s           = s
+                          , has_a           = a
+                          , has_f           = f
+                          , has_d           = d
+                          , has_c           = c
+                          , has_n           = n
+                          , has_icsr        = icsr
+                          , has_ifencei     = ifencei
+                          , has_cheri       = cheri
+                          , has_nocloadtags = nocloadtags
                           }
   where rawSplit = splitOneOf "_zx" (map toLower str)
         archStrings = filter (\x -> not $ null x) rawSplit
@@ -152,3 +157,4 @@ fromString str = ArchDesc { has_xlen_32 = True
         c = head archStrings =~ "c"
         n = head archStrings =~ "n"
         cheri = elem "cheri" archStrings
+        nocloadtags = elem "nocloadtags" archStrings
