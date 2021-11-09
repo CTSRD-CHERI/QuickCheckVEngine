@@ -132,7 +132,7 @@ prop connA connB alive onFail arch delay verbosity ignoreAsserts gen =
             case m_traces of
               Just (traceA, traceB) -> do
                 let diff = zipWithPadding rvfiEmptyHaltPacket rvfiEmptyHaltPacket Nothing
-                                          (rvfiCheckAndShow $ has_xlen_64 arch)
+                                          (rvfiCheckAndShow (has_xlen_64 arch) verbosity)
                                           traceA traceB (if ignoreAsserts then [] else map snd rawInsts)
                 when (verbosity > 1) $ mapM_ (putStrLn . snd) diff
                 let implAAsserts = asserts (init traceA)
