@@ -80,12 +80,11 @@ instance Show DII_Packet where
 instance {-# OVERLAPPING #-} Show (Test TestResult) where
   show t = show ((\(x, _, _) -> x) <$> t)
 
---XXX type ShrinkStrategy = Test TestResult -> [Test TestResult]
 bypassShrink :: ShrinkStrategy
 bypassShrink = sequenceShrink f'
   where f' :: Test TestResult -> Test TestResult -> [Test TestResult]
         f' a b = foldr f [] a
-          where f (DII_Instruction _ x, _, _) = ((if is_bypass then ((a <>) <$> (singleShrink (s (def0 m_rs1_x) (def0 m_rd_x)) b)) else []) ++)
+          where f (DII_Instruction _ x, _, _) = ((if is_bypass then ((a <>) <$> (singleShrink (s (def0 m_rd_x) (def0 m_rs1_x)) b)) else []) ++)
                   where (is_bypass, _, m_rs1_x, m_rd_x, _) = rv_extract . MkInstruction . toInteger $ x
                         s old new (DII_Instruction t i, ra, rb) = singleTest <$>
                              [ (DII_Instruction t . fromInteger . unMkInstruction $ reencode_i (def0 m_rs2_i) new (def0 m_rd_i), ra, rb)
