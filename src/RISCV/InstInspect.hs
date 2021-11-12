@@ -70,6 +70,8 @@ import RISCV.RV64_F
 import RISCV.RV64_D
 import RISCV.Helpers
 
+import Text.Printf
+
 -- | RISC-V instruction pretty printer
 rv_pretty :: Instruction -> String
 rv_pretty instr = case decode 32 instr instList of
@@ -85,7 +87,7 @@ rv_pretty instr = case decode 32 instr instList of
                    ++ rv32_xcheri_disass
 
 instance Show Instruction where
-  show = rv_pretty
+  show i@(MkInstruction v) = printf ".4byte 0x%08x # %s" v (rv_pretty i)
 
 rv_extract :: Instruction -> ExtractedRegs
 rv_extract instr = case decode 32 instr extractList of

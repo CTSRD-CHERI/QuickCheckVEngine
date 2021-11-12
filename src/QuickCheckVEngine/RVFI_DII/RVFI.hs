@@ -449,9 +449,9 @@ rvfiCheck is64 x y assert
       && (optionalFieldsSame (rvfi_ixl x) (rvfi_ixl y))
       && (getRDAddr x == getRDAddr y)
       && ((getRDAddr x == 0) || (getRDWData x == getRDWData y))
-      && compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata
+      && (compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata)
       && (maskUpper is64 (rvfi_pc_wdata x) == maskUpper is64 (rvfi_pc_wdata y))
-      && (fromMaybe (getRDWData x) (fromInteger <$> assert)) == getRDWData x
+      && ((maybe (getRDWData x) fromInteger assert) == getRDWData x)
   where
     maskUpper _is64 _x = if _is64 then _x else _x Data.Bits..&. 0x00000000FFFFFFFF
     getRDAddr pkt = maybe 0 rvfi_rd_addr $ rvfi_int_data pkt
@@ -460,9 +460,10 @@ rvfiCheck is64 x y assert
 -- | Compare 2 'RVFI_Packet's and produce a 'String' output displaying the
 --   the content of the packet once only for equal inputs or the content of
 --   each input 'RVFI_Packet' if inputs are not succeeding the 'rvfiCheck'
-rvfiCheckAndShow :: Bool -> RVFI_Packet -> RVFI_Packet -> (Maybe Integer) -> (Bool, String)
+rvfiCheckAndShow :: Bool -> Maybe RVFI_Packet -> Maybe RVFI_Packet -> Maybe Integer -> (Bool, String)
 rvfiCheckAndShow is64 x y assert
-  | rvfiCheck is64 x y assert = (True,  "     " ++ show x ++ suffix)
-  | otherwise                 = (False, " A < " ++ show x ++ suffix ++ "\n B > " ++ show y ++ suffix)
+  | Just x' <- x, Just y' <- y, rvfiCheck is64 x' y' assert = (True,  "     " ++ show x' ++ suffix)
+  | otherwise = (False,      " A < " ++ maybe "No report received" show x ++ suffix
+                        ++ "\n B > " ++ maybe "No report received" show y ++ suffix)
     where suffix = case assert of Nothing -> ""
                                   Just i  -> printf " (assert rd_wdata == 0x%x)" i

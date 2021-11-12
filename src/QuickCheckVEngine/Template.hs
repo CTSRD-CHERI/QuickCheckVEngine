@@ -1,4 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RecordWildCards #-}
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
@@ -56,38 +58,59 @@ module QuickCheckVEngine.Template (
 , instSeq
 , instDist
 , instUniform
+, ShrinkStrategy
 , noShrink
-, shrinkUnit
+, shrinkScope
+, shrinkStrategy
 , (<>)
 , Test
+, TestResult
+, sequenceShrink
+, singleShrink
+, defaultShrink
 , mapWithAssertLastVal
+, runAsserts
+, Report(..)
+, gatherReports
+, singleTest
+, seqSingleTest
+, noShrinkTest
+, shrinkTestStrategy
 , genTest
 ) where
 
 import Test.QuickCheck
-import Data.Semigroup
-import RISCV (Instruction)
+import Data.Semigroup (Semigroup(..))
+import RISCV (Instruction(..))
 import Data.Kind
-import Control.Applicative
+import Control.Applicative (liftA2)
 import Text.Printf
+import QuickCheckVEngine.RVFI_DII
+import Text.Parsec hiding (parseTest)
+import Text.Parsec.Token
+import Text.Parsec.Language
+
+type TestResult = (DII_Packet, Maybe RVFI_Packet, Maybe RVFI_Packet)
 
 data Report = ReportAssert Bool String
 
 instance Show Report where
   show (ReportAssert b s) = (if b then "Passed" else "Failed") ++ " assert: " ++ s
 
-data MetaInfo r = MetaShrink -- XXX TODO add api for MetaShrink
-                | MetaNoShrink
-                | MetaCustomShrink (r -> [Test Instruction]) -- XXX TODO should be a test of r as input to allow bypass shrinking
-                | MetaAssertLastVal Integer
-                | MetaAssertCompound (Test r -> (Bool, String))
-                | MetaReport Report
+type ShrinkStrategy = Test TestResult -> [Test TestResult]
 
-data Template r = TemplateEmpty
-                | TemplateSingle Instruction
-                | TemplateSequence Template Template
-                | TemplateMeta (MetaInfo r) Template
-                | TemplateRandom (Gen Template)
+data MetaInfo = MetaShrinkStrategy ShrinkStrategy
+              | MetaNoShrink
+              | MetaShrinkScope
+              | MetaAssertLastVal Integer
+              | MetaAssertCompound (Test TestResult -> (Bool, String))
+              | MetaReport Report
+
+data Template = TemplateEmpty
+              | TemplateSingle Instruction
+              | TemplateSequence Template Template
+              | TemplateMeta MetaInfo Template
+              | TemplateRandom (Gen Template)
 
 instance Semigroup Template where
   x <> y = TemplateSequence x y
@@ -140,49 +163,98 @@ instUniform = instDist . map ((,) 1)
 noShrink :: Template -> Template
 noShrink = TemplateMeta MetaNoShrink
 
-shrinkUnit :: Template -> Template
-shrinkUnit = TemplateMeta MetaShrink
+shrinkScope :: Template -> Template
+shrinkScope = TemplateMeta MetaShrinkScope
 
+shrinkStrategy :: Template -> ShrinkStrategy -> Template
+shrinkStrategy x f = TemplateMeta (MetaShrinkStrategy f) x
+
+-- * Test datatype definition core
 --------------------------------------------------------------------------------
 
-data Test r t = TestEmpty
-              | TestSingle t
-              | TestSequence (Test r t) (Test r t)
-              | TestMeta (MetaInfo r) (Test r t)
+data Test t = TestEmpty
+            | TestSingle t
+            | TestSequence (Test t) (Test t)
+            | TestMeta MetaInfo (Test t)
 
-instance Semigroup (Test r t) where
+instance Semigroup (Test t) where
   x <> y = TestSequence x y
-instance Monoid (Test r t) where
+instance Monoid (Test t) where
   mempty = TestEmpty
   mappend = (<>)
-instance Functor (Test r) where
+instance Functor Test where
   fmap f TestEmpty = TestEmpty
   fmap f (TestSingle x) = TestSingle $ f x
   fmap f (TestSequence x y) = TestSequence (fmap f x) (fmap f y)
   fmap f (TestMeta m x) = TestMeta m (fmap f x)
-instance Foldable (Test r) where
+instance Foldable Test where
   foldr _ z TestEmpty = z
   foldr f z (TestSingle x) = f x z
   foldr f z (TestSequence x y) = foldr f (foldr f z y) x
   foldr f z (TestMeta _ x) = foldr f z x
-instance Traversable (Test r) where
+instance Traversable Test where
   traverse _ TestEmpty = pure TestEmpty
   traverse f (TestSingle x) = TestSingle <$> f x
   traverse f (TestSequence x y) = liftA2 TestSequence (traverse f x) (traverse f y)
   traverse f (TestMeta m x) = TestMeta m <$> traverse f x
-instance Show t, Integral t => Show (Test r t) where
-  show TestEmpty = ""
-  show (TestSingle x) = printf ".4byte 0x%08x # %s" (toInteger x) (show x)
-  show (TestSequence x y) = show x ++ "\n" ++ show y
-  show (TestMeta MetaShrink x) = "#>START_SHRINK\n" ++ show x ++ "\n#>END_SHRINK"
-  show (TestMeta MetaNoShrink x) = "#>START_NOSHRINK\n" ++ show x ++ "\n#>END_NOSHRINK"
-  show (TestMeta (MetaCustomShrink _) x) = show x -- Cannot serialise function
-  show (TestMeta (MetaAssertLastVal v) x) = printf "%s\n#>ASSERT rd_wdata == 0x%x" (show x) v
-  show (TestMeta (MetaAssertCompound _) x) = show x -- Cannot serialise function
-  show (TestMeta (MetaReport r) x) = "# REPORT     '" ++ show r ++ "' {\n" ++ show x ++ "\n# } END REPORT '" ++ show r ++ "'"
+
+genTest :: Template -> Gen (Test Instruction)
+genTest TemplateEmpty = return TestEmpty
+genTest (TemplateSingle x) = return $ TestSingle x
+genTest (TemplateSequence x y) = TestSequence <$> genTest x <*> genTest y
+genTest (TemplateMeta m x) = TestMeta m <$> genTest x
+genTest (TemplateRandom g) = genTest =<< g
+
+-- * Test shrinking
+--------------------------------------------------------------------------------
+
+instance Arbitrary (Test TestResult) where
+  arbitrary = return TestEmpty
+  shrink TestEmpty = []
+  shrink (TestSingle x) = []
+  shrink (TestSequence x y) = let xs = shrink x
+                                  ys = shrink y
+                              in    [TestSequence x' y  | x' <- xs]
+                                 ++ [TestSequence x  y' | y' <- ys]
+  shrink (TestMeta MetaNoShrink _) = []
+  shrink (TestMeta m@(MetaShrinkStrategy f) x) = TestMeta m <$> (f x ++ shrink x)
+  shrink (TestMeta m x) = TestMeta m <$> shrink x
+
+data ShrinkMethods = MkShrinkMethods { methodSingle :: TestResult -> [Test TestResult]
+                                     , methodSequence :: Test TestResult -> ShrinkStrategy
+                                     , methodShrinkScope :: ShrinkStrategy }
+defaultShrinkMethods :: ShrinkMethods
+defaultShrinkMethods = MkShrinkMethods { methodSingle = const []
+                                       , methodSequence = const $ const []
+                                       , methodShrinkScope = const [] }
+
+recurseShrink :: ShrinkMethods -> ShrinkStrategy
+recurseShrink                     _ TestEmpty = []
+recurseShrink   MkShrinkMethods{..} (TestSingle x) = methodSingle x
+recurseShrink s@MkShrinkMethods{..} (TestSequence x y) = let xs = recurseShrink s x
+                                                             ys = recurseShrink s y
+                                                         in methodSequence x y
+                                                            ++ [TestSequence x' y  | x' <- xs]
+                                                            ++ [TestSequence x  y' | y' <- ys]
+recurseShrink                     _ (TestMeta MetaNoShrink _) = []
+recurseShrink s@MkShrinkMethods{..} (TestMeta MetaShrinkScope x) = methodShrinkScope x ++ (TestMeta MetaShrinkScope <$> recurseShrink s x)
+recurseShrink s@MkShrinkMethods{..} (TestMeta m x) = TestMeta m <$> recurseShrink s x
+
+-- * Test API
+--------------------------------------------------------------------------------
+
+singleShrink :: (TestResult -> [Test TestResult]) -> ShrinkStrategy
+singleShrink f = recurseShrink defaultShrinkMethods { methodSingle = f }
+
+sequenceShrink :: (Test TestResult -> ShrinkStrategy) -> ShrinkStrategy
+sequenceShrink g = recurseShrink defaultShrinkMethods { methodSequence = g }
+
+defaultShrink :: ShrinkStrategy
+defaultShrink = recurseShrink defaultShrinkMethods { methodSingle = const [TestEmpty]
+                                                   , methodShrinkScope = const [TestEmpty] }
 
 -- XXX TODO won't work if there are empties at the end of the tree
-mapWithAssertLastVal :: (Maybe Integer -> a -> b) -> Test r a -> Test r b
+mapWithAssertLastVal :: (Maybe Integer -> a -> b) -> Test a -> Test b
 mapWithAssertLastVal = go Nothing
   where go _ _ TestEmpty = TestEmpty
         go v f (TestSingle x) = TestSingle (f v x)
@@ -190,44 +262,162 @@ mapWithAssertLastVal = go Nothing
         go _ f (TestMeta m@(MetaAssertLastVal v) x) = TestMeta m (go (Just v) f x)
         go v f (TestMeta m x) = TestMeta m (go v f x)
 
-runAsserts :: Test r r -> (Test r r, [(Bool, String)])
+runAsserts :: Test TestResult -> Test TestResult
 runAsserts TestEmpty = TestEmpty
-runAsserts (TestSingle x) = TestSingle Nothing
-runAsserts (TestSequence x y) = TestSequence (assertCompound x) (assertCompound y)
+runAsserts (TestSingle x) = TestSingle x
+runAsserts (TestSequence x y) = TestSequence (runAsserts x) (runAsserts y)
 -- TODO Fold in mapWithAssertLastVal here somehow?
 runAsserts (TestMeta (MetaAssertCompound f) x) = TestMeta m' x'
   where m' = MetaReport $ uncurry ReportAssert (f x)
-        x' = runAssertCompound x
+        x' = runAsserts x
 runAsserts (TestMeta m x) = TestMeta m (runAsserts x)
 
-gatherReports :: Test r t -> [(Report, Test r t)]
+gatherReports :: Test t -> [(Report, Test t)]
 gatherReports (TestSequence x y) = gatherReports x ++ gatherReports y
 gatherReports (TestMeta (MetaReport r) x) = (r, x) : gatherReports x
 gatherReports (TestMeta _ x) = gatherReports x
 gatherReports _ = []
 
-singleTest :: t -> (forall r. Test r t)
+singleTest :: t -> Test t
 singleTest = TestSingle
 
-genTest :: Template r -> Gen (Test r Instruction)
-genTest TemplateEmpty = return TestEmpty
-genTest (TemplateSingle x) = return $ TestSingle x
-genTest (TemplateSequence x y) = TestSequence <$> genTest x <*> genTest y
-genTest (TemplateMeta m x) = TestMeta m <$> genTest x
-genTest (TemplateRandom g) = genTest =<< g
+seqSingleTest :: [t] -> Test t
+seqSingleTest = mconcat . map TestSingle
 
-instance Arbitrary (Test r r) where
-  arbitrary = return TestEmpty
-  shrink = shrinkHelper (const [])
-    where shrinkHelper :: (r -> [Test Instruction]) -> Test r r -> [Test r r]
-          shrinkHelper _ TestEmpty = []
-          shrinkHelper f (TestSingle x) = TestEmpty : f x
-          shrinkHelper f (TestSequence x y) =
-            let xs = shrinkHelper f x
-                ys = shrinkHelper f y
-            in    [TestSequence x' y  | x' <- xs]
-               ++ [TestSequence x  y' | y' <- ys]
-          shrinkHelper f (TestMeta MetaShrink t) = TestEmpty : shrinkHelper f t
-          shrinkHelper _ (TestMeta MetaNoShrink _) = []
-          shrinkHelper _ (TestMeta (MetaCustomShrink f) t) = shrinkHelper f t
-          shrinkHelper f (TestMeta m t) = TestMeta m <$> shrinkHelper f t
+noShrinkTest :: Test t -> Test t
+noShrinkTest = TestMeta MetaNoShrink
+
+shrinkTestStrategy :: Test TestResult -> ShrinkStrategy -> Test TestResult
+shrinkTestStrategy x f = TestMeta (MetaShrinkStrategy f) x
+
+-- * IO of tests
+--------------------------------------------------------------------------------
+
+shrinkScopeTok = "SHRINK_SCOPE"
+noShrinkTok = "NO_SHRINK"
+assertLastValTok = "ASSERT_LAST_VAL"
+startTok = "START_"
+endTok = "END_"
+versionTok = "QCVENGINE_TEST_V2.0"
+magicTok = "#>"
+
+instance Show t => Show (Test t) where
+  show x = printf "%s%s%s" magicTok versionTok (go x)
+    where go TestEmpty = ""
+          go (TestSingle x) = printf "\n%s" (show x)
+          go (TestSequence x y) = printf "%s%s" (go x) (go y)
+          go (TestMeta MetaShrinkScope x) = printf "\n%s%s%s%s\n%s%s%s" magicTok startTok shrinkScopeTok
+                                                                        (go x)
+                                                                        magicTok endTok shrinkScopeTok
+          go (TestMeta MetaNoShrink x) = printf "\n%s%s%s%s\n%s%s%s" magicTok startTok noShrinkTok
+                                                                     (go x)
+                                                                     magicTok endTok noShrinkTok
+          go (TestMeta (MetaShrinkStrategy _) x) = go x -- Cannot serialise function
+          go (TestMeta (MetaAssertLastVal v) x) = printf "\n%s%s%s%s\n%s%s%s rd_wdata == 0x%x \"\"" magicTok startTok assertLastValTok
+                                                                                                    (go x)
+                                                                                                    magicTok endTok assertLastValTok v
+          go (TestMeta (MetaAssertCompound _) x) = go x -- Cannot serialise function
+          go (TestMeta (MetaReport r) x) = printf "\n# REPORT     '%s' {%s\n# } END REPORT '%s'" (show r) (go x) (show r)
+
+type Parser = Parsec String ()
+
+-- Parse a legacy Test
+ltp = makeTokenParser $ emptyDef { commentLine   = "#"
+                                 , reservedNames = [ ".shrink", ".noshrink"
+                                                   , ".4byte", ".2byte"
+                                                   , ".assert"] }
+legacyParseTest :: Parser (Test Instruction)
+legacyParseTest = do
+  whiteSpace ltp
+  test <- mconcat <$> many legacyParseTestStrand
+  eof
+  return test
+legacyParseTestStrand :: Parser (Test Instruction)
+legacyParseTestStrand = do
+  mshrink <- optionMaybe $     (reserved ltp ".noshrink" >> return False)
+                           <|> (reserved ltp   ".shrink" >> return  True)
+  insts <- mconcat <$> many1 legacyParseInst
+  return $ case mshrink of Just False -> TestMeta MetaNoShrink insts
+                           _ -> insts
+legacyParseInst :: Parser (Test Instruction)
+legacyParseInst = do
+  reserved ltp ".4byte" <|> reserved ltp ".2byte"
+  bits <- natural ltp
+  let inst = TestSingle $ MkInstruction bits
+  option inst (try $ legacyParseSingleAssert inst)
+legacyParseSingleAssert :: Test Instruction -> Parser (Test Instruction)
+legacyParseSingleAssert x = do
+  reserved ltp ".assert"
+  reserved ltp "rd_wdata"
+  symbol ltp "=="
+  val <- natural ltp
+  str <- stringLiteral ltp
+  return $ TestMeta (MetaAssertLastVal val) x
+
+-- Parse a Test
+tp = makeTokenParser $ emptyDef { reservedNames = [ ".4byte", ".2byte"
+                                                  , "#", versionTok ]
+                                                  ++ [magicTok ++ pfx ++ sfx | pfx <- [startTok, endTok], sfx <- [shrinkScopeTok, noShrinkTok, assertLastValTok]] }
+
+parseTest :: Parser (Test Instruction)
+parseTest = do
+  parseComments
+  reserved tp versionTok
+  parseComments
+  parseTestBody
+
+parseTestBody :: Parser (Test Instruction)
+parseTestBody = option TestEmpty $ do
+  first <- parseInst <|> parseShrinkScope <|> parseNoShrink <|> parseAssert
+  rest <- parseTestBody
+  return $ first <> rest
+
+parseInst :: Parser (Test Instruction)
+parseInst = do
+  reserved tp ".4byte" <|> reserved tp ".2byte"
+  bits <- natural tp
+  parseComments
+  return $ TestSingle $ MkInstruction bits
+
+parseAssert :: Parser (Test Instruction)
+parseAssert = do
+  reserved tp $ magicTok ++ startTok ++ assertLastValTok
+  parseComments
+  inner <- parseTestBody
+  reserved tp $ magicTok ++ endTok ++ assertLastValTok
+  string "rd_wdata"
+  symbol tp "=="
+  val <- natural tp
+  stringLiteral tp
+  parseComments
+  return $ TestMeta (MetaAssertLastVal val) inner
+
+parseScope :: String -> Parser (Test Instruction)
+parseScope tok = do
+  reserved tp $ magicTok ++ startTok ++ tok
+  parseComments
+  inner <- parseTestBody
+  reserved tp $ magicTok ++ endTok ++ tok
+  parseComments
+  return inner
+
+parseShrinkScope :: Parser (Test Instruction)
+parseShrinkScope = do
+  inner <- parseScope shrinkScopeTok
+  return $ TestMeta MetaShrinkScope inner
+
+parseNoShrink :: Parser (Test Instruction)
+parseNoShrink = do
+  inner <- parseScope noShrinkTok
+  return $ TestMeta MetaNoShrink inner
+
+parseComments :: Parser ()
+parseComments = do many (reserved tp "#" >> manyTill anyToken newline)
+                   return ()
+
+instance Read (Test Instruction) where
+  readsPrec _ str = case parse (partial (try parseTest <|> legacyParseTest)) "Read" str of
+                      Left  e -> error $ show e ++ ", in:\n" ++ str ++ "\n"
+                      Right x -> [x]
+    where partial p = (,) <$> p <*> getInput
+

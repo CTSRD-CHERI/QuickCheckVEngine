@@ -44,11 +44,7 @@ import Data.Maybe
 import Data.Bits
 import Test.QuickCheck
 
-newtype Instruction = MkInstruction Integer deriving Eq
-
-instance Integral Instruction where
-  toInteger (MkInstruction i) = i
-  quotRem _ = error "Cannot divide instructions"
+newtype Instruction = MkInstruction { unMkInstruction :: Integer } deriving Eq
 
 type BitList = [Bool]
 

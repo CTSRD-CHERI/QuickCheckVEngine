@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
@@ -44,6 +46,8 @@ module QuickCheckVEngine.MainHelpers (
   readDataFile
 , genInstrServer
 , doRVFIDII
+, runImpls
+, wrapTest
 , prop
 ) where
 
@@ -63,10 +67,41 @@ import Control.Exception (try, SomeException(..))
 import qualified Data.ByteString.Lazy as BS
 
 import qualified InstrCodec
-import RISCV hiding (and)
+import RISCV hiding (and, or)
 import QuickCheckVEngine.RVFI_DII
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
+
+instance Show DII_Packet where
+  show (DII_End _) = "# Test end"
+  show (DII_Instruction _ x) = show $ MkInstruction (toInteger x)
+  show _ = ""
+
+instance {-# OVERLAPPING #-} Show (Test TestResult) where
+  show t = show ((\(x, _, _) -> x) <$> t)
+
+--XXX type ShrinkStrategy = Test TestResult -> [Test TestResult]
+bypassShrink :: ShrinkStrategy
+bypassShrink = sequenceShrink f'
+  where f' :: Test TestResult -> Test TestResult -> [Test TestResult]
+        f' a b = foldr f [] a
+          where f (DII_Instruction _ x, _, _) = ((if is_bypass then ((a <>) <$> (singleShrink (s (def0 m_rs1_x) (def0 m_rd_x)) b)) else []) ++)
+                  where (is_bypass, _, m_rs1_x, m_rd_x, _) = rv_extract . MkInstruction . toInteger $ x
+                        s old new (DII_Instruction t i, ra, rb) = singleTest <$>
+                             [ (DII_Instruction t . fromInteger . unMkInstruction $ reencode_i (def0 m_rs2_i) new (def0 m_rd_i), ra, rb)
+                             | maybe False (== old) m_rs1_i ]
+                          ++ [ (DII_Instruction t . fromInteger . unMkInstruction $ reencode_i new (def0 m_rs1_i) (def0 m_rd_i), ra, rb)
+                             | maybe False (== old) m_rs2_i ]
+                          where (_, m_rs2_i, m_rs1_i, m_rd_i, reencode_i) = rv_extract . MkInstruction . toInteger $ i
+                        s _ _ _ = []
+                        def0 (Just x) = x
+                        def0 Nothing = 0
+                f _ = id
+
+instShrink :: ShrinkStrategy
+instShrink = singleShrink f'
+  where f' (diiPkt, a, b) = wrap <$> rv_shrink (MkInstruction . toInteger . dii_insn $ diiPkt)
+          where wrap (MkInstruction x) = singleTest (diiPkt { dii_insn = fromInteger x }, a, b)
 
 -- | Turns a file representation of some data into a 'Test' that initializes
 --   memory with that data.
@@ -98,39 +133,56 @@ genInstrServer sckt = do
   return $ unsafePerformIO $ do sendAll sckt (encode seed)
                                 (decode . BS.reverse) <$> Network.Socket.ByteString.Lazy.recv sckt 4
 
+wrapTest :: Test Instruction -> Test TestResult
+wrapTest = (<> singleTest (diiEnd, Nothing, Nothing))
+         . (flip shrinkTestStrategy defaultShrink)
+         . (flip shrinkTestStrategy instShrink)
+         . (flip shrinkTestStrategy bypassShrink)
+         . (f <$>)
+  where f (MkInstruction i) = (diiInstruction i, Nothing, Nothing)
+
+runImpls :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> Int -> Int -> Test TestResult
+         -> (Test TestResult -> IO a) -> IO a -> IO a
+         -> IO a
+runImpls connA connB alive delay verbosity test onTrace onFirstDeath onSubsequentDeaths = do
+  let instTrace = (\(x, _, _) -> x) <$> test
+  let insts = instTrace
+  currentlyAlive <- readIORef alive
+  if currentlyAlive then do
+    m_trace <- doRVFIDII connA connB alive delay verbosity insts
+    case m_trace of
+      Just trace -> onTrace trace
+      _ -> onFirstDeath
+  else onSubsequentDeaths
+
 -- | The core QuickCheck property sending the 'Test' to the tested RISC-V
 --   implementations as 'DII_Packet's and checking the returned 'RVFI_Packet's
 --   for equivalence. It receives among other things a callback function
 --   'Test -> IO ()' to be performed on failure that takes in the reduced
 --   'Test' which caused the failure
-prop :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> (Test Instruction -> IO ())
-     -> ArchDesc -> Int -> Int -> Bool -> Gen (Test Instruction) -> Property
+prop :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> (Test TestResult -> IO ())
+     -> ArchDesc -> Int -> Int -> Bool -> Gen (Test TestResult) -> Property
 prop connA connB alive onFail arch delay verbosity ignoreAsserts gen =
   forAllShrink gen shrink mkProp
   where mkProp test = whenFail (onFail test) (doProp test)
-        doProp test = monadicIO $ run $ do
-          let instTrace = diiInstruction <$> test
-          let insts = instTrace <> singleTest diiEnd
-          currentlyAlive <- readIORef alive
-          if currentlyAlive then do
-            m_traces <- doRVFIDII connA connB alive delay verbosity insts
-            case m_traces of
-              Just traces -> do
-                let diffFunc m_assert (i, a, b) = rvfiCheckAndShow (has_xlen_64 arch) a b m_assert
-                let diff = mapWithAssertLastVal diffFunc traces
-                when (verbosity > 1) $ mapM_ (putStrLn . snd) diff
-                let implAAsserts = asserts (init traceA)
-                let implBAsserts = asserts (init traceB)
-                mapM_ (\s -> putStrLn ("Impl A failed assert: " ++ s)) implAAsserts
-                mapM_ (\s -> putStrLn ("Impl B failed assert: " ++ s)) implBAsserts
-                return $ property $ (and (map fst diff)) && (ignoreAsserts || ((null implAAsserts) && (null implBAsserts)))
-              _ -> return $ property False
-          -- We don't want to shrink once one of the implementations has died,
-          -- so always return that the property is true
-          else do putStrLn "Warning: reporting success since implementations not running"
-                  return $ property True
-
-type Report = (DII_Packet, Maybe RVFI_Packet, Maybe RVFI_Packet)
+        doProp test = monadicIO $ run $ runImpls connA connB alive delay verbosity test onTrace onFirstDeath onSubsequentDeaths
+        diffFunc m_assert (DII_Instruction _ _, a, b) = rvfiCheckAndShow (has_xlen_64 arch) a b m_assert
+        diffFunc _ (DII_End _, _, _) = (True, "Test end")
+        diffFunc _ _ = (True, "")
+        handleAsserts (ReportAssert False s, _) = do putStrLn $ "Failed assert: " ++ s
+                                                     return True
+        handleAsserts                         _ = return False
+        onTrace trace = do
+          let diff = mapWithAssertLastVal diffFunc trace
+          when (verbosity > 1) $ mapM_ (putStrLn . snd) diff
+          assertsFailed <- forM (gatherReports $ runAsserts trace) handleAsserts
+          return $ property $ and (fst <$> diff) && (ignoreAsserts || not(or assertsFailed))
+        onFirstDeath = return $ property False
+        -- We don't want to shrink once one of the implementations has died,
+        -- so always return that the property is true
+        onSubsequentDeaths = do
+          putStrLn "Warning: reporting success since implementations not running"
+          return $ property True
 
 -- | Send a sequence of instructions ('[DII_Packet]') to the implementations
 --   running behind the two provided 'Sockets's and recieve their respective
@@ -139,7 +191,7 @@ type Report = (DII_Packet, Maybe RVFI_Packet, Maybe RVFI_Packet)
 --   'IORef Bool' for alive to 'False' indicating that further interaction with
 --   the implementations is futile
 doRVFIDII :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> Int
-          -> Int -> Test DII_Packet -> IO (Maybe (Test Report))
+          -> Int -> Test DII_Packet -> IO (Maybe (Test TestResult))
 doRVFIDII connA connB alive delay verbosity insts = do
   currentlyAlive <- readIORef alive
   if currentlyAlive then do
@@ -152,18 +204,19 @@ doRVFIDII connA connB alive delay verbosity insts = do
       sendDIITrace connB insts
       when doLog $ putStrLn "Done sending instructions to implementation B"
       -- Receive from implementations
-      m_traceA <- timeout delay $ recvRVFITrace connA verbosity insts
+      m_traceA :: Maybe (Test (DII_Packet, Maybe RVFI_Packet))<- timeout delay $ recvRVFITrace connA verbosity insts
       when doLog $ putStrLn "Done receiving reports from implementation A"
-      m_traceAB <- timeout delay $ recvRVFITrace connB verbosity (fromMaybe (errorTrace insts) m_traceA)
+      let traceA :: Test (DII_Packet, Maybe RVFI_Packet) = fromMaybe (errorTrace insts) m_traceA
+      m_traceAB <- timeout delay $ recvRVFITrace connB verbosity traceA
       when doLog $ putStrLn "Done receiving reports from implementation B"
       --
       when (isNothing m_traceA || isNothing m_traceAB) $ writeIORef alive False
       when (isNothing m_traceA) $ putStrLn "Error: implementation A timeout. Forcing all future tests to report 'SUCCESS'"
       when (isNothing m_traceAB) $ putStrLn "Error: implementation B timeout. Forcing all future tests to report 'SUCCESS'"
       --
-      return $ fromMaybe (errorTrace m_traceA) m_traceAB
+      return $ fromMaybe (errorTrace traceA) m_traceAB
     case result of
-      Right x -> Just $ (\((x,y),z) -> (x,y,z)) <$> x
+      Right t -> return $ Just $ (\((x,y),z) -> (x,y,z)) <$> t
       Left (SomeException e) -> do
         writeIORef alive False
         putStrLn ("Error: exception on IO with implementations. Forcing all future tests to report 'SUCCESS': " ++ show e)
