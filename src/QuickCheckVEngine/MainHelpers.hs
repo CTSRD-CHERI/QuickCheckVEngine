@@ -137,6 +137,9 @@ wrapTest = (<> singleTest (diiEnd, Nothing, Nothing))
          . (flip shrinkTestStrategy defaultShrink)
          . (flip shrinkTestStrategy instShrink)
          . (flip shrinkTestStrategy bypassShrink)
+         . addShrinkScopes
+         . balance
+         . removeEmpties
          . (f <$>)
   where f (MkInstruction i) = (diiInstruction i, Nothing, Nothing)
 

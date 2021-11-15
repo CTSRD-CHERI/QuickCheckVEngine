@@ -183,39 +183,39 @@ gen_pte_perms = randomTemplate $
      uperms <- bits 5
      clg0 <- bits 2
      clg1 <- bits 2
-     return $ instSeq [ori 1 0 uperms, -- two cheri pte bits
-                       slli 1 1 16,
-                       ori 1 1 0x000, -- 11 msbs of PA
-                       slli 1 1 11,
-                       ori 1 1 0x000, -- next 11 bits of PA
-                       slli 1 1 11,
-                       ori 1 1 0x100, -- next 11 bits of PA
-                       slli 1 1 11,
-                       ori 1 1 0x000, -- next 11 bits of PA
-                       slli 1 1 10,
-                       ori 1 1 lperms, -- Permissions bits
-                       addi 5 0 1,
-                       slli 5 5 31,
-                       slli 5 5 31,
-                       slli 5 5 1,
-                       lui 6 0x80,
-                       add 5 5 6,
-                       lui 7 0x40000,
-                       slli 7 7 1,
-                       sd 7 1 0,
-                       csrrw 0 0x180 5,
-                       csrrwi 0 0x9c0 (clg0 * 4)]
-                       <>
-                       (noShrink $ inst $ sfence 0 0)
-                       <> sequenceTemplate [
-                       inst sret,
-                       instUniform [ccleartag 3 3, cmove 3 3],
-                       instUniform [sw 0 3 16, sq 0 3 16],
-                       instUniform [lw 4 0 16, lq 4 0 16],
-                       inst $ csrrwi 0 0x9c0 (clg1 * 4),
-                       instUniform [lw 4 0 16, lq 4 0 16],
-                       inst $ cgettag 5 4,
-                       inst ecall]
+     return $ shrinkScope $ instSeq [ori 1 0 uperms, -- two cheri pte bits
+                                     slli 1 1 16,
+                                     ori 1 1 0x000, -- 11 msbs of PA
+                                     slli 1 1 11,
+                                     ori 1 1 0x000, -- next 11 bits of PA
+                                     slli 1 1 11,
+                                     ori 1 1 0x100, -- next 11 bits of PA
+                                     slli 1 1 11,
+                                     ori 1 1 0x000, -- next 11 bits of PA
+                                     slli 1 1 10,
+                                     ori 1 1 lperms, -- Permissions bits
+                                     addi 5 0 1,
+                                     slli 5 5 31,
+                                     slli 5 5 31,
+                                     slli 5 5 1,
+                                     lui 6 0x80,
+                                     add 5 5 6,
+                                     lui 7 0x40000,
+                                     slli 7 7 1,
+                                     sd 7 1 0,
+                                     csrrw 0 0x180 5,
+                                     csrrwi 0 0x9c0 (clg0 * 4)]
+                                     <>
+                                     (noShrink $ inst $ sfence 0 0)
+                                     <> sequenceTemplate [
+                                     inst sret,
+                                     instUniform [ccleartag 3 3, cmove 3 3],
+                                     instUniform [sw 0 3 16, sq 0 3 16],
+                                     instUniform [lw 4 0 16, lq 4 0 16],
+                                     inst $ csrrwi 0 0x9c0 (clg1 * 4),
+                                     instUniform [lw 4 0 16, lq 4 0 16],
+                                     inst $ cgettag 5 4,
+                                     inst ecall]
 
 gen_pte_trans_core lxReg addrReg pteReg = randomTemplate $
   do let leafperms = 0xFF
@@ -232,22 +232,22 @@ gen_pte_trans_core lxReg addrReg pteReg = randomTemplate $
      let l1pte = (shiftR l1pa 2) + l1perms
      let l0pte = (shiftR l0pa 2) + l0perms
      addrInitial <- elements [0x00000000, 0x00000800, 0x00100000]
-     return $ sequenceTemplate [li64 pteReg l2pte,
-                                li64 lxReg  satpa,
-                                inst $ sd lxReg pteReg 0,
-                                li64 pteReg l1pte,
-                                li64 lxReg  l2pa,
-                                inst $ sd lxReg pteReg 0,
-                                li64 pteReg l0pte,
-                                li64 lxReg  l1pa,
-                                inst $ sd lxReg pteReg 0,
-                                li64 pteReg satp,
-                                inst $ csrrw 0 0x180 pteReg, -- SATP write
-                                li64 addrReg addrInitial]
-                                <>
-                                (noShrink $ inst $ sfence 0 0)
-                                <>
-                                (inst sret)
+     return $ shrinkScope $ sequenceTemplate [li64 pteReg l2pte,
+                                              li64 lxReg  satpa,
+                                              inst $ sd lxReg pteReg 0,
+                                              li64 pteReg l1pte,
+                                              li64 lxReg  l2pa,
+                                              inst $ sd lxReg pteReg 0,
+                                              li64 pteReg l0pte,
+                                              li64 lxReg  l1pa,
+                                              inst $ sd lxReg pteReg 0,
+                                              li64 pteReg satp,
+                                              inst $ csrrw 0 0x180 pteReg, -- SATP write
+                                              li64 addrReg addrInitial]
+                                              <>
+                                              (noShrink $ inst $ sfence 0 0)
+                                              <>
+                                              (inst sret)
 
 
 
@@ -255,16 +255,16 @@ gen_pte_trans = randomTemplate $
   do let lxreg = 1
      let addrReg = 2
      let ptereg = 30
-     return $ (gen_pte_trans_core lxreg addrReg ptereg)
-               <>
-               (replicateTemplate 20
-                                 (randomTemplate $
-                                  do imm <- elements [0x10, 0x100, 0x0]
-                                     datReg <- elements [ptereg, lxreg]
-                                     return $ distTemplate [(8, instUniform $ rv64_i_load  addrReg datReg imm),
-                                                            (8, instUniform $ rv64_i_store addrReg datReg imm),
-                                                            (4, inst $ addi addrReg addrReg imm),
-                                                            (1, inst $ fence_i),
-                                                            (1, inst $ fence 0 0)]))
-               <>
-               (noShrink $ inst ecall)
+     return $ shrinkScope $ (gen_pte_trans_core lxreg addrReg ptereg)
+                            <>
+                            (replicateTemplate 20
+                                              (randomTemplate $
+                                               do imm <- elements [0x10, 0x100, 0x0]
+                                                  datReg <- elements [ptereg, lxreg]
+                                                  return $ distTemplate [(8, instUniform $ rv64_i_load  addrReg datReg imm),
+                                                                         (8, instUniform $ rv64_i_store addrReg datReg imm),
+                                                                         (4, inst $ addi addrReg addrReg imm),
+                                                                         (1, inst $ fence_i),
+                                                                         (1, inst $ fence 0 0)]))
+                            <>
+                            (noShrink $ inst ecall)

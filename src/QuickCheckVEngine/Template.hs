@@ -75,6 +75,9 @@ module QuickCheckVEngine.Template (
 , singleTest
 , seqSingleTest
 , noShrinkTest
+, removeEmpties
+, addShrinkScopes
+, balance
 , shrinkTestStrategy
 , genTest
 ) where
@@ -176,7 +179,7 @@ shrinkStrategy x f = TemplateMeta (MetaShrinkStrategy f) x
 data Test t = TestEmpty
             | TestSingle t
             | TestSequence (Test t) (Test t)
-            | TestMeta MetaInfo (Test t)
+            | TestMeta (MetaInfo, Bool) (Test t)
 
 instance Semigroup (Test t) where
   x <> y = TestSequence x y
@@ -203,7 +206,9 @@ genTest :: Template -> Gen (Test Instruction)
 genTest TemplateEmpty = return TestEmpty
 genTest (TemplateSingle x) = return $ TestSingle x
 genTest (TemplateSequence x y) = TestSequence <$> genTest x <*> genTest y
-genTest (TemplateMeta m x) = TestMeta m <$> genTest x
+genTest (TemplateMeta m@(MetaShrinkStrategy _) x) = TestMeta (m, False) <$> genTest x
+genTest (TemplateMeta m@(MetaAssertCompound _) x) = TestMeta (m, False) <$> genTest x
+genTest (TemplateMeta m x) = TestMeta (m, True) <$> genTest x
 genTest (TemplateRandom g) = genTest =<< g
 
 -- * Test shrinking
@@ -217,8 +222,8 @@ instance Arbitrary (Test TestResult) where
                                   ys = shrink y
                               in    [TestSequence x' y  | x' <- xs]
                                  ++ [TestSequence x  y' | y' <- ys]
-  shrink (TestMeta MetaNoShrink _) = []
-  shrink (TestMeta m@(MetaShrinkStrategy f) x) = TestMeta m <$> (f x ++ shrink x)
+  shrink (TestMeta (MetaNoShrink, _) _) = []
+  shrink (TestMeta m@(MetaShrinkStrategy f, _) x) = TestMeta m <$> (f x ++ shrink x)
   shrink (TestMeta m x) = TestMeta m <$> shrink x
 
 data ShrinkMethods = MkShrinkMethods { methodSingle :: TestResult -> [Test TestResult]
@@ -237,8 +242,8 @@ recurseShrink s@MkShrinkMethods{..} (TestSequence x y) = let xs = recurseShrink 
                                                          in methodSequence x y
                                                             ++ [TestSequence x' y  | x' <- xs]
                                                             ++ [TestSequence x  y' | y' <- ys]
-recurseShrink                     _ (TestMeta MetaNoShrink _) = []
-recurseShrink s@MkShrinkMethods{..} (TestMeta MetaShrinkScope x) = methodShrinkScope x ++ (TestMeta MetaShrinkScope <$> recurseShrink s x)
+recurseShrink                     _ (TestMeta (MetaNoShrink, _) _) = []
+recurseShrink s@MkShrinkMethods{..} (TestMeta m@(MetaShrinkScope, _) x) = methodShrinkScope x ++ (TestMeta m <$> recurseShrink s x)
 recurseShrink s@MkShrinkMethods{..} (TestMeta m x) = TestMeta m <$> recurseShrink s x
 
 -- * Test API
@@ -262,7 +267,7 @@ mapWithAssertLastVal f x = snd $ go [] f x
                                          vs' = if by then [] else vs
                                          (bx, x') = go vs' f x
                                      in (by || bx, TestSequence x' y')
-        go vs f (TestMeta m@(MetaAssertLastVal v) x) = let (b, x') = go (v:vs) f x in (b, TestMeta m x')
+        go vs f (TestMeta m@(MetaAssertLastVal v, _) x) = let (b, x') = go (v:vs) f x in (b, TestMeta m x')
         go vs f (TestMeta m x) = let (b, x') = go vs f x in (b, TestMeta m x')
 
 runAsserts :: Test TestResult -> Test TestResult
@@ -270,14 +275,14 @@ runAsserts TestEmpty = TestEmpty
 runAsserts (TestSingle x) = TestSingle x
 runAsserts (TestSequence x y) = TestSequence (runAsserts x) (runAsserts y)
 -- TODO Fold in mapWithAssertLastVal here somehow?
-runAsserts (TestMeta (MetaAssertCompound f) x) = TestMeta m' x'
-  where m' = MetaReport $ uncurry ReportAssert (f x)
+runAsserts (TestMeta (MetaAssertCompound f, _) x) = TestMeta m' x'
+  where m' = (MetaReport $ uncurry ReportAssert (f x), True)
         x' = runAsserts x
 runAsserts (TestMeta m x) = TestMeta m (runAsserts x)
 
 gatherReports :: Test t -> [(Report, Test t)]
 gatherReports (TestSequence x y) = gatherReports x ++ gatherReports y
-gatherReports (TestMeta (MetaReport r) x) = (r, x) : gatherReports x
+gatherReports (TestMeta (MetaReport r, _) x) = (r, x) : gatherReports x
 gatherReports (TestMeta _ x) = gatherReports x
 gatherReports _ = []
 
@@ -288,10 +293,51 @@ seqSingleTest :: [t] -> Test t
 seqSingleTest = mconcat . map TestSingle
 
 noShrinkTest :: Test t -> Test t
-noShrinkTest = TestMeta MetaNoShrink
+noShrinkTest = TestMeta (MetaNoShrink, True)
 
 shrinkTestStrategy :: Test TestResult -> ShrinkStrategy -> Test TestResult
-shrinkTestStrategy x f = TestMeta (MetaShrinkStrategy f) x
+shrinkTestStrategy x f = TestMeta (MetaShrinkStrategy f, False) x
+
+removeEmpties :: Test t -> Test t
+removeEmpties = snd . go
+  where go TestEmpty = (False, TestEmpty)
+        go x@(TestSingle _) = (True, x)
+        go (TestSequence x y) = let (bx, x') = go x
+                                    (by, y') = go y
+                                in case (bx, by) of
+                                  (True, True) -> (True, TestSequence x' y')
+                                  (True, False) -> (True, x')
+                                  (False, True) -> (True, y')
+                                  (False, False) -> (False, TestEmpty)
+        go (TestMeta m x) = let (b, x') = go x in (b, TestMeta m x')
+
+addShrinkScopes :: Test t -> Test t
+addShrinkScopes = snd . go
+go TestEmpty = (False, TestEmpty)
+go x@(TestSingle _) = (False, x)
+go (TestSequence x y) = let (bx, x') = go x
+                            (by, y') = go y
+                        in (bx || by, (if (bx || by) then id else TestMeta (MetaShrinkScope, False)) $ TestSequence x' y')
+go x@(TestMeta (MetaNoShrink, _) _) = (True, x)
+go (TestMeta m@(MetaShrinkScope, _) x) = let (_, x') = go x in (False, TestMeta m x')
+go (TestMeta m x) = let (b, x') = go x in (b, TestMeta m x')
+
+flattenTopLevel :: Test t -> [Test t]
+flattenTopLevel TestEmpty = [TestEmpty]
+flattenTopLevel x@(TestSingle _) = [x]
+flattenTopLevel (TestSequence x y) = flattenTopLevel x ++ flattenTopLevel y
+flattenTopLevel x@(TestMeta _ _) = [x]
+
+bisect :: [Test t] -> Test t
+bisect [] = TestEmpty
+bisect [x] = x
+bisect xs = let newLen = length xs `div` 2 in TestSequence (bisect (take newLen xs)) (bisect (drop newLen xs))
+
+balance :: Test t -> Test t
+balance TestEmpty = TestEmpty
+balance x@(TestSingle _) = x
+balance s@(TestSequence _ _) = bisect (balance <$> flattenTopLevel s)
+balance (TestMeta m x) = TestMeta m (balance x)
 
 -- * IO of tests
 --------------------------------------------------------------------------------
@@ -309,18 +355,19 @@ instance Show t => Show (Test t) where
     where go TestEmpty = ""
           go (TestSingle x) = printf "\n%s" (show x)
           go (TestSequence x y) = printf "%s%s" (go x) (go y)
-          go (TestMeta MetaShrinkScope x) = printf "\n%s%s%s%s\n%s%s%s" magicTok startTok shrinkScopeTok
-                                                                        (go x)
-                                                                        magicTok endTok shrinkScopeTok
-          go (TestMeta MetaNoShrink x) = printf "\n%s%s%s%s\n%s%s%s" magicTok startTok noShrinkTok
-                                                                     (go x)
-                                                                     magicTok endTok noShrinkTok
-          go (TestMeta (MetaShrinkStrategy _) x) = go x -- Cannot serialise function
-          go (TestMeta (MetaAssertLastVal v) x) = printf "\n%s%s%s%s\n%s%s%s rd_wdata == 0x%x \"\"" magicTok startTok assertLastValTok
-                                                                                                    (go x)
-                                                                                                    magicTok endTok assertLastValTok v
-          go (TestMeta (MetaAssertCompound _) x) = go x -- Cannot serialise function
-          go (TestMeta (MetaReport r) x) = printf "\n# REPORT     '%s' {%s\n# } END REPORT '%s'" (show r) (go x) (show r)
+          go (TestMeta (_, False) x) = go x
+          go (TestMeta (MetaShrinkScope, True) x) = printf "\n%s%s%s%s\n%s%s%s" magicTok startTok shrinkScopeTok
+                                                                                (go x)
+                                                                                magicTok endTok shrinkScopeTok
+          go (TestMeta (MetaNoShrink, True) x) = printf "\n%s%s%s%s\n%s%s%s" magicTok startTok noShrinkTok
+                                                                             (go x)
+                                                                             magicTok endTok noShrinkTok
+          go (TestMeta (MetaShrinkStrategy _, True) x) = error "Cannot serialise shrink strategy"
+          go (TestMeta (MetaAssertLastVal v, True) x) = printf "\n%s%s%s%s\n%s%s%s rd_wdata == 0x%x \"\"" magicTok startTok assertLastValTok
+                                                                                                          (go x)
+                                                                                                          magicTok endTok assertLastValTok v
+          go (TestMeta (MetaAssertCompound _, True) x) = error "Cannot serialise compound assertion"
+          go (TestMeta (MetaReport r, True) x) = printf "\n# REPORT     '%s' {%s\n# } END REPORT '%s'" (show r) (go x) (show r)
 
 type Parser = Parsec String ()
 
@@ -340,7 +387,7 @@ legacyParseTestStrand = do
   mshrink <- optionMaybe $     (reserved ltp ".noshrink" >> return False)
                            <|> (reserved ltp   ".shrink" >> return  True)
   insts <- mconcat <$> many1 legacyParseInst
-  return $ case mshrink of Just False -> TestMeta MetaNoShrink insts
+  return $ case mshrink of Just False -> TestMeta (MetaNoShrink, True) insts
                            _ -> insts
 legacyParseInst :: Parser (Test Instruction)
 legacyParseInst = do
@@ -355,7 +402,7 @@ legacyParseSingleAssert x = do
   symbol ltp "=="
   val <- natural ltp
   str <- stringLiteral ltp
-  return $ TestMeta (MetaAssertLastVal val) x
+  return $ TestMeta (MetaAssertLastVal val, True) x
 
 -- Parse a Test
 tp = makeTokenParser $ emptyDef { reservedNames = [ ".4byte", ".2byte"
@@ -396,7 +443,7 @@ parseAssert = do
   val <- natural tp
   stringLiteral tp
   parseComments
-  return $ TestMeta (MetaAssertLastVal val) inner
+  return $ TestMeta (MetaAssertLastVal val, True) inner
 
 parseScope :: String -> Parser (Test Instruction)
 parseScope tok = do
@@ -410,12 +457,12 @@ parseScope tok = do
 parseShrinkScope :: Parser (Test Instruction)
 parseShrinkScope = do
   inner <- parseScope shrinkScopeTok
-  return $ TestMeta MetaShrinkScope inner
+  return $ TestMeta (MetaShrinkScope, True) inner
 
 parseNoShrink :: Parser (Test Instruction)
 parseNoShrink = do
   inner <- parseScope noShrinkTok
-  return $ TestMeta MetaNoShrink inner
+  return $ TestMeta (MetaNoShrink, True) inner
 
 parseComments :: Parser ()
 parseComments = many p >> return ()
@@ -426,6 +473,6 @@ parseComments = many p >> return ()
 instance Read (Test Instruction) where
   readsPrec _ str = case parse (partial (try parseTest <|> legacyParseTest)) "Read" str of
                       Left  e -> error $ show e ++ ", in:\n" ++ str ++ "\n"
-                      Right x -> [x]
+                      Right (x, s) -> [(removeEmpties x, s)]
     where partial p = (,) <$> p <*> getInput
 

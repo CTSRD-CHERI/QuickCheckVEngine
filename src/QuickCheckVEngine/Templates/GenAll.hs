@@ -90,6 +90,6 @@ genAll desc = randomTemplate $ do
                ] | has_icsr desc]
            ++ [[ (8, instUniform (rv32_xcheri src1 src2 srcScr imm mop dest))
                ] | has_cheri desc]
-  return $ (if has_f desc || has_d desc then noShrink (fp_prologue desc)
-                                        else mempty)
-            <> repeatTemplateTillEnd (distTemplate $ concat insts)
+  return $ shrinkScope $ (if has_f desc || has_d desc then noShrink (fp_prologue desc)
+                                                      else mempty)
+                         <> repeatTemplateTillEnd (distTemplate $ concat insts)

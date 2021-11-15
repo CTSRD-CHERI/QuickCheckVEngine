@@ -83,7 +83,7 @@ genFP has_f has_d has_xlen_64 = randomTemplate $ do
                            , has_xlen_64 = has_xlen_64
                            , has_f       = has_f
                            , has_d       = has_d }
-  return $    noShrink (fp_prologue arch)
-           <> replicateTemplate (size - fp_prologue_length arch - 1)
-                                (instUniform $ concat insts)
-           <> noShrink epilogue
+  return $ shrinkScope $    noShrink (fp_prologue arch)
+                         <> replicateTemplate (size - fp_prologue_length arch - 1)
+                                              (instUniform $ concat insts)
+                         <> noShrink epilogue

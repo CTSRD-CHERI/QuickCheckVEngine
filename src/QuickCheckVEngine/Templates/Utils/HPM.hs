@@ -129,7 +129,7 @@ surroundWithUHPMAccess_core shrink evt x tmpReg hpmCntIdx = randomTemplate $ do
   let prologue = resetHPMCounter tmpReg hpmCntIdx
   let epilogue = readHPMCounter  tmpReg hpmCntIdx
   return $ if shrink then prologue <> x <> epilogue
-                     else noShrink prologue <> x <> epilogue
+                     else shrinkScope $ noShrink prologue <> x <> epilogue
 
 -- | 'surroundWithHPMAccess' wraps a 'Template' by setting up an HPM counter to
 --   count an event and before running the 'Template' and reading the HPM
@@ -155,10 +155,10 @@ surroundWithHPMAccess_core shrink evt x tmpReg hpmCntIdx instRet = randomTemplat
   let epilogue = uniformTemplate [ readHPMCounter  tmpReg hpmCntIdx
                                  , readHPMCounterM tmpReg hpmCntIdx ]
   return $ if shrink then prologue <> surroundWithHPMAccess_raw x instRet <> epilogue
-                     else noShrink prologue <> surroundWithHPMAccess_raw x instRet <> noShrink epilogue
+                     else shrinkScope $ noShrink prologue <> surroundWithHPMAccess_raw x instRet <> noShrink epilogue
 
 
 surroundWithHPMAccess_raw :: Template -> Maybe (Integer, Integer) -> Template
 surroundWithHPMAccess_raw x instRet = case (instRet) of
-  Just (reg1, reg2) -> ((noShrink (csrr reg1 0xB02)) <> x <> (noShrink (csrr reg2 0xB02)))
+  Just (reg1, reg2) -> shrinkScope $ ((noShrink (csrr reg1 0xB02)) <> x <> (noShrink (csrr reg2 0xB02)))
   Nothing -> x

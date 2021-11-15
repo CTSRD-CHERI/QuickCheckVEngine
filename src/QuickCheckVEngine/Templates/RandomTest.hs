@@ -45,7 +45,7 @@ import QuickCheckVEngine.Templates.Utils
 randomTest :: ArchDesc -> Template
 randomTest arch = randomTemplate $ do
   temp <- genRandomTest arch
-  return $ if has_f arch || has_d arch then noShrink (fp_prologue arch) <> temp
+  return $ if has_f arch || has_d arch then shrinkScope $ noShrink (fp_prologue arch) <> temp
                                        else temp
 
 -- 'genRandomTest' is the recursive helper to implement 'randomTest'

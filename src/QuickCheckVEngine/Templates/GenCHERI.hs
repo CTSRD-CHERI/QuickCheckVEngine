@@ -56,27 +56,27 @@ capDecodeTest arch = randomTemplate $ do
                 foldM bitAppend 0 [(bits,16),(bits,3),(const $ elements [0x00000,0x00001,0x00002,0x00003],18),(bits,27),(bits,64)], -- reserved otypes
                 choose(40,63) >>= \exp -> foldM bitAppend 0 [(bits,16),(bits,3),(bits,18),(const $ return 1,1),(bits,9),(const $ return $ shift exp (-3),3),(bits,11),(const $ return $ exp Data.Bits..&. 0x3,3),(bits,64)] -- tricky exponents
                 ]
-  return $ shrinkScope $ sequenceTemplate [inst $ lui 1 0x40004,
-                                           inst $ slli 1 1 1,
-                                           li32 2 (cap Data.Bits..&. 0xffffffff),
-                                           inst $ sw 1 2 0,
-                                           li32 2 ((shift cap (-32)) Data.Bits..&. 0xffffffff),
-                                           inst $ sw 1 2 4,
-                                           li32 2 ((shift cap (-64)) Data.Bits..&. 0xffffffff),
-                                           inst $ sw 1 2 8,
-                                           li32 2 ((shift cap (-96)) Data.Bits..&. 0xffffffff),
-                                           inst $ sw 1 2 12,
-                                           inst $ lq 2 1 0,
-                                           inst $ cgetlen 6 2,
-                                           inst $ cgetoffset 6 2,
-                                           inst $ cgetbase 6 2,
-                                           inst $ cgetaddr 6 2,
-                                           inst $ cgettype 6 2,
-                                           inst $ cgetflags 6 2,
-                                           inst $ cgetperm 6 2,
-                                           inst $ cbuildcap 2 3 2,
-                                           inst $ cgettype 4 2,
-                                           inst $ cgettag 5 2]
+  return $ sequenceTemplate [inst $ lui 1 0x40004,
+                             inst $ slli 1 1 1,
+                             li32 2 (cap Data.Bits..&. 0xffffffff),
+                             inst $ sw 1 2 0,
+                             li32 2 ((shift cap (-32)) Data.Bits..&. 0xffffffff),
+                             inst $ sw 1 2 4,
+                             li32 2 ((shift cap (-64)) Data.Bits..&. 0xffffffff),
+                             inst $ sw 1 2 8,
+                             li32 2 ((shift cap (-96)) Data.Bits..&. 0xffffffff),
+                             inst $ sw 1 2 12,
+                             inst $ lq 2 1 0,
+                             inst $ cgetlen 6 2,
+                             inst $ cgetoffset 6 2,
+                             inst $ cgetbase 6 2,
+                             inst $ cgetaddr 6 2,
+                             inst $ cgettype 6 2,
+                             inst $ cgetflags 6 2,
+                             inst $ cgetperm 6 2,
+                             inst $ cbuildcap 2 3 2,
+                             inst $ cgettype 4 2,
+                             inst $ cgettag 5 2]
 
 
 genRandomCHERITest :: ArchDesc -> Template
