@@ -257,11 +257,8 @@ mapWithAssertLastVal :: ([Integer] -> a -> b) -> Test a -> Test b
 mapWithAssertLastVal f x = snd $ go [] f x
   where go  _ _ TestEmpty = (False, TestEmpty)
         go vs f (TestSingle x) = (True, TestSingle (f vs x))
---        go vs f (TestSequence x y) = let (b, y') = go vs f y
---                                     in if b then (True, TestSequence (go [] f x) y'
---                                        else let (b', x') = go vs f x in (b', TestSequence x' y')
         go vs f (TestSequence x y) = let (by, y') = go vs f y
-                                         vs' = if by then vs else []
+                                         vs' = if by then [] else vs
                                          (bx, x') = go vs' f x
                                      in (by || bx, TestSequence x' y')
         go vs f (TestMeta m@(MetaAssertLastVal v) x) = let (b, x') = go (v:vs) f x in (b, TestMeta m x')
