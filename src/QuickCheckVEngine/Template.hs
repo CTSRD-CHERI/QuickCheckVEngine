@@ -358,13 +358,16 @@ legacyParseSingleAssert x = do
 
 -- Parse a Test
 tp = makeTokenParser $ emptyDef { reservedNames = [ ".4byte", ".2byte"
-                                                  , "#", versionTok ]
-                                                  ++ [magicTok ++ pfx ++ sfx | pfx <- [startTok, endTok], sfx <- [shrinkScopeTok, noShrinkTok, assertLastValTok]] }
+                                                  , magicTok ++ versionTok ]
+                                                  ++ [magicTok ++ pfx ++ sfx | pfx <- [startTok, endTok], sfx <- [shrinkScopeTok, noShrinkTok, assertLastValTok]]
+                                , identStart = oneOf "#."
+                                , identLetter = alphaNum <|> char '>' <|> char '_' <|> char '.'}
 
 parseTest :: Parser (Test Instruction)
 parseTest = do
+  whiteSpace tp
   parseComments
-  reserved tp versionTok
+  reserved tp $ magicTok ++ versionTok
   parseComments
   parseTestBody
 
@@ -387,7 +390,7 @@ parseAssert = do
   parseComments
   inner <- parseTestBody
   reserved tp $ magicTok ++ endTok ++ assertLastValTok
-  string "rd_wdata"
+  symbol tp "rd_wdata"
   symbol tp "=="
   val <- natural tp
   stringLiteral tp
@@ -414,8 +417,10 @@ parseNoShrink = do
   return $ TestMeta MetaNoShrink inner
 
 parseComments :: Parser ()
-parseComments = do many (reserved tp "#" >> manyTill anyToken newline)
-                   return ()
+parseComments = many p >> return ()
+  where p = try $ do char '#'
+                     notFollowedBy $ char '>'
+                     manyTill anyChar newline
 
 instance Read (Test Instruction) where
   readsPrec _ str = case parse (partial (try parseTest <|> legacyParseTest)) "Read" str of
