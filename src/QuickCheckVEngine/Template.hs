@@ -253,14 +253,19 @@ defaultShrink :: ShrinkStrategy
 defaultShrink = recurseShrink defaultShrinkMethods { methodSingle = const [TestEmpty]
                                                    , methodShrinkScope = const [TestEmpty] }
 
--- XXX TODO won't work if there are empties at the end of the tree
-mapWithAssertLastVal :: (Maybe Integer -> a -> b) -> Test a -> Test b
-mapWithAssertLastVal = go Nothing
-  where go _ _ TestEmpty = TestEmpty
-        go v f (TestSingle x) = TestSingle (f v x)
-        go v f (TestSequence x y) = TestSequence (go Nothing f x) (go v f y)
-        go _ f (TestMeta m@(MetaAssertLastVal v) x) = TestMeta m (go (Just v) f x)
-        go v f (TestMeta m x) = TestMeta m (go v f x)
+mapWithAssertLastVal :: ([Integer] -> a -> b) -> Test a -> Test b
+mapWithAssertLastVal f x = snd $ go [] f x
+  where go  _ _ TestEmpty = (False, TestEmpty)
+        go vs f (TestSingle x) = (True, TestSingle (f vs x))
+--        go vs f (TestSequence x y) = let (b, y') = go vs f y
+--                                     in if b then (True, TestSequence (go [] f x) y'
+--                                        else let (b', x') = go vs f x in (b', TestSequence x' y')
+        go vs f (TestSequence x y) = let (by, y') = go vs f y
+                                         vs' = if by then vs else []
+                                         (bx, x') = go vs' f x
+                                     in (by || bx, TestSequence x' y')
+        go vs f (TestMeta m@(MetaAssertLastVal v) x) = let (b, x') = go (v:vs) f x in (b, TestMeta m x')
+        go vs f (TestMeta m x) = let (b, x') = go vs f x in (b, TestMeta m x')
 
 runAsserts :: Test TestResult -> Test TestResult
 runAsserts TestEmpty = TestEmpty
