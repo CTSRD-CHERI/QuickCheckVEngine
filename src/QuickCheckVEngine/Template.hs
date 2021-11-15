@@ -89,6 +89,7 @@ import QuickCheckVEngine.RVFI_DII
 import Text.Parsec hiding (parseTest)
 import Text.Parsec.Token
 import Text.Parsec.Language
+import Control.Monad
 
 type TestResult = (DII_Packet, Maybe RVFI_Packet, Maybe RVFI_Packet)
 
@@ -420,7 +421,7 @@ parseComments :: Parser ()
 parseComments = many p >> return ()
   where p = try $ do char '#'
                      notFollowedBy $ char '>'
-                     manyTill anyChar newline
+                     manyTill anyChar (void newline <|> eof)
 
 instance Read (Test Instruction) where
   readsPrec _ str = case parse (partial (try parseTest <|> legacyParseTest)) "Read" str of
