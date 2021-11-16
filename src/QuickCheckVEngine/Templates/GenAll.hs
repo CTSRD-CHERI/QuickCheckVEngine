@@ -41,7 +41,7 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
 genAll :: ArchDesc -> Template
-genAll desc = randomTemplate $ do
+genAll desc = random $ do
   imm     <- bits 12
   src1    <- src
   src2    <- src
@@ -92,4 +92,4 @@ genAll desc = randomTemplate $ do
                ] | has_cheri desc]
   return $ shrinkScope $ (if has_f desc || has_d desc then noShrink (fp_prologue desc)
                                                       else mempty)
-                         <> repeatTemplateTillEnd (distTemplate $ concat insts)
+                         <> repeatTillEnd (dist $ concat insts)

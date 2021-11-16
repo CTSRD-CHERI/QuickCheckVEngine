@@ -58,7 +58,8 @@ import RISCV hiding (or)
 import InstrCodec
 import QuickCheckVEngine.MainHelpers
 import QuickCheckVEngine.RVFI_DII
-import QuickCheckVEngine.Template
+import qualified QuickCheckVEngine.Template as T
+import QuickCheckVEngine.Test
 import QuickCheckVEngine.Templates.Utils
 import QuickCheckVEngine.Templates.GenAll
 import QuickCheckVEngine.Templates.GenArithmetic
@@ -194,45 +195,45 @@ commandOpts argv =
       (_,_,errs) -> ioError (userError (concat errs ++ usageInfo header options))
   where header = "Usage: QCVEngine [OPTION...] files..."
 
-allTests :: [(String, String, ArchDesc -> Bool, ArchDesc -> Template)]
+allTests :: [(String, String, ArchDesc -> Bool, ArchDesc -> T.Template)]
 allTests = [
-             ("arith",      "Arithmetic Verification",                                const True,                               const $ repeatTemplateTillEnd gen_rv32_i_arithmetic)
+             ("arith",      "Arithmetic Verification",                                const True,                               const $ T.repeatTillEnd gen_rv32_i_arithmetic)
            , ("data_scc",   "Data-Speculative Capability Constraint Verifier",        andPs [has_cheri, has_icsr],              const gen_data_scc_verify)
            , ("sbc_cond_1", "Speculative Branching Constraint Condition 1 Verifier",  andPs [has_cheri, has_icsr, has_xlen_64], const gen_sbc_cond_1_verify)
            , ("sbc_jumps",  "Speculative Branching Constraint Jumps Verifier",        andPs [has_cheri, has_icsr, has_xlen_64], const gen_sbc_jumps_verify)
            , ("sbc_excps",  "Speculative Branching Constraint Execeptions Verifier",  andPs [has_cheri, has_icsr, has_xlen_64], const gen_sbc_exceptions_verify)
            , ("stc",        "Speculative Translation Constraint",                     andPs [has_s, has_icsr, has_xlen_64],     const gen_stc_verify)
            , ("inst_scc",   "Instruction Speculative Capability Constraint Verifier", andPs [has_cheri, has_icsr, has_xlen_64], const gen_inst_scc_verify)
-           , ("mem",        "Memory Verification",                                    const True,                               const $ repeatTemplateTillEnd gen_rv32_i_memory)
-           , ("control",    "Control Flow Verification",                              const True,                               const $ repeatTemplateTillEnd gen_rv32_i_controlflow)
-           , ("cache",      "Cache Verification",                                     const True,                               const $ repeatTemplateTillEnd gen_rv32_i_cache)
-           , ("arith64",    "RV64 Arithmetic Verification",                           has_xlen_64,                              const $ repeatTemplateTillEnd gen_rv64_i_arithmetic)
-           , ("mem64",      "RV64 Memory Verification",                               has_xlen_64,                              const $ repeatTemplateTillEnd gen_rv64_i_memory)
-           , ("cache64",    "RV64 Cache Verification",                                has_xlen_64,                              const $ repeatTemplateTillEnd gen_rv64_i_cache)
+           , ("mem",        "Memory Verification",                                    const True,                               const $ T.repeatTillEnd gen_rv32_i_memory)
+           , ("control",    "Control Flow Verification",                              const True,                               const $ T.repeatTillEnd gen_rv32_i_controlflow)
+           , ("cache",      "Cache Verification",                                     const True,                               const $ T.repeatTillEnd gen_rv32_i_cache)
+           , ("arith64",    "RV64 Arithmetic Verification",                           has_xlen_64,                              const $ T.repeatTillEnd gen_rv64_i_arithmetic)
+           , ("mem64",      "RV64 Memory Verification",                               has_xlen_64,                              const $ T.repeatTillEnd gen_rv64_i_memory)
+           , ("cache64",    "RV64 Cache Verification",                                has_xlen_64,                              const $ T.repeatTillEnd gen_rv64_i_cache)
            -- Note: no rv64 specific control flow instructions
-           , ("muldiv",     "M Extension Verification",                               has_m,                                    const $ repeatTemplateTillEnd gen_rv32_m)
-           , ("muldiv64",   "RV64 M Extension Verification",                          andPs [has_m, has_xlen_64],               const $ repeatTemplateTillEnd gen_rv64_m)
-           , ("atomic",     "A Extension Verification",                               has_a,                                    const $ repeatTemplateTillEnd gen_rv32_a)
-           , ("memAmo",     "AMO Memory Verification",                                has_a,                                    const $ repeatTemplateTillEnd gen_rv32_i_a_memory)
-           , ("atomic64",   "RV64 A Extension Verification",                          andPs [has_a, has_xlen_64],               const $ repeatTemplateTillEnd gen_rv64_a)
-           , ("memAmo64",   "RV64 AMO Memory Verification",                           andPs [has_a, has_xlen_64],               const $ repeatTemplateTillEnd gen_rv64_i_a_memory)
-           , ("compressed", "C Extension Verification",                               has_c,                                    const $ repeatTemplateTillEnd gen_rv_c)
-           , ("float",      "F Extension Verification",                               has_f,                                    const $ repeatTemplateTillEnd gen_rv32_f)
-           , ("float64",    "RV64 F Extension Verification",                          andPs [has_f, has_xlen_64],               const $ repeatTemplateTillEnd gen_rv64_f)
-           , ("double",     "D Extension Verification",                               has_d,                                    const $ repeatTemplateTillEnd gen_rv32_d)
-           , ("double64",   "RV64 D Extension Verification",                          andPs [has_d, has_xlen_64],               const $ repeatTemplateTillEnd gen_rv64_d)
-           , ("csr",        "Zicsr Extension Verification",                           has_icsr,                                 const $ repeatTemplateTillEnd gen_rv32_i_zicsr)
-           , ("fencei",     "Zifencei Extension Verification",                        has_ifencei,                              const $ repeatTemplateTillEnd gen_rv32_i_zifencei_memory)
-           , ("fencei64",   "RV64 Zifencei Extension Verification",                   andPs [has_ifencei, has_xlen_64],         const $ repeatTemplateTillEnd gen_rv64_i_zifencei_memory)
-           , ("pte",        "PTE Verification",                                       has_s,                                    const $ repeatTemplateTillEnd $ uniformTemplate [gen_pte_perms, gen_pte_trans])
-           , ("hpm",        "HPM Verification",                                       has_icsr,                                 repeatTemplateTillEnd . genHPM)
-           , ("capinspect", "Xcheri Extension Capability Inspection Verification",    has_cheri,                                const $ repeatTemplateTillEnd genCHERIinspection)
-           , ("caparith",   "Xcheri Extension Capability Arithmetic Verification",    has_cheri,                                const $ repeatTemplateTillEnd genCHERIarithmetic)
-           , ("capmisc",    "Xcheri Extension Capability Miscellaneous Verification", has_cheri,                                const $ repeatTemplateTillEnd genCHERImisc)
-           , ("capcontrol", "Xcheri Extension Capability Control Flow Verification",  has_cheri,                                const $ repeatTemplateTillEnd genCHERIcontrol)
-           , ("capcache",   "Xcheri Extension Cache Verification",                    has_cheri,                                const $ repeatTemplateTillEnd gen_rv64_Xcheri_cache)
-           , ("capdecode",  "Xcheri Extension Capability Decode Template",            has_cheri,                                repeatTemplateTillEnd . capDecodeTest)
-           , ("cloadtags",  "Xcheri Extension CLoadTags Template",                    has_cheri,                                repeatTemplateTillEnd . cLoadTagsTest)
+           , ("muldiv",     "M Extension Verification",                               has_m,                                    const $ T.repeatTillEnd gen_rv32_m)
+           , ("muldiv64",   "RV64 M Extension Verification",                          andPs [has_m, has_xlen_64],               const $ T.repeatTillEnd gen_rv64_m)
+           , ("atomic",     "A Extension Verification",                               has_a,                                    const $ T.repeatTillEnd gen_rv32_a)
+           , ("memAmo",     "AMO Memory Verification",                                has_a,                                    const $ T.repeatTillEnd gen_rv32_i_a_memory)
+           , ("atomic64",   "RV64 A Extension Verification",                          andPs [has_a, has_xlen_64],               const $ T.repeatTillEnd gen_rv64_a)
+           , ("memAmo64",   "RV64 AMO Memory Verification",                           andPs [has_a, has_xlen_64],               const $ T.repeatTillEnd gen_rv64_i_a_memory)
+           , ("compressed", "C Extension Verification",                               has_c,                                    const $ T.repeatTillEnd gen_rv_c)
+           , ("float",      "F Extension Verification",                               has_f,                                    const $ T.repeatTillEnd gen_rv32_f)
+           , ("float64",    "RV64 F Extension Verification",                          andPs [has_f, has_xlen_64],               const $ T.repeatTillEnd gen_rv64_f)
+           , ("double",     "D Extension Verification",                               has_d,                                    const $ T.repeatTillEnd gen_rv32_d)
+           , ("double64",   "RV64 D Extension Verification",                          andPs [has_d, has_xlen_64],               const $ T.repeatTillEnd gen_rv64_d)
+           , ("csr",        "Zicsr Extension Verification",                           has_icsr,                                 const $ T.repeatTillEnd gen_rv32_i_zicsr)
+           , ("fencei",     "Zifencei Extension Verification",                        has_ifencei,                              const $ T.repeatTillEnd gen_rv32_i_zifencei_memory)
+           , ("fencei64",   "RV64 Zifencei Extension Verification",                   andPs [has_ifencei, has_xlen_64],         const $ T.repeatTillEnd gen_rv64_i_zifencei_memory)
+           , ("pte",        "PTE Verification",                                       has_s,                                    const $ T.repeatTillEnd $ T.uniform [gen_pte_perms, gen_pte_trans])
+           , ("hpm",        "HPM Verification",                                       has_icsr,                                 T.repeatTillEnd . genHPM)
+           , ("capinspect", "Xcheri Extension Capability Inspection Verification",    has_cheri,                                const $ T.repeatTillEnd genCHERIinspection)
+           , ("caparith",   "Xcheri Extension Capability Arithmetic Verification",    has_cheri,                                const $ T.repeatTillEnd genCHERIarithmetic)
+           , ("capmisc",    "Xcheri Extension Capability Miscellaneous Verification", has_cheri,                                const $ T.repeatTillEnd genCHERImisc)
+           , ("capcontrol", "Xcheri Extension Capability Control Flow Verification",  has_cheri,                                const $ T.repeatTillEnd genCHERIcontrol)
+           , ("capcache",   "Xcheri Extension Cache Verification",                    has_cheri,                                const $ T.repeatTillEnd gen_rv64_Xcheri_cache)
+           , ("capdecode",  "Xcheri Extension Capability Decode Template",            has_cheri,                                T.repeatTillEnd . capDecodeTest)
+           , ("cloadtags",  "Xcheri Extension CLoadTags Template",                    has_cheri,                                T.repeatTillEnd . cLoadTagsTest)
            , ("caprandom",  "Xcheri Extension Random Template",                       has_cheri,                                randomCHERITest)
            , ("all",        "All Verification",                                       const True,                               genAll)
            , ("random",     "Random Template",                                        const True,                               randomTest)
@@ -268,9 +269,9 @@ main = withSocketsDo $ do
   let check_mcause_on_trap :: Test TestResult -> Test TestResult
       check_mcause_on_trap (trace :: Test TestResult) = trace <> if or (hasTrap <$> trace) then wrapTest testSuffix else mempty
         where hasTrap (_, a, b) = maybe False rvfiIsTrap a || maybe False rvfiIsTrap b
-              testSuffix = noShrinkTest $ seqSingleTest [ csrrs 1 (unsafe_csrs_indexFromName "mcause") 0
-                                                        , csrrs 1 (unsafe_csrs_indexFromName "mtval" ) 0
-                                                        , csrrs 1 (unsafe_csrs_indexFromName "mccsr" ) 0 ]
+              testSuffix = noShrink $ singleSeq [ csrrs 1 (unsafe_csrs_indexFromName "mcause") 0
+                                                , csrrs 1 (unsafe_csrs_indexFromName "mtval" ) 0
+                                                , csrrs 1 (unsafe_csrs_indexFromName "mccsr" ) 0 ]
 
   let saveOnFail :: Test TestResult -> (Test TestResult -> Test TestResult) -> IO ()
       saveOnFail test testTrans = runImpls connA connB alive (timeoutDelay flags) 0 test onTrace onDeath onDeath
@@ -337,12 +338,12 @@ main = withSocketsDo $ do
               where attemptTest (label, description, archReqs, template) =
                       if archReqs archDesc then do
                         putStrLn $ label ++ " -- " ++ description ++ ":"
-                        (if optContinueOnFail flags then repeatTillTarget else (\f t -> f t >> return ())) ((numTests <$>) . (doCheck (wrapTest <$> (genTest $ template archDesc)))) (nTests flags)
+                        (if optContinueOnFail flags then repeatTillTarget else (\f t -> f t >> return ())) ((numTests <$>) . (doCheck (wrapTest <$> (T.genTest $ template archDesc)))) (nTests flags)
                       else
                         putStrLn $ "Warning: skipping " ++ label ++ " since architecture requirements not met"
                     repeatTillTarget f t = if t <= 0 then return () else f t >>= (\x -> repeatTillTarget f (t - x))
             Just sock -> do
-              doCheck (liftM (wrapTest . seqSingleTest . (MkInstruction <$>)) $ listOf (genInstrServer sock)) (nTests flags)
+              doCheck (liftM (wrapTest . singleSeq . (MkInstruction <$>)) $ listOf (genInstrServer sock)) (nTests flags)
               return ()
   --
   close socA

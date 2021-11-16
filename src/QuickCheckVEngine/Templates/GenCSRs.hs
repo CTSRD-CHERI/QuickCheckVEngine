@@ -42,7 +42,7 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
 gen_rv32_i_zicsr :: Template
-gen_rv32_i_zicsr = randomTemplate $
+gen_rv32_i_zicsr = random $
   do any_csr   <- bits 12
      --valid_csr <- csr
      uimm      <- bits 5

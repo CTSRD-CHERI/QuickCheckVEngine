@@ -111,21 +111,21 @@ writeHPMCounterM idx rs1 = csrw csrIdx rs1
 
 -- | Clear the provided HPM counter
 resetHPMCounterM :: Integer -> HPMCounterIdx -> Template
-resetHPMCounterM tmp idx = sequenceTemplate [ li32 tmpNonZero 0
-                                            , csrw csrIdx tmpNonZero ]
+resetHPMCounterM tmp idx = mconcat [ li32 tmpNonZero 0
+                                   , csrw csrIdx tmpNonZero ]
   where csrIdx = hpmcounter_idx_to_mcounter_csr_idx idx
         tmpNonZero = max 1 tmp
 
 -- | Clear the provided HPM counter
 resetHPMCounter :: Integer -> HPMCounterIdx -> Template
-resetHPMCounter tmp idx = sequenceTemplate [ li32 tmpNonZero 0
-                                           , csrw csrIdx tmpNonZero ]
+resetHPMCounter tmp idx = mconcat [ li32 tmpNonZero 0
+                                  , csrw csrIdx tmpNonZero ]
   where csrIdx = hpmcounter_idx_to_counter_csr_idx idx
         tmpNonZero = max 1 tmp
 
 
 surroundWithUHPMAccess_core :: Bool -> HPMEventIdx -> Template -> Integer -> Integer -> Template
-surroundWithUHPMAccess_core shrink evt x tmpReg hpmCntIdx = randomTemplate $ do
+surroundWithUHPMAccess_core shrink evt x tmpReg hpmCntIdx = random $ do
   let prologue = resetHPMCounter tmpReg hpmCntIdx
   let epilogue = readHPMCounter  tmpReg hpmCntIdx
   return $ if shrink then prologue <> x <> epilogue
@@ -135,7 +135,7 @@ surroundWithUHPMAccess_core shrink evt x tmpReg hpmCntIdx = randomTemplate $ do
 --   count an event and before running the 'Template' and reading the HPM
 --   counter's value after
 surroundWithHPMAccess :: Template -> Template
-surroundWithHPMAccess x = randomTemplate $ do
+surroundWithHPMAccess x = random $ do
   evt <- oneof $ map return hpmevent_indices
   hpmCntIdx <- oneof $ map return hpmcounter_indices
   tmpReg <- dest
@@ -145,14 +145,14 @@ surroundWithHPMAccess x = randomTemplate $ do
 
 surroundWithHPMAccess_core :: Bool -> HPMEventIdx -> Template -> Integer -> Integer -> Maybe (Integer, Integer)
                            -> Template
-surroundWithHPMAccess_core shrink evt x tmpReg hpmCntIdx instRet = randomTemplate $ do
+surroundWithHPMAccess_core shrink evt x tmpReg hpmCntIdx instRet = random $ do
   let prologue =    inhibitHPMCounter tmpReg hpmCntIdx
                  <> setupHPMEventSel tmpReg hpmCntIdx evt
                  <> resetHPMCounterM tmpReg hpmCntIdx
-                 <> uniformTemplate [enableHPMCounterM tmpReg hpmCntIdx, emptyTemplate]
-                 <> uniformTemplate [enableHPMCounterS tmpReg hpmCntIdx, emptyTemplate]
+                 <> uniform [enableHPMCounterM tmpReg hpmCntIdx, mempty]
+                 <> uniform [enableHPMCounterS tmpReg hpmCntIdx, mempty]
                  <> triggerHPMCounter tmpReg hpmCntIdx
-  let epilogue = uniformTemplate [ readHPMCounter  tmpReg hpmCntIdx
+  let epilogue = uniform [ readHPMCounter  tmpReg hpmCntIdx
                                  , readHPMCounterM tmpReg hpmCntIdx ]
   return $ if shrink then prologue <> surroundWithHPMAccess_raw x instRet <> epilogue
                      else shrinkScope $ noShrink prologue <> surroundWithHPMAccess_raw x instRet <> noShrink epilogue

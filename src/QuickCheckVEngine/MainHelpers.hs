@@ -69,7 +69,8 @@ import qualified Data.ByteString.Lazy as BS
 import qualified InstrCodec
 import RISCV hiding (and, or)
 import QuickCheckVEngine.RVFI_DII
-import QuickCheckVEngine.Template
+import QuickCheckVEngine.Test
+import qualified QuickCheckVEngine.Template as T
 import QuickCheckVEngine.Templates.Utils
 
 instance Show DII_Packet where
@@ -86,7 +87,7 @@ bypassShrink = sequenceShrink f'
         f' a b = foldr f [] a
           where f (DII_Instruction _ x, _, _) = ((if is_bypass then ((a <>) <$> (singleShrink (s (def0 m_rd_x) (def0 m_rs1_x)) b)) else []) ++)
                   where (is_bypass, _, m_rs1_x, m_rd_x, _) = rv_extract . MkInstruction . toInteger $ x
-                        s old new (DII_Instruction t i, ra, rb) = singleTest <$>
+                        s old new (DII_Instruction t i, ra, rb) = single <$>
                              [ (DII_Instruction t . fromInteger . unMkInstruction $ reencode_i (def0 m_rs2_i) new (def0 m_rd_i), ra, rb)
                              | maybe False (== old) m_rs1_i ]
                           ++ [ (DII_Instruction t . fromInteger . unMkInstruction $ reencode_i new (def0 m_rs1_i) (def0 m_rd_i), ra, rb)
@@ -100,7 +101,7 @@ bypassShrink = sequenceShrink f'
 instShrink :: ShrinkStrategy
 instShrink = singleShrink f'
   where f' (diiPkt, a, b) = wrap <$> rv_shrink (MkInstruction . toInteger . dii_insn $ diiPkt)
-          where wrap (MkInstruction x) = singleTest (diiPkt { dii_insn = fromInteger x }, a, b)
+          where wrap (MkInstruction x) = single (diiPkt { dii_insn = fromInteger x }, a, b)
 
 -- | Turns a file representation of some data into a 'Test' that initializes
 --   memory with that data.
@@ -117,10 +118,10 @@ readDataFile inFile = do
   test <- generate $ readData (lines contents)
   putStrLn $ show (length test)
   return test
-  where readData ss = genTest $
-          sequenceTemplate (map (\(addr:ws) -> writeData addr ws) write_args)
+  where readData ss = T.genTest $
+          mconcat (map (\(addr:ws) -> writeData addr ws) write_args)
           <> (li64 1 0x80000000)
-          <> (inst $ jalr 0 1 0)
+          <> (T.inst $ jalr 0 1 0)
           where write_args = map (map (fst . head . readHex) . words) ss
 
 -- | Retrieve an instruction from 'Socket' to an external instruction server
@@ -133,10 +134,10 @@ genInstrServer sckt = do
                                 (decode . BS.reverse) <$> Network.Socket.ByteString.Lazy.recv sckt 4
 
 wrapTest :: Test Instruction -> Test TestResult
-wrapTest = (<> singleTest (diiEnd, Nothing, Nothing))
-         . (flip shrinkTestStrategy defaultShrink)
-         . (flip shrinkTestStrategy instShrink)
-         . (flip shrinkTestStrategy bypassShrink)
+wrapTest = (<> single (diiEnd, Nothing, Nothing))
+         . (flip shrinkStrategy defaultShrink)
+         . (flip shrinkStrategy instShrink)
+         . (flip shrinkStrategy bypassShrink)
          . addShrinkScopes
          . balance
          . removeEmpties
@@ -177,7 +178,7 @@ prop connA connB alive onFail arch delay verbosity ignoreAsserts gen =
         onTrace trace = do
           let diff = mapWithAssertLastVal diffFunc trace
           when (verbosity > 1) $ mapM_ (putStrLn . snd) diff
-          assertsFailed <- forM (gatherReports $ runAsserts trace) handleAsserts
+          assertsFailed <- forM (gatherReports $ runAssertCompounds trace) handleAsserts
           return $ property $ and (fst <$> diff) && (ignoreAsserts || not(or assertsFailed))
         onFirstDeath = return $ property False
         -- We don't want to shrink once one of the implementations has died,

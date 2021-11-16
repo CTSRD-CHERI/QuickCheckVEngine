@@ -104,7 +104,7 @@ gen_rv64_Xcheri_cache :: Template
 gen_rv64_Xcheri_cache = gen_cache False False True True
 
 gen_memory :: Bool -> Bool -> Bool -> Bool -> Template
-gen_memory has_a has_zifencei has_xlen_64 has_caplen = randomTemplate $
+gen_memory has_a has_zifencei has_xlen_64 has_caplen = random $
   do imm      <- bits 12
      src1     <- src
      src2     <- src
@@ -125,10 +125,10 @@ gen_memory has_a has_zifencei has_xlen_64 has_caplen = randomTemplate $
                  ++ [[(2,  inst fence_i)] | has_zifencei]
                  ++ [[(8, instUniform $ rv64_i_load  src1 dest offset)
                     , (8, instUniform $ rv64_i_store src1 src2 offset)] | has_xlen_64]
-     return $ distTemplate $ concat insts
+     return $ dist $ concat insts
 
 gen_cache :: Bool -> Bool -> Bool -> Bool -> Template
-gen_cache has_a has_zifencei has_xlen_64 has_caplen = randomTemplate $
+gen_cache has_a has_zifencei has_xlen_64 has_caplen = random $
   do size     <- getSize
      src1     <- elements [1, 2, 3]
      src2     <- elements [1, 2, 3]
@@ -151,34 +151,34 @@ gen_cache has_a has_zifencei has_xlen_64 has_caplen = randomTemplate $
                          , lui 3 upperIc
                          , slli 3 3 1
                          , addi 3 3 offsetc]
-     let insts = [[ (8, randomTemplate $ do src <- elements [1, 2, 3]
-                                            return $ instUniform $ rv32_i_load  src 13 0)
-                  , (8, randomTemplate $ do src1 <- elements [1, 2, 3]
-                                            src2 <- elements [1, 2, 3]
-                                            return $ instUniform $ rv32_i_store src1 src2 0)
-                  , (2, randomTemplate $ do fenceOp1 <- bits 4
-                                            fenceOp2 <- bits 4
-                                            return $ instUniform $ rv32_i_fence fenceOp1 fenceOp2)]]
+     let insts = [[ (8, random $ do src <- elements [1, 2, 3]
+                                    return $ instUniform $ rv32_i_load  src 13 0)
+                  , (8, random $ do src1 <- elements [1, 2, 3]
+                                    src2 <- elements [1, 2, 3]
+                                    return $ instUniform $ rv32_i_store src1 src2 0)
+                  , (2, random $ do fenceOp1 <- bits 4
+                                    fenceOp2 <- bits 4
+                                    return $ instUniform $ rv32_i_fence fenceOp1 fenceOp2)]]
               ++ [[(2, instUniform $ rv32_a src1 src2 dest aq rl)] | has_a]
               ++ [[(2, inst fence_i)] | has_zifencei]
-              ++ [[(2, randomTemplate $ do src <- elements [1, 2, 3]
-                                           return $ instUniform $ rv64_i_load  src 13 0)
-                  ,(2, randomTemplate $ do src1 <- elements [1, 2, 3]
-                                           src2 <- elements [1, 2, 3]
-                                           return $ instUniform $ rv64_i_store src1 src2 0)] | has_xlen_64]
-              ++ [[(2, randomTemplate $ do srcAddr <- elements [1, 2, 3]
-                                           return $ instSeq [ lq 13 srcAddr 0,
-                                                              cgettag 13 13])
-                  ,(2, randomTemplate $ do srcData <- elements [1, 2, 3, 4, 5]
-                                           srcAddr <- elements [1, 2, 3]
-                                           return $ inst $ sq srcAddr srcData 0)] | has_caplen]
+              ++ [[(2, random $ do src <- elements [1, 2, 3]
+                                   return $ instUniform $ rv64_i_load  src 13 0)
+                  ,(2, random $ do src1 <- elements [1, 2, 3]
+                                   src2 <- elements [1, 2, 3]
+                                   return $ instUniform $ rv64_i_store src1 src2 0)] | has_xlen_64]
+              ++ [[(2, random $ do srcAddr <- elements [1, 2, 3]
+                                   return $ instSeq [ lq 13 srcAddr 0,
+                                                      cgettag 13 13])
+                  ,(2, random $ do srcData <- elements [1, 2, 3, 4, 5]
+                                   srcAddr <- elements [1, 2, 3]
+                                   return $ inst $ sq srcAddr srcData 0)] | has_caplen]
      let prologue = instSeq prologue_list
      return $ prologue
-              <> replicateTemplate (size - length prologue_list - 1)
-                                   (distTemplate $ concat insts)
+              <> repeatN (size - length prologue_list - 1)
+                         (dist $ concat insts)
 
 
-gen_pte_perms = randomTemplate $
+gen_pte_perms = random $
   do lperms <- bits 10
      uperms <- bits 5
      clg0 <- bits 2
@@ -207,7 +207,7 @@ gen_pte_perms = randomTemplate $
                                      csrrwi 0 0x9c0 (clg0 * 4)]
                                      <>
                                      (noShrink $ inst $ sfence 0 0)
-                                     <> sequenceTemplate [
+                                     <> mconcat [
                                      inst sret,
                                      instUniform [ccleartag 3 3, cmove 3 3],
                                      instUniform [sw 0 3 16, sq 0 3 16],
@@ -217,7 +217,7 @@ gen_pte_perms = randomTemplate $
                                      inst $ cgettag 5 4,
                                      inst ecall]
 
-gen_pte_trans_core lxReg addrReg pteReg = randomTemplate $
+gen_pte_trans_core lxReg addrReg pteReg = random $
   do let leafperms = 0xFF
      let parentperms = 0xF1
      l2perms <- elements [leafperms, parentperms]
@@ -232,39 +232,39 @@ gen_pte_trans_core lxReg addrReg pteReg = randomTemplate $
      let l1pte = (shiftR l1pa 2) + l1perms
      let l0pte = (shiftR l0pa 2) + l0perms
      addrInitial <- elements [0x00000000, 0x00000800, 0x00100000]
-     return $ shrinkScope $ sequenceTemplate [li64 pteReg l2pte,
-                                              li64 lxReg  satpa,
-                                              inst $ sd lxReg pteReg 0,
-                                              li64 pteReg l1pte,
-                                              li64 lxReg  l2pa,
-                                              inst $ sd lxReg pteReg 0,
-                                              li64 pteReg l0pte,
-                                              li64 lxReg  l1pa,
-                                              inst $ sd lxReg pteReg 0,
-                                              li64 pteReg satp,
-                                              inst $ csrrw 0 0x180 pteReg, -- SATP write
-                                              li64 addrReg addrInitial]
-                                              <>
-                                              (noShrink $ inst $ sfence 0 0)
-                                              <>
-                                              (inst sret)
+     return $ shrinkScope $ mconcat [li64 pteReg l2pte,
+                                     li64 lxReg  satpa,
+                                     inst $ sd lxReg pteReg 0,
+                                     li64 pteReg l1pte,
+                                     li64 lxReg  l2pa,
+                                     inst $ sd lxReg pteReg 0,
+                                     li64 pteReg l0pte,
+                                     li64 lxReg  l1pa,
+                                     inst $ sd lxReg pteReg 0,
+                                     li64 pteReg satp,
+                                     inst $ csrrw 0 0x180 pteReg, -- SATP write
+                                     li64 addrReg addrInitial]
+                                     <>
+                                     (noShrink $ inst $ sfence 0 0)
+                                     <>
+                                     (inst sret)
 
 
 
-gen_pte_trans = randomTemplate $
+gen_pte_trans = random $
   do let lxreg = 1
      let addrReg = 2
      let ptereg = 30
      return $ shrinkScope $ (gen_pte_trans_core lxreg addrReg ptereg)
                             <>
-                            (replicateTemplate 20
-                                              (randomTemplate $
+                            (repeatN 20
+                                              (random $
                                                do imm <- elements [0x10, 0x100, 0x0]
                                                   datReg <- elements [ptereg, lxreg]
-                                                  return $ distTemplate [(8, instUniform $ rv64_i_load  addrReg datReg imm),
-                                                                         (8, instUniform $ rv64_i_store addrReg datReg imm),
-                                                                         (4, inst $ addi addrReg addrReg imm),
-                                                                         (1, inst $ fence_i),
-                                                                         (1, inst $ fence 0 0)]))
+                                                  return $ dist [(8, instUniform $ rv64_i_load  addrReg datReg imm),
+                                                                 (8, instUniform $ rv64_i_store addrReg datReg imm),
+                                                                 (4, inst $ addi addrReg addrReg imm),
+                                                                 (1, inst $ fence_i),
+                                                                 (1, inst $ fence 0 0)]))
                             <>
                             (noShrink $ inst ecall)

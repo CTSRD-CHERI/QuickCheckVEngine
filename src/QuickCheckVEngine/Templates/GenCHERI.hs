@@ -50,37 +50,37 @@ cLoadTagsTest :: ArchDesc -> Template
 cLoadTagsTest arch = loadTags 1 2
 
 capDecodeTest :: ArchDesc -> Template
-capDecodeTest arch = randomTemplate $ do
+capDecodeTest arch = random $ do
   let bitAppend x (a,b) = (shift x b +) <$> a b
   cap <- oneof [bits 128, -- completely random cap
                 foldM bitAppend 0 [(bits,16),(bits,3),(const $ elements [0x00000,0x00001,0x00002,0x00003],18),(bits,27),(bits,64)], -- reserved otypes
                 choose(40,63) >>= \exp -> foldM bitAppend 0 [(bits,16),(bits,3),(bits,18),(const $ return 1,1),(bits,9),(const $ return $ shift exp (-3),3),(bits,11),(const $ return $ exp Data.Bits..&. 0x3,3),(bits,64)] -- tricky exponents
                 ]
-  return $ sequenceTemplate [inst $ lui 1 0x40004,
-                             inst $ slli 1 1 1,
-                             li32 2 (cap Data.Bits..&. 0xffffffff),
-                             inst $ sw 1 2 0,
-                             li32 2 ((shift cap (-32)) Data.Bits..&. 0xffffffff),
-                             inst $ sw 1 2 4,
-                             li32 2 ((shift cap (-64)) Data.Bits..&. 0xffffffff),
-                             inst $ sw 1 2 8,
-                             li32 2 ((shift cap (-96)) Data.Bits..&. 0xffffffff),
-                             inst $ sw 1 2 12,
-                             inst $ lq 2 1 0,
-                             inst $ cgetlen 6 2,
-                             inst $ cgetoffset 6 2,
-                             inst $ cgetbase 6 2,
-                             inst $ cgetaddr 6 2,
-                             inst $ cgettype 6 2,
-                             inst $ cgetflags 6 2,
-                             inst $ cgetperm 6 2,
-                             inst $ cbuildcap 2 3 2,
-                             inst $ cgettype 4 2,
-                             inst $ cgettag 5 2]
+  return $ mconcat [inst $ lui 1 0x40004,
+                    inst $ slli 1 1 1,
+                    li32 2 (cap Data.Bits..&. 0xffffffff),
+                    inst $ sw 1 2 0,
+                    li32 2 ((shift cap (-32)) Data.Bits..&. 0xffffffff),
+                    inst $ sw 1 2 4,
+                    li32 2 ((shift cap (-64)) Data.Bits..&. 0xffffffff),
+                    inst $ sw 1 2 8,
+                    li32 2 ((shift cap (-96)) Data.Bits..&. 0xffffffff),
+                    inst $ sw 1 2 12,
+                    inst $ lq 2 1 0,
+                    inst $ cgetlen 6 2,
+                    inst $ cgetoffset 6 2,
+                    inst $ cgetbase 6 2,
+                    inst $ cgetaddr 6 2,
+                    inst $ cgettype 6 2,
+                    inst $ cgetflags 6 2,
+                    inst $ cgetperm 6 2,
+                    inst $ cbuildcap 2 3 2,
+                    inst $ cgettype 4 2,
+                    inst $ cgettag 5 2]
 
 
 genRandomCHERITest :: ArchDesc -> Template
-genRandomCHERITest arch = randomTemplate $ do
+genRandomCHERITest arch = random $ do
   srcAddr   <- src
   srcData   <- src
   tmpReg    <- src
@@ -97,23 +97,23 @@ genRandomCHERITest arch = randomTemplate $ do
   csrAddr   <- frequency [(1, return 0xbc0), (1, return 0x342)]
   srcScr    <- elements $ [0, 1, 28, 29, 30, 31] ++ (if has_s arch then [12, 13, 14, 15] else []) ++ [2]
   srcCsr    <- elements [0x141, 0x142, 0x341, 0x342]
-  return $ distTemplate [ (5, legalLoad arch)
-                        , (5, legalStore arch)
-                        , (5, legalCapLoad srcAddr dest)
-                        , (5, legalCapStore srcAddr)
-                        , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2)
-                        , (10, instUniform $ rv32_xcheri srcAddr srcData srcScr imm mop dest)
-                        , (10, inst $ cspecialrw dest srcScr srcAddr)
-                        , (10, instUniform $ rv32_zicsr srcData dest srcCsr mop)
-                        , (10, switchEncodingMode)
-                        , (10, cspecialRWChain)
-                        , (10, randomCInvoke srcAddr srcData tmpReg tmpReg2)
-                        , (10, makeShortCap)
-                        , (10, clearASR tmpReg tmpReg2)
-                        , (10, loadTags srcAddr srcData)
-                        ]
+  return $ dist [ (5, legalLoad arch)
+                , (5, legalStore arch)
+                , (5, legalCapLoad srcAddr dest)
+                , (5, legalCapStore srcAddr)
+                , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2)
+                , (10, instUniform $ rv32_xcheri srcAddr srcData srcScr imm mop dest)
+                , (10, inst $ cspecialrw dest srcScr srcAddr)
+                , (10, instUniform $ rv32_zicsr srcData dest srcCsr mop)
+                , (10, switchEncodingMode)
+                , (10, cspecialRWChain)
+                , (10, randomCInvoke srcAddr srcData tmpReg tmpReg2)
+                , (10, makeShortCap)
+                , (10, clearASR tmpReg tmpReg2)
+                , (10, loadTags srcAddr srcData)
+                ]
 
 randomCHERITest :: ArchDesc -> Template
-randomCHERITest arch = let temp = repeatTemplateTillEnd $ genRandomCHERITest arch
+randomCHERITest arch = let temp = repeatTillEnd $ genRandomCHERITest arch
                        in if has_f arch || has_d arch then noShrink (fp_prologue arch) <> temp
                                                       else temp

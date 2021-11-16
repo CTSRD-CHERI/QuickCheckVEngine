@@ -48,7 +48,7 @@ gen_rv64_a :: Template
 gen_rv64_a = genAtomics True
 
 genAtomics :: Bool -> Template
-genAtomics has_xlen_64 = randomTemplate $ do
+genAtomics has_xlen_64 = random $ do
   aq   <- bits 1
   rl   <- bits 1
   src1 <- src
