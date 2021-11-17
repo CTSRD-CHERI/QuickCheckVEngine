@@ -43,8 +43,8 @@ import QuickCheckVEngine.Template
 
 prologue_list :: ArchDesc -> [Instruction]
 prologue_list arch = [ lui 1 2
-                     , csrrs 0 0x300 1 -- mstatus
-                     , csrrs 0 0x003 0 -- fcsr
+                     , csrrs 0 (unsafe_csrs_indexFromName "mstatus") 1
+                     , csrrs 0 (unsafe_csrs_indexFromName "fcsr") 0
                      ]
                   ++ (if has_f arch || has_d arch then
                      [ fmv_w_x 0 0

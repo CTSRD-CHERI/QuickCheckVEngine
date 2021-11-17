@@ -58,6 +58,7 @@ import RISCV.RV32_Zifencei
 import RISCV.RV32_Zicsr
 import RISCV.RV64_I
 import RISCV.RV32_Xcheri
+import RISCV.RV_CSRs
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 import Data.Bits
@@ -203,8 +204,8 @@ gen_pte_perms = random $
                                      lui 7 0x40000,
                                      slli 7 7 1,
                                      sd 7 1 0,
-                                     csrrw 0 0x180 5,
-                                     csrrwi 0 0x9c0 (clg0 * 4)]
+                                     csrrw 0 (unsafe_csrs_indexFromName "satp") 5,
+                                     csrrwi 0 (unsafe_csrs_indexFromName "sccsr") (clg0 * 4)]
                                      <>
                                      (noShrink $ inst $ sfence 0 0)
                                      <> mconcat [
@@ -212,7 +213,7 @@ gen_pte_perms = random $
                                      instUniform [ccleartag 3 3, cmove 3 3],
                                      instUniform [sw 0 3 16, sq 0 3 16],
                                      instUniform [lw 4 0 16, lq 4 0 16],
-                                     inst $ csrrwi 0 0x9c0 (clg1 * 4),
+                                     inst $ csrrwi 0 (unsafe_csrs_indexFromName "sccsr") (clg1 * 4),
                                      instUniform [lw 4 0 16, lq 4 0 16],
                                      inst $ cgettag 5 4,
                                      inst ecall]
@@ -242,7 +243,7 @@ gen_pte_trans_core lxReg addrReg pteReg = random $
                                      li64 lxReg  l1pa,
                                      inst $ sd lxReg pteReg 0,
                                      li64 pteReg satp,
-                                     inst $ csrrw 0 0x180 pteReg, -- SATP write
+                                     inst $ csrrw 0 (unsafe_csrs_indexFromName "satp") pteReg,
                                      li64 addrReg addrInitial]
                                      <>
                                      (noShrink $ inst $ sfence 0 0)

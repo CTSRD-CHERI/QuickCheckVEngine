@@ -51,6 +51,7 @@ import RISCV.RV32_Xcheri
 import RISCV.RV32_Zicsr
 import RISCV.RV32_F
 import RISCV.RV32_D
+import RISCV.RV_CSRs
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.GenMemory
 import QuickCheckVEngine.Templates.Utils
@@ -68,7 +69,9 @@ genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
   size     <- getSize
-  csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
+  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+                        , (1, return (unsafe_csrs_indexFromName "mcause"))
+                        , (1, bits 12) ]
   src1     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   src2     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   let rv32_xcheri_misc_alt = filter (/= (cspecialrw tmpReg csrAddr src1)) (rv32_xcheri_misc src1 src2 csrAddr imm tmpReg)
@@ -161,7 +164,7 @@ genSTCTorture = random $ do
   dest <- sbcRegs
   let fenceOp1 = 19
   let fenceOp2 = 20
-  let sstatus = 0x100
+  let sstatus = unsafe_csrs_indexFromName "sstatus"
   let imm = (imm_bits `shiftR` 3) `shiftL` 3
   let access_inst = uniform [ instUniform $ rv64_i_mem src1 src2 dest imm
                             , instUniform $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2
@@ -173,8 +176,8 @@ genSTCTorture = random $ do
 
 prepareSBCExcpsGen :: Template
 prepareSBCExcpsGen = random $ do
-  let fcsr = 0x003
-  let mstatus = 0x300
+  let fcsr = unsafe_csrs_indexFromName "fcsr"
+  let mstatus = unsafe_csrs_indexFromName "mstatus"
   let a0 = 10
   return $ instSeq [ (lui a0 2)
                    , (csrrs 0 mstatus a0)
@@ -211,14 +214,14 @@ prepareSTCGen = random $ do
   let counterReg = 30
   let hpmCntIdx = 3
   let evt = 0x31
-  let mstatus = 0x300
-  let sstatus = 0x100
-  let mepc = 0x341
-  let sepc = 0x141
-  let satp = 0x180
-  let medeleg = 0x302
-  let sedeleg = 0x102
-  let stval = 0x143
+  let mstatus = unsafe_csrs_indexFromName "mstatus"
+  let sstatus = unsafe_csrs_indexFromName "sstatus"
+  let mepc = unsafe_csrs_indexFromName "mepc"
+  let sepc = unsafe_csrs_indexFromName "sepc"
+  let satp = unsafe_csrs_indexFromName "satp"
+  let medeleg = unsafe_csrs_indexFromName "medeleg"
+  let sedeleg = unsafe_csrs_indexFromName "sedeleg"
+  let stval = unsafe_csrs_indexFromName "stval"
   return $ instSeq [ (lui s1 0x100)
                    , (csrrc 0 mstatus s1)
                    , (lui s1 0x1)
@@ -442,15 +445,16 @@ gen_stc_verify = random $ do
   let addrReg3 = 18
   let hpmCntIdx_dcache_miss = 3
   let hpmEventIdx_dcache_miss = 0x31
-  let uepc = 0x041
+  let uepc = unsafe_csrs_indexFromName "uepc"
+  let cntrIdx = hpmcounter_idx_to_counter_csr_idx 0
   size <- getSize
   let prolog = mconcat [ prepareSTCGen
                        , inst $ sfence 0 0
                        , li64 addrReg1 0x80001800
                        , li64 addrReg2 0x80012000
                        , li64 addrReg3 0x80008000
-                       , inst $ csrrs tmpReg 0xc03 0 ]
+                       , inst $ csrrs tmpReg cntrIdx 0 ]
   let body = repeatN (20) (genSTCTorture)
-  let epilog = mconcat [ inst $ csrrs counterReg 0xc03 0
+  let epilog = mconcat [ inst $ csrrs counterReg cntrIdx 0
                        , instAssert (sub counterReg counterReg tmpReg) 0 ]
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog

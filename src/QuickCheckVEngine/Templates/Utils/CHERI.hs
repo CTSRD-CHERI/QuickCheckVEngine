@@ -202,7 +202,9 @@ genCHERIinspection = random $ do
   longImm  <- bits 20
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
-  csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
+  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+                        , (1, return (unsafe_csrs_indexFromName "mcause"))
+                        , (1, bits 12) ]
   return $ dist [ (1, instUniform $ rv32_xcheri_inspection srcAddr dest)
                 , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
 
@@ -215,7 +217,9 @@ genCHERIarithmetic = random $ do
   longImm  <- bits 20
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
-  csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
+  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+                        , (1, return (unsafe_csrs_indexFromName "mcause"))
+                        , (1, bits 12) ]
   return $ dist [ (1, instUniform $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
                 , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
 
@@ -229,7 +233,9 @@ genCHERImisc = random $ do
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
   srcScr   <- elements [0, 1, 28, 29, 30, 31]
-  csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
+  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+                        , (1, return (unsafe_csrs_indexFromName "mcause"))
+                        , (1, bits 12) ]
   return $ dist [ (1, instUniform $ rv32_xcheri_misc srcAddr srcData srcScr imm dest)
                 , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
 
@@ -242,7 +248,9 @@ genCHERIcontrol = random $ do
   longImm  <- bits 20
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
-  csrAddr  <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
+  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+                        , (1, return (unsafe_csrs_indexFromName "mcause"))
+                        , (1, bits 12) ]
   return $ dist [ (2, instUniform $ rv32_xcheri_control srcAddr srcData dest)
                 , (1, inst (csetbounds dest srcData srcAddr))
                 , (2, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr

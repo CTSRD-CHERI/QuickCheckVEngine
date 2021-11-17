@@ -94,9 +94,13 @@ genRandomCHERITest arch = random $ do
   longImm   <- (bits 20)
   fenceOp1  <- (bits 4)
   fenceOp2  <- (bits 4)
-  csrAddr   <- frequency [(1, return 0xbc0), (1, return 0x342)]
+  csrAddr   <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+                         , (1, return (unsafe_csrs_indexFromName "mcause")) ]
   srcScr    <- elements $ [0, 1, 28, 29, 30, 31] ++ (if has_s arch then [12, 13, 14, 15] else []) ++ [2]
-  srcCsr    <- elements [0x141, 0x142, 0x341, 0x342]
+  srcCsr    <- elements [ unsafe_csrs_indexFromName "sepc"
+                        , unsafe_csrs_indexFromName "scause"
+                        , unsafe_csrs_indexFromName "mepc"
+                        , unsafe_csrs_indexFromName "mcause" ]
   return $ dist [ (5, legalLoad arch)
                 , (5, legalStore arch)
                 , (5, legalCapLoad srcAddr dest)

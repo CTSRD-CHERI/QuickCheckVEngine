@@ -60,7 +60,9 @@ genRandomTest arch = do
   longImm   <- (bits 20)
   fenceOp1  <- (bits 4)
   fenceOp2  <- (bits 4)
-  csrAddr   <- frequency [ (1, return 0xbc0), (1, return 0x342), (1, bits 12) ]
+  csrAddr   <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+                         , (1, return (unsafe_csrs_indexFromName "mcause"))
+                         , (1, bits 12) ]
   thisNested <- resize (remaining `Prelude.div` 2) (genRandomTest arch)
   let test = dist [ (if remaining > 10 then 1 else 0, legalLoad arch)
                   , (if remaining > 10 then 1 else 0, legalStore arch )

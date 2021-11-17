@@ -160,5 +160,5 @@ surroundWithHPMAccess_core shrink evt x tmpReg hpmCntIdx instRet = random $ do
 
 surroundWithHPMAccess_raw :: Template -> Maybe (Integer, Integer) -> Template
 surroundWithHPMAccess_raw x instRet = case (instRet) of
-  Just (reg1, reg2) -> shrinkScope $ ((noShrink (csrr reg1 0xB02)) <> x <> (noShrink (csrr reg2 0xB02)))
+  Just (reg1, reg2) -> shrinkScope $ ((noShrink (csrr reg1 (unsafe_csrs_indexFromName "minstret"))) <> x <> (noShrink (csrr reg2 (unsafe_csrs_indexFromName "minstret"))))
   Nothing -> x
