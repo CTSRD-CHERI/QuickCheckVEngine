@@ -333,9 +333,11 @@ main = withSocketsDo $ do
           when (skipped > 1) $ putStrLn $ "Warning: skipped " ++ show (skipped - 1) ++ " tests due to dead implementations"
         Nothing -> do
           case instrSoc of
-            Nothing -> mapM_ attemptTest [template | template@(label,_,_,_) <- allTests
-                                                   , label =~ (fromMaybe ".*" (testIncludeRegex flags))
-                                                   , not(label =~ (fromMaybe "a^" (testExcludeRegex flags)))]
+            Nothing -> do let tests = [ template | template@(label,_,_,_) <- allTests
+                                      , label =~ (fromMaybe ".*" (testIncludeRegex flags))
+                                     , not(label =~ (fromMaybe "a^" (testExcludeRegex flags)))]
+                          when (null tests) $ putStrLn "Warning: no tests selected"
+                          mapM_ attemptTest tests
               where attemptTest (label, description, archReqs, template) =
                       if archReqs archDesc then do
                         putStrLn $ label ++ " -- " ++ description ++ ":"
