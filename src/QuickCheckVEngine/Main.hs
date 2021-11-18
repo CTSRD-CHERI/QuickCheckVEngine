@@ -303,6 +303,7 @@ main = withSocketsDo $ do
   let checkGen gen remainingTests =
         checkResult (Args Nothing remainingTests 1 (testLen flags) (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
                     (prop connA connB alive checkTrapAndSave archDesc (timeoutDelay flags) (optVerbosity flags) (optIgnoreAsserts flags) gen)
+  failuresRef <- newIORef 0
   let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
         | skipped == 0 = do putStrLn $ "Reading trace from " ++ fileName
                             trace <- read <$> readFile fileName
@@ -311,13 +312,13 @@ main = withSocketsDo $ do
                                                  readDataFile memInit
                               Nothing -> return mempty
                             res <- checkSingle (wrapTest $ initTrace <> trace) (optVerbosity flags) (optShrink flags) (testLen flags) checkTrapAndSave
-                            case res of Failure {} -> putStrLn "Failure."
+                            case res of Failure {} -> do putStrLn "Failure."
+                                                         modifyIORef failuresRef ((+) 1)
                                         _          -> putStrLn "No Failure."
                             isAlive <- readIORef alive
                             return $ if isAlive then 0 else 1
         | otherwise = return $ skipped + 1
   --
-  failuresRef <- newIORef 0
   let doCheck a b = do res <- checkGen a b
                        case res of Failure {} -> modifyIORef failuresRef ((+) 1)
                                    _ -> return ()
