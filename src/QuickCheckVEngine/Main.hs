@@ -199,9 +199,9 @@ allTests :: [(String, String, ArchDesc -> Bool, ArchDesc -> T.Template)]
 allTests = [
              ("arith",      "Arithmetic Verification",                                const True,                               const $ T.repeatTillEnd gen_rv32_i_arithmetic)
            , ("data_scc",   "Data-Speculative Capability Constraint Verifier",        andPs [has_cheri, has_icsr],              const gen_data_scc_verify)
-           , ("sbc_cond_1", "Speculative Branching Constraint Condition 1 Verifier",  andPs [has_cheri, has_icsr, has_xlen_64], const gen_sbc_cond_1_verify)
+           , ("sbc_cond_1", "Speculative Branching Constraint Condition 1 Verifier",  andPs [has_cheri, has_icsr, has_xlen_64], gen_sbc_cond_1_verify)
            , ("sbc_jumps",  "Speculative Branching Constraint Jumps Verifier",        andPs [has_cheri, has_icsr, has_xlen_64], const gen_sbc_jumps_verify)
-           , ("sbc_excps",  "Speculative Branching Constraint Execeptions Verifier",  andPs [has_cheri, has_icsr, has_xlen_64], const gen_sbc_exceptions_verify)
+           , ("sbc_excps",  "Speculative Branching Constraint Execeptions Verifier",  andPs [has_cheri, has_icsr, has_xlen_64], gen_sbc_exceptions_verify)
            , ("stc",        "Speculative Translation Constraint",                     andPs [has_s, has_icsr, has_xlen_64],     const gen_stc_verify)
            , ("inst_scc",   "Instruction Speculative Capability Constraint Verifier", andPs [has_cheri, has_icsr, has_xlen_64], const gen_inst_scc_verify)
            , ("mem",        "Memory Verification",                                    const True,                               const $ T.repeatTillEnd gen_rv32_i_memory)

@@ -110,6 +110,7 @@ module RISCV.RV32_Xcheri (
 import RISCV.Helpers (reg, int, prettyR, prettyI, prettyL, prettyS, prettyR_2op, prettyR_A_1op, prettyR_A, ExtractedRegs)
 import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 import RISCV.RV32_I
+import RISCV.ArchDesc
 
 -- Capability Inspection
 cgetperm_raw                       =                                        "1111111 00000 cs1[4:0] 000 rd[4:0] 1011011"
@@ -570,16 +571,16 @@ rv32_xcheri_control src1 src2 dest = [ cjalr    dest src1
                                      , cinvoke  src2 src1 ]
 
 -- | List of cheri memory instructions
-rv32_xcheri_mem :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
-rv32_xcheri_mem    srcAddr srcData imm mop dest =
+rv32_xcheri_mem :: ArchDesc -> Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
+rv32_xcheri_mem    arch srcAddr srcData imm mop dest =
   [ cload  dest    srcAddr         mop
   , cstore         srcData srcAddr mop
-  , cloadtags dest srcAddr
   --, ld     dest srcAddr dest        imm
   --, sd          srcAddr srcData     imm
   --, lq     dest srcAddr dest        imm
   --, sq          srcAddr srcData     imm
   ]
+  ++ [cloadtags dest srcAddr | not $ has_nocloadtags arch]
 
 -- | List of cheri memory instructions
 rv32_a_xcheri :: Integer -> Integer -> Integer -> [Instruction]
@@ -607,10 +608,10 @@ rv32_a_xcheri      srcAddr srcData dest =
   ]
 
 -- | List of cheri instructions
-rv32_xcheri :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
-rv32_xcheri src1 src2 srcScr imm mop dest =
+rv32_xcheri :: ArchDesc -> Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
+rv32_xcheri arch src1 src2 srcScr imm mop dest =
      rv32_xcheri_inspection src1 dest
   ++ rv32_xcheri_arithmetic src1 src2 imm dest
   ++ rv32_xcheri_misc src1 src2 srcScr imm dest
   ++ rv32_xcheri_control src1 src2 dest
-  ++ rv32_xcheri_mem src1 src2 imm mop dest
+  ++ rv32_xcheri_mem arch src1 src2 imm mop dest

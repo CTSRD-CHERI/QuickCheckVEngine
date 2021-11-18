@@ -106,7 +106,7 @@ genRandomCHERITest arch = random $ do
                 , (5, legalCapLoad srcAddr dest)
                 , (5, legalCapStore srcAddr)
                 , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2)
-                , (10, instUniform $ rv32_xcheri srcAddr srcData srcScr imm mop dest)
+                , (10, instUniform $ rv32_xcheri arch srcAddr srcData srcScr imm mop dest)
                 , (10, inst $ cspecialrw dest srcScr srcAddr)
                 , (10, instUniform $ rv32_zicsr srcData dest srcCsr mop)
                 , (10, switchEncodingMode)

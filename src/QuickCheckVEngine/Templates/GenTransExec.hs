@@ -52,6 +52,7 @@ import RISCV.RV32_Zicsr
 import RISCV.RV32_F
 import RISCV.RV32_D
 import RISCV.RV_CSRs
+import RISCV.ArchDesc
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.GenMemory
 import QuickCheckVEngine.Templates.Utils
@@ -82,8 +83,8 @@ genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
                      ])
 
 
-genSBC_Cond_1_Torture :: Template
-genSBC_Cond_1_Torture = random $ do
+genSBC_Cond_1_Torture :: ArchDesc -> Template
+genSBC_Cond_1_Torture arch = random $ do
   imm_rand      <- bits 12
   longImm_rand  <- bits 20
   fenceOp1      <- bits 3
@@ -107,7 +108,7 @@ genSBC_Cond_1_Torture = random $ do
                    , instUniform $ rv64_i_mem addrReg srcData dest imm
                    , instUniform $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2
                    , inst $ jal zeroReg longImm
-                   , instUniform $ rv32_xcheri_mem capsrc1 capsrc2 imm 0xb tmpReg
+                   , instUniform $ rv32_xcheri_mem arch capsrc1 capsrc2 imm 0xb tmpReg
                    ]
 
 genSBC_Jumps_Torture :: Template
@@ -131,8 +132,8 @@ genSBC_Jumps_Torture = random $ do
                    , instUniform $ rv32_i_ctrl_branches src1 src2 imm_branches
                    ]
 
-genSBC_Excps_Torture :: Integer -> Template
-genSBC_Excps_Torture tmpReg = random $ do
+genSBC_Excps_Torture :: ArchDesc -> Integer -> Template
+genSBC_Excps_Torture arch tmpReg = random $ do
   imm <- bits 12
   longImm <- bits 20
   src1 <- sbcRegs
@@ -147,7 +148,7 @@ genSBC_Excps_Torture tmpReg = random $ do
                    , instUniform $ rv64_i_mem src1 src2 dest imm
                    , instUniform $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2
                    , instUniform $ rv32_i_exc
-                   , instUniform $ rv32_xcheri_mem src1 src2 imm 0xb tmpReg
+                   , instUniform $ rv32_xcheri_mem arch src1 src2 imm 0xb tmpReg
                    , instUniform $ rv32_xcheri_arithmetic src1 src2 imm dest
                    , instUniform $ rv32_xcheri_inspection src1 dest
                    , instUniform $ rv32_f_macc src1 src2 src3 dest rm
@@ -375,7 +376,7 @@ gen_inst_scc_verify = random $ do
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
 -- | Verify condition 1 of Speculative Branching Constraint (SBC)
-gen_sbc_cond_1_verify = random $ do
+gen_sbc_cond_1_verify arch = random $ do
   let tmpReg1 = 1
   let tmpReg2 = 2
   let tmpReg3 = 3
@@ -390,7 +391,7 @@ gen_sbc_cond_1_verify = random $ do
   let hpmEventIdx_traps = 0x2
   let hpmCntIdx_traps = 4
   size <- getSize
-  let inner_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (repeatN (size - 100) ( (genSBC_Cond_1_Torture))) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))
+  let inner_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (repeatN (size - 100) ( (genSBC_Cond_1_Torture arch))) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))
   let outer_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_traps inner_hpm_access tmpReg4 hpmCntIdx_traps Nothing
   let prolog = mconcat [ li64 addrReg addrVal
                        , makeCap capReg authReg tmpReg5 addrVal 0x10000 0 ]
@@ -415,7 +416,7 @@ gen_sbc_jumps_verify = random $ do
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
 -- | Verify the exception conditions of Speculative Branching Constraint (SBC)
-gen_sbc_exceptions_verify = random $ do
+gen_sbc_exceptions_verify arch = random $ do
   let zeroReg = 0
   let capReg = 12
   let authReg = 13
@@ -430,7 +431,7 @@ gen_sbc_exceptions_verify = random $ do
                        , makeCap capReg authReg tmpReg addr 0x100 0
                        , makeCap_core excReg authReg tmpReg 0x80000000
                        , inst $ cspecialrw 0 28 excReg ]
-  let body = surroundWithHPMAccess_core False hpmEventIdx_wild_excps (repeatN (size - 100) (genSBC_Excps_Torture tmpReg)) counterReg hpmCntIdx_wild_excps Nothing
+  let body = surroundWithHPMAccess_core False hpmEventIdx_wild_excps (repeatN (size - 100) (genSBC_Excps_Torture arch tmpReg)) counterReg hpmCntIdx_wild_excps Nothing
   let epilog = instAssert (add counterReg counterReg zeroReg) 0
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 

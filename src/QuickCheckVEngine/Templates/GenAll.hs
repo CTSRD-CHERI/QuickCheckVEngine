@@ -37,6 +37,7 @@ module QuickCheckVEngine.Templates.GenAll where
 import InstrCodec
 import Test.QuickCheck
 import RISCV
+import RISCV.ArchDesc
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
@@ -88,7 +89,7 @@ genAll desc = random $ do
                ] | has_ifencei desc]
            ++ [[ (8, instUniform (rv32_zicsr src1 dest imm uimm))
                ] | has_icsr desc]
-           ++ [[ (8, instUniform (rv32_xcheri src1 src2 srcScr imm mop dest))
+           ++ [[ (8, instUniform (rv32_xcheri desc src1 src2 srcScr imm mop dest))
                ] | has_cheri desc]
   return $ shrinkScope $ (if has_f desc || has_d desc then noShrink (fp_prologue desc)
                                                       else mempty)
