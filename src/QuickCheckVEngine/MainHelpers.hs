@@ -144,15 +144,15 @@ wrapTest = (<> single (diiEnd, Nothing, Nothing))
          . (f <$>)
   where f (MkInstruction i) = (diiInstruction i, Nothing, Nothing)
 
-runImpls :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> Int -> Int -> Test TestResult
+runImpls :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> Int -> Int -> Test TestResult
          -> (Test TestResult -> IO a) -> IO a -> IO a
          -> IO a
-runImpls connA connB alive delay verbosity test onTrace onFirstDeath onSubsequentDeaths = do
+runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequentDeaths = do
   let instTrace = (\(x, _, _) -> x) <$> test
   let insts = instTrace
   currentlyAlive <- readIORef alive
   if currentlyAlive then do
-    m_trace <- doRVFIDII connA connB alive delay verbosity insts
+    m_trace <- doRVFIDII connA m_connB alive delay verbosity insts
     case m_trace of
       Just trace -> onTrace trace
       _ -> onFirstDeath
@@ -163,13 +163,13 @@ runImpls connA connB alive delay verbosity test onTrace onFirstDeath onSubsequen
 --   for equivalence. It receives among other things a callback function
 --   'Test -> IO ()' to be performed on failure that takes in the reduced
 --   'Test' which caused the failure
-prop :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> (Test TestResult -> IO ())
+prop :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> (Test TestResult -> IO ())
      -> ArchDesc -> Int -> Int -> Bool -> Gen (Test TestResult) -> Property
-prop connA connB alive onFail arch delay verbosity ignoreAsserts gen =
+prop connA m_connB alive onFail arch delay verbosity ignoreAsserts gen =
   forAllShrink gen shrink mkProp
   where mkProp test = whenFail (onFail test) (doProp test)
-        doProp test = monadicIO $ run $ runImpls connA connB alive delay verbosity test onTrace onFirstDeath onSubsequentDeaths
-        diffFunc asserts (DII_Instruction _ _, a, b) = rvfiCheckAndShow (has_xlen_64 arch) a b asserts
+        doProp test = monadicIO $ run $ runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequentDeaths
+        diffFunc asserts (DII_Instruction _ _, a, b) = rvfiCheckAndShow (isNothing m_connB) (has_xlen_64 arch) a b asserts
         diffFunc _ (DII_End _, _, _) = (True, "Test end")
         diffFunc _ _ = (True, "")
         handleAsserts (ReportAssert False s, _) = do putStrLn $ "Failed assert: " ++ s
@@ -193,31 +193,32 @@ prop connA connB alive onFail arch delay verbosity ignoreAsserts gen =
 --   'Just (traceA, traceB)', otherwise 'Nothing' and sets the provided
 --   'IORef Bool' for alive to 'False' indicating that further interaction with
 --   the implementations is futile
-doRVFIDII :: RvfiDiiConnection -> RvfiDiiConnection -> IORef Bool -> Int
+doRVFIDII :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> Int
           -> Int -> Test DII_Packet -> IO (Maybe (Test TestResult))
-doRVFIDII connA connB alive delay verbosity insts = do
+doRVFIDII connA m_connB alive delay verbosity insts = do
   currentlyAlive <- readIORef alive
   if currentlyAlive then do
     result <- try $ do
       let doLog = verbosity > 1
-      let errorTrace = fmap (flip (,) Nothing)
+      let emptyTrace = fmap (flip (,) Nothing)
       -- Send to implementations
-      sendDIITrace connA insts
-      when doLog $ putStrLn "Done sending instructions to implementation A"
-      sendDIITrace connB insts
-      when doLog $ putStrLn "Done sending instructions to implementation B"
+      let send name conn = do sendDIITrace conn insts
+                              when doLog $ putStrLn $ "Done sending instructions to " ++ name
+      send "implementation A" connA
+      maybe (pure ()) (send "implementation B") m_connB
       -- Receive from implementations
-      m_traceA :: Maybe (Test (DII_Packet, Maybe RVFI_Packet))<- timeout delay $ recvRVFITrace connA verbosity insts
-      when doLog $ putStrLn "Done receiving reports from implementation A"
-      let traceA :: Test (DII_Packet, Maybe RVFI_Packet) = fromMaybe (errorTrace insts) m_traceA
-      m_traceAB <- timeout delay $ recvRVFITrace connB verbosity traceA
-      when doLog $ putStrLn "Done receiving reports from implementation B"
+      let receive name base conn = do res <- timeout delay $ recvRVFITrace connA verbosity base
+                                      when doLog $ putStrLn $ "Done receiving reports from " ++ name
+                                      return res
+      m_traceA <- receive "implementation A" insts connA
+      let traceA = fromMaybe (emptyTrace insts) m_traceA
+      m_traceAB <- maybe (return . Just $ emptyTrace traceA) (receive "implementation B" traceA) m_connB
       --
       when (isNothing m_traceA || isNothing m_traceAB) $ writeIORef alive False
       when (isNothing m_traceA) $ putStrLn "Error: implementation A timeout. Forcing all future tests to report 'SUCCESS'"
       when (isNothing m_traceAB) $ putStrLn "Error: implementation B timeout. Forcing all future tests to report 'SUCCESS'"
       --
-      return $ fromMaybe (errorTrace traceA) m_traceAB
+      return $ fromMaybe (emptyTrace traceA) m_traceAB
     case result of
       Right t -> return $ Just $ (\((x,y),z) -> (x,y,z)) <$> t
       Left (SomeException e) -> do

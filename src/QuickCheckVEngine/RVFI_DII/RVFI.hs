@@ -434,13 +434,16 @@ compareMemData is64 x y getMask getData = do
     byteMask2bitMask mask = BW.fromListLE $ concatMap (replicate 8) (BW.toListLE mask)
     maskWith a b = a Data.Bits..&. byteMask2bitMask b
 
+-- Internal assert + rvfi helper functions
+maskUpper _is64 _x = if _is64 then _x else _x Data.Bits..&. 0x00000000FFFFFFFF
+getRDAddr pkt = maybe 0 rvfi_rd_addr $ rvfi_int_data pkt
+getRDWData _is64 pkt = maskUpper _is64 (maybe 0 rvfi_rd_wdata $ rvfi_int_data pkt)
 
 -- | Compare 'RVFI_Packet's
--- TODO: Improve handling of Maybe values
-rvfiCheck :: Bool -> RVFI_Packet -> RVFI_Packet -> [Integer] -> Bool
-rvfiCheck is64 x y asserts
-  | rvfiIsHalt x = rvfi_halt x == rvfi_halt y && null asserts
-  | rvfiIsTrap x = (rvfi_trap x == rvfi_trap y) && (maskUpper is64 (rvfi_pc_wdata x) == maskUpper is64 (rvfi_pc_wdata y)) && null asserts
+rvfiCheck :: Bool -> RVFI_Packet -> RVFI_Packet -> Bool
+rvfiCheck is64 x y
+  | rvfiIsHalt x = rvfi_halt x == rvfi_halt y
+  | rvfiIsTrap x = (rvfi_trap x == rvfi_trap y) && (maskUpper is64 (rvfi_pc_wdata x) == maskUpper is64 (rvfi_pc_wdata y))
   | otherwise =
     (maskUpper False (rvfi_insn x) == maskUpper False (rvfi_insn y))
       && (rvfi_trap x == rvfi_trap y)
@@ -448,21 +451,23 @@ rvfiCheck is64 x y asserts
       && (optionalFieldsSame (rvfi_mode x) (rvfi_mode y))
       && (optionalFieldsSame (rvfi_ixl x) (rvfi_ixl y))
       && (getRDAddr x == getRDAddr y)
-      && ((getRDAddr x == 0) || (getRDWData x == getRDWData y))
+      && ((getRDAddr x == 0) || (getRDWData is64 x == getRDWData is64 y))
       && (compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata)
       && (maskUpper is64 (rvfi_pc_wdata x) == maskUpper is64 (rvfi_pc_wdata y))
-      && (and ((== (toInteger $ getRDWData x)) <$> asserts))
-  where
-    maskUpper _is64 _x = if _is64 then _x else _x Data.Bits..&. 0x00000000FFFFFFFF
-    getRDAddr pkt = maybe 0 rvfi_rd_addr $ rvfi_int_data pkt
-    getRDWData pkt = maskUpper is64 (maybe 0 rvfi_rd_wdata $ rvfi_int_data pkt)
+
+assertCheck :: Bool -> RVFI_Packet -> [Integer] -> Bool
+assertCheck is64 x asserts
+  | rvfiIsHalt x = null asserts
+  | rvfiIsTrap x = null asserts
+  | otherwise = and ((== (toInteger $ getRDWData is64 x)) <$> asserts)
 
 -- | Compare 2 'RVFI_Packet's and produce a 'String' output displaying the
 --   the content of the packet once only for equal inputs or the content of
 --   each input 'RVFI_Packet' if inputs are not succeeding the 'rvfiCheck'
-rvfiCheckAndShow :: Bool -> Maybe RVFI_Packet -> Maybe RVFI_Packet -> [Integer] -> (Bool, String)
-rvfiCheckAndShow is64 x y asserts
-  | Just x' <- x, Just y' <- y, rvfiCheck is64 x' y' asserts = (True,  "     " ++ show x' ++ suffix)
+rvfiCheckAndShow :: Bool -> Bool -> Maybe RVFI_Packet -> Maybe RVFI_Packet -> [Integer] -> (Bool, String)
+rvfiCheckAndShow singleImp is64 x y asserts
+  | singleImp, Just x' <- x, assertCheck is64 x' asserts = (True,  "     " ++ show x' ++ suffix)
+  | Just x' <- x, Just y' <- y, rvfiCheck is64 x' y', assertCheck is64 x' asserts, assertCheck is64 y' asserts = (True,  "     " ++ show x' ++ suffix)
   | otherwise = (False,      " A < " ++ maybe "No report received" show x ++ suffix
                         ++ "\n B > " ++ maybe "No report received" show y ++ suffix)
     where suffix = foldr (\v acc -> printf "%s (assert rd_wdata == 0x%x)" acc v) "" asserts
