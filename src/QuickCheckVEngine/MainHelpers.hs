@@ -207,7 +207,7 @@ doRVFIDII connA m_connB alive delay verbosity insts = do
       send "implementation A" connA
       maybe (pure ()) (send "implementation B") m_connB
       -- Receive from implementations
-      let receive name base conn = do res <- timeout delay $ recvRVFITrace connA verbosity base
+      let receive name base conn = do res <- timeout delay $ recvRVFITrace conn verbosity base
                                       when doLog $ putStrLn $ "Done receiving reports from " ++ name
                                       return res
       m_traceA <- receive "implementation A" insts connA
