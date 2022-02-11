@@ -231,7 +231,7 @@ allTests = [
            , ("csr",        "Zicsr Extension Verification",                           has_icsr,                                 const $ T.repeatTillEnd gen_rv32_i_zicsr)
            , ("fencei",     "Zifencei Extension Verification",                        has_ifencei,                              const $ T.repeatTillEnd gen_rv32_i_zifencei_memory)
            , ("fencei64",   "RV64 Zifencei Extension Verification",                   andPs [has_ifencei, has_xlen_64],         const $ T.repeatTillEnd gen_rv64_i_zifencei_memory)
-           , ("pte",        "PTE Verification",                                       has_s,                                    const $ T.repeatTillEnd $ T.uniform [gen_pte_perms, gen_pte_trans])
+           , ("pte",        "PTE Verification",                                       has_s,                                    const $ T.repeatN 2 $ T.uniform [gen_pte_perms, gen_pte_trans])
            , ("hpm",        "HPM Verification",                                       has_icsr,                                 T.repeatTillEnd . genHPM)
            , ("capinspect", "Xcheri Extension Capability Inspection Verification",    has_cheri,                                const $ T.repeatTillEnd genCHERIinspection)
            , ("caparith",   "Xcheri Extension Capability Arithmetic Verification",    has_cheri,                                const $ T.repeatTillEnd genCHERIarithmetic)

@@ -46,7 +46,8 @@ module QuickCheckVEngine.Templates.GenMemory (
 , gen_rv32_Xcheri_cache
 , gen_rv64_Xcheri_cache
 , gen_pte_perms
-, gen_pte_trans_core
+, gen_pte39_trans_core
+, gen_pte48_trans_core
 , gen_pte_trans
 ) where
 
@@ -218,7 +219,7 @@ gen_pte_perms = random $
                                      inst $ cgettag 5 4,
                                      inst ecall]
 
-gen_pte_trans_core lxReg addrReg pteReg = random $
+gen_pte39_trans_core lxReg addrReg pteReg = random $
   do let leafperms = 0xFF
      let parentperms = 0xF1
      l2perms <- elements [leafperms, parentperms]
@@ -250,15 +251,51 @@ gen_pte_trans_core lxReg addrReg pteReg = random $
                                      <>
                                      (inst sret)
 
-
+gen_pte48_trans_core lxReg addrReg pteReg = random $
+  do let leafperms = 0xFF
+     let parentperms = 0xF1
+     l3perms <- elements [leafperms, parentperms]
+     l2perms <- elements [leafperms, parentperms]
+     l1perms <- elements [leafperms, parentperms]
+     l0perms <- elements [leafperms, parentperms]
+     let satpa = 0x803ff000
+     let l3pa  = 0x80000000
+     let l2pa  = 0x80180000
+     let l1pa  = 0x80200000
+     let l0pa  = 0x80001000
+     let satp = (shiftL 0x9 60) + (shiftR satpa 12)
+     let l3pte = (shiftR l3pa 2) + l3perms
+     let l2pte = (shiftR l2pa 2) + l2perms
+     let l1pte = (shiftR l1pa 2) + l1perms
+     let l0pte = (shiftR l0pa 2) + l0perms
+     addrInitial <- elements [0x00000000, 0x00000800, 0x00100000]
+     return $ shrinkScope $ mconcat [li64 pteReg l3pte,
+                                     li64 lxReg  satpa,
+                                     inst $ sd lxReg pteReg 0,
+                                     li64 pteReg l2pte,
+                                     li64 lxReg  l3pa,
+                                     inst $ sd lxReg pteReg 0,
+                                     li64 pteReg l1pte,
+                                     li64 lxReg  l2pa,
+                                     inst $ sd lxReg pteReg 0,
+                                     li64 pteReg l0pte,
+                                     li64 lxReg  l1pa,
+                                     inst $ sd lxReg pteReg 0,
+                                     li64 pteReg satp,
+                                     inst $ csrrw 0 (unsafe_csrs_indexFromName "satp") pteReg,
+                                     li64 addrReg addrInitial]
+                                     <>
+                                     (noShrink $ inst $ sfence 0 0)
+                                     <>
+                                     (inst sret)
 
 gen_pte_trans = random $
   do let lxreg = 1
      let addrReg = 2
      let ptereg = 30
-     return $ shrinkScope $ (gen_pte_trans_core lxreg addrReg ptereg)
+     return $ shrinkScope $ (gen_pte39_trans_core lxreg addrReg ptereg)
                             <>
-                            (repeatN 20
+                            (repeatTillEnd
                                               (random $
                                                do imm <- elements [0x10, 0x100, 0x0]
                                                   datReg <- elements [ptereg, lxreg]
