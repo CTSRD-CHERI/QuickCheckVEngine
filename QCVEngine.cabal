@@ -59,7 +59,7 @@ executable QCVEngine
                        ScopedTypeVariables
   build-depends:       base >=4.9, time, split >=0.2, regex-posix >=0.95,
                        binary >=0.8, bitwise >=1.0, network >=2.8, parsec,
-                       bytestring >=0.10, filemanip >=0.3,
+                       bytestring >=0.10, filemanip >=0.3, splitmix >= 0.1.0.2,
                        basement >= 0.0.10, QuickCheck >= 2.12 && < 2.15,
                        regex-tdfa >= 1.3
   default-language:    Haskell2010
