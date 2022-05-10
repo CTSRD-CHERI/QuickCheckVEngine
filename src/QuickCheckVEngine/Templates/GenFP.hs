@@ -67,7 +67,6 @@ gen_rv64_fd = genFP True True True
 
 genFP :: Bool -> Bool -> Bool -> Template
 genFP has_f has_d has_xlen_64 = random $ do
-  size <- getSize
   src1 <- src
   src2 <- src
   src3 <- src
@@ -84,6 +83,5 @@ genFP has_f has_d has_xlen_64 = random $ do
                            , has_f       = has_f
                            , has_d       = has_d }
   return $ shrinkScope $    noShrink (fp_prologue arch)
-                         <> repeatN (size - fp_prologue_length arch - 1)
-                                    (instUniform $ concat insts)
+                         <> repeatTillEnd (instUniform $ concat insts)
                          <> noShrink epilogue

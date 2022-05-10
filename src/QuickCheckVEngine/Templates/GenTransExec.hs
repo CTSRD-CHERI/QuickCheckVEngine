@@ -69,7 +69,6 @@ genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
   longImm  <- bits 20
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
-  size     <- getSize
   csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
                         , (1, return (unsafe_csrs_indexFromName "mcause"))
                         , (1, bits 12) ]
@@ -275,14 +274,13 @@ gen_data_scc_verify = random $ do
   let authReg = 6
   let hpmEventIdx_dcache_miss = 0x31
   let hpmCntIdx = 3
-  size <- getSize
   let prolog = mconcat [ makeCap capReg  authReg tmpReg1 0x80010000     8 0
                        , makeCap bitsReg authReg tmpReg1 0x80014000 0x100 0
                        , inst $ csealentry sldReg bitsReg
                        , inst $ candperm nopermReg bitsReg 0
                        , inst $ ccleartag bitsReg bitsReg
                        , inst $ lw tmpReg1 capReg 0 ]
-  let body = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (repeatN (size - 100) (genDataSCCTorture capReg tmpReg1 bitsReg sldReg nopermReg authReg)) tmpReg0 hpmCntIdx Nothing
+  let body = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (repeatTillEnd (genDataSCCTorture capReg tmpReg1 bitsReg sldReg nopermReg authReg)) tmpReg0 hpmCntIdx Nothing
   let epilog = instAssert (addi tmpReg0 tmpReg0 0) 0
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
@@ -390,8 +388,7 @@ gen_sbc_cond_1_verify arch = random $ do
   let hpmCntIdx_renamed_insts = 3
   let hpmEventIdx_traps = 0x2
   let hpmCntIdx_traps = 4
-  size <- getSize
-  let inner_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (repeatN (size - 100) ( (genSBC_Cond_1_Torture arch))) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))
+  let inner_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (repeatTillEnd ( (genSBC_Cond_1_Torture arch))) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))
   let outer_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_traps inner_hpm_access tmpReg4 hpmCntIdx_traps Nothing
   let prolog = mconcat [ li64 addrReg addrVal
                        , makeCap capReg authReg tmpReg5 addrVal 0x10000 0 ]
@@ -409,9 +406,8 @@ gen_sbc_jumps_verify = random $ do
   let addrVal = 0x80001000
   let hpmCntIdx_wild_jumps = 3
   let hpmEventIdx_wild_jumps = 0x71
-  size <- getSize
   let prolog = li64 regJump addrVal
-  let body = surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (repeatN (size - 100) (genSBC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
+  let body = surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (repeatTillEnd (genSBC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
   let epilog = instAssert (add tmpReg tmpReg zeroReg) 0
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
@@ -426,12 +422,11 @@ gen_sbc_exceptions_verify arch = random $ do
   let addr = 0x80002000
   let hpmCntIdx_wild_excps = 3
   let hpmEventIdx_wild_excps = 0x72
-  size <- getSize
   let prolog = mconcat [ prepareSBCExcpsGen
                        , makeCap capReg authReg tmpReg addr 0x100 0
                        , makeCap_core excReg authReg tmpReg 0x80000000
                        , inst $ cspecialrw 0 28 excReg ]
-  let body = surroundWithHPMAccess_core False hpmEventIdx_wild_excps (repeatN (size - 100) (genSBC_Excps_Torture arch tmpReg)) counterReg hpmCntIdx_wild_excps Nothing
+  let body = surroundWithHPMAccess_core False hpmEventIdx_wild_excps (repeatTillEnd (genSBC_Excps_Torture arch tmpReg)) counterReg hpmCntIdx_wild_excps Nothing
   let epilog = instAssert (add counterReg counterReg zeroReg) 0
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
@@ -448,7 +443,6 @@ gen_stc_verify = random $ do
   let hpmEventIdx_dcache_miss = 0x31
   let uepc = unsafe_csrs_indexFromName "uepc"
   let cntrIdx = hpmcounter_idx_to_counter_csr_idx 0
-  size <- getSize
   let prolog = mconcat [ prepareSTCGen
                        , inst $ sfence 0 0
                        , li64 addrReg1 0x80001800

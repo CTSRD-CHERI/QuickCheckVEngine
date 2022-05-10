@@ -108,10 +108,13 @@ uniform = dist . map ((,) 1)
 repeatN :: Int -> Template -> Template
 repeatN n t = mconcat $ replicate n t
 
--- | Note that this requires the argument to always return a Test of length 1
 repeatTillEnd :: Template -> Template
-repeatTillEnd t =
-  TemplateRandom $ repeatN <$> getSize <*> pure t
+repeatTillEnd t = TemplateRandom $ do
+  s <- getSize
+  if s == 0 then
+    return mempty
+  else
+    return $ (TemplateRandom $ resize s (pure t)) <> repeatTillEnd t
 
 assertLastVal :: Template -> Integer -> Template
 assertLastVal t v = TemplateMeta (MetaAssertLastVal v) t
@@ -143,13 +146,54 @@ instUniform = instDist . map ((,) 1)
 instAssert :: Instruction -> Integer -> Template
 instAssert i v = assertLastVal (TemplateSingle i) v
 
+-- Generate a Test from a Template, aiming to achieve the size
+-- specified by quickcheck, splitting the size equally among
+-- recursive Random template constructors
 genTest :: Template -> Gen (Test Instruction)
-genTest TemplateEmpty = return TestEmpty
-genTest (TemplateSingle x) = return $ TestSingle x
-genTest (TemplateSequence x y) = TestSequence <$> genTest x <*> genTest y
-genTest (TemplateMeta m@(MetaShrinkStrategy _) x) =
-  TestMeta (m, False) <$> genTest x
-genTest (TemplateMeta m@(MetaAssertCompound _) x) =
-  TestMeta (m, False) <$> genTest x
-genTest (TemplateMeta m x) = TestMeta (m, True) <$> genTest x
-genTest (TemplateRandom g) = genTest =<< g
+genTest x = (\(a,_,_) -> a) <$> (go x (countTemplate x)) where
+  -- Determine the number of (static instructions, recursive random templates)
+  -- there are in a template
+  countTemplate TemplateEmpty = (0, 0)
+  countTemplate (TemplateSingle x) = (1, 0)
+  countTemplate (TemplateSequence x y) =
+    (ix + iy, rx + ry)
+    where (ix, rx) = countTemplate x
+          (iy, ry) = countTemplate y
+  countTemplate (TemplateMeta _ x) = countTemplate x
+  countTemplate (TemplateRandom g) = (0, 1)
+  -- Generate a test from a template, given the global number of static
+  -- instructions and recursive calls. Also return the number of recursive
+  -- calls resolved and the new instructions that resulted
+  go :: Template -> (Int, Int) -> Gen (Test Instruction, Int, Int)
+  go TemplateEmpty _ = return (TestEmpty, 0, 0)
+  go (TemplateSingle x) _ = return (TestSingle x, 0, 0)
+  go (TemplateSequence x y) (i, r) = do
+    (x', ix, rx) <- go x (i, r)
+    -- We now know how many instructions were generated in the left
+    -- subtree. Generate the right subtree with the info to compensate
+    -- for over/under usage in the left subtree
+    (y', iy, ry) <- go y (i + ix, r - rx)
+    return (TestSequence x' y', ix + iy, rx + ry)
+  go (TemplateMeta m@(MetaShrinkStrategy _) x) c =
+    (\(t, i, r) -> (TestMeta (m, False) t, i, r)) <$> go x c
+  go (TemplateMeta m@(MetaAssertCompound _) x) c =
+    (\(t, i, r) -> (TestMeta (m, False) t, i, r)) <$> go x c
+  go (TemplateMeta m x) c =
+    (\(t, i, r) -> (TestMeta (m, True) t, i, r)) <$> go x c
+  go (TemplateRandom g) (i, r) = do
+    -- Get the global target size
+    s <- getSize
+    -- Work out this template's quota, rounding up to avoid giving everyone
+    -- a quota of zero
+    let targetSize = max 0 ((s - i + r - 1) `div` r)
+    -- Generate the recursive template
+    g' <- resize targetSize g
+    -- Work out the characteristics of the template
+    let (i', r') = countTemplate g'
+    -- Turn the elaborated template into a test
+    (g'', i'', r'') <- resize targetSize $ go g' (i', r')
+    -- The number of new dynamic instructions to return is the number of
+    -- static + dynamic instructions in this sub-template. We have only
+    -- evaluated one recursive call as far as the parent template is
+    -- concerned.
+    return (g'', i'' + i', 1)

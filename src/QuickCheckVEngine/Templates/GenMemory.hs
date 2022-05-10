@@ -131,8 +131,7 @@ gen_memory has_a has_zifencei has_xlen_64 has_caplen = random $
 
 gen_cache :: Bool -> Bool -> Bool -> Bool -> Template
 gen_cache has_a has_zifencei has_xlen_64 has_caplen = random $
-  do size     <- getSize
-     src1     <- elements [1, 2, 3]
+  do src1     <- elements [1, 2, 3]
      src2     <- elements [1, 2, 3]
      dest     <- elements [1, 2, 3]
 
@@ -176,9 +175,7 @@ gen_cache has_a has_zifencei has_xlen_64 has_caplen = random $
                                    return $ inst $ sq srcAddr srcData 0)] | has_caplen]
      let prologue = instSeq prologue_list
      return $ prologue
-              <> repeatN (size - length prologue_list - 1)
-                         (dist $ concat insts)
-
+              <> repeatTillEnd (dist $ concat insts)
 
 gen_pte_perms = random $
   do lperms <- bits 10
