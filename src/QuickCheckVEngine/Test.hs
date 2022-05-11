@@ -108,8 +108,11 @@ recurseShrink s@MkShrinkMethods{..} (TestSequence x y) =
   let xs = recurseShrink s x
       ys = recurseShrink s y
   in methodSequence x y
-     ++ [TestSequence x' y  | x' <- xs]
-     ++ [TestSequence x  y' | y' <- ys]
+     ++ inter [TestSequence x' y  | x' <- xs]
+              [TestSequence x  y' | y' <- ys]
+  where inter (x:xs) (y:ys) = x:y:(inter xs ys)
+        inter []     ys     = ys
+        inter xs     []     = xs
 recurseShrink                     _ (TestMeta (MetaNoShrink, _) _) = []
 recurseShrink s@MkShrinkMethods{..} (TestMeta m@(MetaShrinkScope, _) x) =
   methodShrinkScope x ++ (TestMeta m <$> recurseShrink s x)
