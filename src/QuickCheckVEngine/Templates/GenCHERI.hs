@@ -98,8 +98,8 @@ genRandomCHERITest arch = random $ do
                          , (1, return (unsafe_csrs_indexFromName "mcause")) ]
   srcScr    <- elements $ [0, 1, 28, 29, 30, 31] ++ (if has_s arch then [12, 13, 14, 15] else []) ++ [2]
   srcCsr    <- elements [ unsafe_csrs_indexFromName "sepc"
-                        , unsafe_csrs_indexFromName "scause"
-                        , unsafe_csrs_indexFromName "mepc"
+                        , unsafe_csrs_indexFromName "mepc" ]
+  srcCsrRO  <- elements [ unsafe_csrs_indexFromName "scause"
                         , unsafe_csrs_indexFromName "mcause" ]
   return $ dist [ (5, legalLoad arch)
                 , (5, legalStore arch)
@@ -108,7 +108,8 @@ genRandomCHERITest arch = random $ do
                 , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2)
                 , (10, instUniform $ rv32_xcheri arch srcAddr srcData srcScr imm mop dest)
                 , (10, inst $ cspecialrw dest srcScr srcAddr)
-                , (10, instUniform $ rv32_zicsr srcData dest srcCsr mop)
+                , (5, instUniform $ rv32_zicsr srcData dest srcCsr mop)
+                , (5, csrr dest srcCsrRO)
                 , (10, switchEncodingMode)
                 , (10, cspecialRWChain)
                 , (10, randomCInvoke srcAddr srcData tmpReg tmpReg2)
