@@ -114,6 +114,7 @@ genRandomCHERITest arch = random $ do
                 , (10, randomCInvoke srcAddr srcData tmpReg tmpReg2)
                 , (10, makeShortCap)
                 , (10, clearASR tmpReg tmpReg2)
+                , (20, inst $ cgettag dest dest)
                 , (if has_nocloadtags arch then 0 else 10, loadTags srcAddr srcData)
                 ]
 
