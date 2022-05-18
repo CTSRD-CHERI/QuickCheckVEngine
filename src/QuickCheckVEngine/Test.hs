@@ -64,6 +64,7 @@ module QuickCheckVEngine.Test (
 , runAssertCompounds
 -- ** Tree summarisation
 , gatherReports
+, filterTest
 ) where
 
 import Test.QuickCheck
@@ -218,6 +219,12 @@ gatherReports (TestSequence x y) = gatherReports x ++ gatherReports y
 gatherReports (TestMeta (MetaReport r, _) x) = (r, x) : gatherReports x
 gatherReports (TestMeta _ x) = gatherReports x
 gatherReports _ = []
+
+filterTest :: (t -> Bool) -> Test t -> Test t
+filterTest _ TestEmpty = TestEmpty
+filterTest p t@(TestSingle x) = if p x then t else TestEmpty
+filterTest p (TestSequence x y) = TestSequence (filterTest p x) (filterTest p y)
+filterTest p (TestMeta m x) = TestMeta m (filterTest p x)
 
 -- * IO of tests
 --------------------------------------------------------------------------------

@@ -267,11 +267,13 @@ main = withSocketsDo $ do
         quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 1000 else 0))
                              (prop implA m_implB alive onFail archDesc (timeoutDelay flags) verbosity (optIgnoreAsserts flags) (return test))
   let check_mcause_on_trap :: Test TestResult -> Test TestResult
-      check_mcause_on_trap (trace :: Test TestResult) = trace <> if or (hasTrap <$> trace) then wrapTest testSuffix else mempty
+      check_mcause_on_trap (trace :: Test TestResult) = if or (hasTrap <$> trace) then (filterTest p trace) <> wrapTest testSuffix else trace
         where hasTrap (_, a, b) = maybe False rvfiIsTrap a || maybe False rvfiIsTrap b
               testSuffix = noShrink $ singleSeq [ csrrs 1 (unsafe_csrs_indexFromName "mcause") 0
                                                 , csrrs 1 (unsafe_csrs_indexFromName "mtval" ) 0
                                                 , csrrs 1 (unsafe_csrs_indexFromName "mccsr" ) 0 ]
+              p (DII_End _, _, _) = False
+              p _ = True
 
   let saveOnFail :: Test TestResult -> (Test TestResult -> Test TestResult) -> IO ()
       saveOnFail test testTrans = runImpls implA m_implB alive (timeoutDelay flags) 0 test onTrace onDeath onDeath
@@ -280,7 +282,7 @@ main = withSocketsDo $ do
                 writeFile "last_failure.S" ("# last failing test case:\n" ++ show trace)
                 when (optVerbosity flags > 0) $ do
                   putStrLn "Replaying shrunk failed test case:"
-                  checkSingle (testTrans test) 2 False (testLen flags) (const $ return ())
+                  checkSingle (testTrans trace) 2 False (testLen flags) (const $ return ())
                   return ()
                 when (optSave flags) $ do
                   case saveDir flags of
