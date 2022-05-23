@@ -275,8 +275,8 @@ main = withSocketsDo $ do
               p (DII_End _, _, _) = False
               p _ = True
 
-  let saveOnFail :: Test TestResult -> (Test TestResult -> Test TestResult) -> IO ()
-      saveOnFail test testTrans = runImpls implA m_implB alive (timeoutDelay flags) 0 test onTrace onDeath onDeath
+  let saveOnFail :: Maybe FilePath -> Test TestResult -> (Test TestResult -> Test TestResult) -> IO ()
+      saveOnFail sourceFile test testTrans = runImpls implA m_implB alive (timeoutDelay flags) 0 test onTrace onDeath onDeath
         where onDeath = putStrLn "Failure rerunning test"
               onTrace trace = do
                 writeFile "last_failure.S" ("# last failing test case:\n" ++ show trace)
@@ -297,13 +297,15 @@ main = withSocketsDo $ do
                     Just dir -> do
                       t <- getCurrentTime
                       let tstamp = [if x == ' ' then '_' else if x == ':' then '-' else x | x <- show t]
-                      writeFile (dir ++ "/failure-" ++ tstamp ++ ".S")
-                                ("# Automatically generated failing test case" ++ "\n" ++ show test)
-  let checkTrapAndSave (test :: Test TestResult) = saveOnFail test (check_mcause_on_trap :: Test TestResult -> Test TestResult)
+                      writeFile (dir ++ "/failure-" ++ tstamp ++ ".S") $
+                          case sourceFile of
+                                Just name -> ("# Generated from input file: " ++ show name ++ "\n" ++ show test)
+                                Nothing   -> ("# Automatically generated failing test case" ++ "\n" ++ show test)
+  let checkTrapAndSave sourceFile test = saveOnFail sourceFile test (check_mcause_on_trap :: Test TestResult -> Test TestResult)
   let checkResult = if optVerbosity flags > 1 then verboseCheckWithResult else quickCheckWithResult
   let checkGen gen remainingTests =
         checkResult (Args Nothing remainingTests 1 (testLen flags) (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
-                    (prop implA m_implB alive checkTrapAndSave archDesc (timeoutDelay flags) (optVerbosity flags) (optIgnoreAsserts flags) gen)
+                    (prop implA m_implB alive (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) (optVerbosity flags) (optIgnoreAsserts flags) gen)
   failuresRef <- newIORef 0
   let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
         | skipped == 0 = do putStrLn $ "Reading trace from " ++ fileName
@@ -312,7 +314,7 @@ main = withSocketsDo $ do
                               Just memInit -> do putStrLn $ "Reading memory initialisation from file " ++ memInit
                                                  readDataFile memInit
                               Nothing -> return mempty
-                            res <- checkSingle (wrapTest $ initTrace <> trace) (optVerbosity flags) (optShrink flags) (testLen flags) checkTrapAndSave
+                            res <- checkSingle (wrapTest $ initTrace <> trace) (optVerbosity flags) (optShrink flags) (testLen flags) (checkTrapAndSave (Just fileName))
                             case res of Failure {} -> do putStrLn "Failure."
                                                          modifyIORef failuresRef ((+) 1)
                                         _          -> putStrLn "No Failure."
