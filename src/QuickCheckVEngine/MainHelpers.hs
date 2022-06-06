@@ -48,6 +48,8 @@ module QuickCheckVEngine.MainHelpers (
 , doRVFIDII
 , runImpls
 , wrapTest
+, showTraceInput
+, showAnnotatedTrace
 , prop
 ) where
 
@@ -79,7 +81,11 @@ instance Show DII_Packet where
   show _ = ""
 
 instance {-# OVERLAPPING #-} Show (Test TestResult) where
-  show t = show ((\(x, _, _) -> x) <$> t)
+  show = showTraceInput
+
+showTraceInput t = show ((\(x, _, _) -> x) <$> t)
+
+showAnnotatedTrace singleImp arch t = showTestWithComments t (\(x, _, _) -> show x) (\(_, a, b) -> Just . unlines . (("# " ++) <$>) . lines . (\(a, b) -> b) $ rvfiCheckAndShow singleImp (has_xlen_64 arch) a b [])
 
 bypassShrink :: ShrinkStrategy
 bypassShrink = sequenceShrink f'

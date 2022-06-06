@@ -65,6 +65,7 @@ module QuickCheckVEngine.Test (
 -- ** Tree summarisation
 , gatherReports
 , filterTest
+, showTestWithComments
 ) where
 
 import Test.QuickCheck
@@ -237,10 +238,11 @@ endTok = "END_"
 versionTok = "QCVENGINE_TEST_V2.0"
 magicTok = "#>"
 
-instance Show t => Show (Test t) where
-  show x = printf "%s%s%s" magicTok versionTok (go x)
+showTestWithComments :: Test t -> (t -> String) -> (t -> Maybe String) -> String
+showTestWithComments x s c = printf "%s%s%s" magicTok versionTok (go x)
     where go TestEmpty = ""
-          go (TestSingle x) = printf "\n%s" (show x)
+          go (TestSingle x) = printf "\n%s%s" (s x) (case c x of Just c' -> printf "\n%s" (c')
+                                                                 Nothing -> "")
           go (TestSequence x y) = printf "%s%s" (go x) (go y)
           go (TestMeta (_, False) x) = go x
           go (TestMeta (MetaShrinkScope, True) x) =
@@ -263,6 +265,9 @@ instance Show t => Show (Test t) where
           go (TestMeta (MetaReport r, True) x) =
             printf "\n# REPORT     '%s' {%s\n# } END REPORT '%s'"
                    (show r) (go x) (show r)
+
+instance Show t => Show (Test t) where
+    show x = showTestWithComments x show (const Nothing)
 
 type Parser = Parsec String ()
 
@@ -363,10 +368,11 @@ parseNoShrink = do
   return $ TestMeta (MetaNoShrink, True) inner
 
 parseComments :: Parser ()
-parseComments = many p >> return ()
+parseComments = whiteSpace tp >> many p >> return ()
   where p = try $ do char '#'
                      notFollowedBy $ char '>'
                      manyTill anyChar (void newline <|> eof)
+                     whiteSpace tp
 
 instance Read (Test Instruction) where
   readsPrec _ str =

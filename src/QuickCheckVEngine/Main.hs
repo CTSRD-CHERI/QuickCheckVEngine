@@ -279,7 +279,7 @@ main = withSocketsDo $ do
       saveOnFail sourceFile test testTrans = runImpls implA m_implB alive (timeoutDelay flags) 0 test onTrace onDeath onDeath
         where onDeath = putStrLn "Failure rerunning test"
               onTrace trace = do
-                writeFile "last_failure.S" ("# last failing test case:\n" ++ show trace)
+                writeFile "last_failure.S" ("# last failing test case:\n" ++ showTraceInput trace)
                 when (optVerbosity flags > 0) $ do
                   putStrLn "Replaying shrunk failed test case:"
                   checkSingle (testTrans trace) 2 False (testLen flags) (const $ return ())
@@ -293,14 +293,14 @@ main = withSocketsDo $ do
                         putStrLn "One-line description?"
                         comment <- getLine
                         writeFile (fileName ++ ".S")
-                                  ("# " ++ comment ++ "\n" ++ show test)
+                                  ("# " ++ comment ++ "\n" ++ showAnnotatedTrace (isNothing m_implB) archDesc trace)
                     Just dir -> do
                       t <- getCurrentTime
                       let tstamp = [if x == ' ' then '_' else if x == ':' then '-' else x | x <- show t]
-                      writeFile (dir ++ "/failure-" ++ tstamp ++ ".S") $
-                          case sourceFile of
-                                Just name -> ("# Generated from input file: " ++ show name ++ "\n" ++ show test)
-                                Nothing   -> ("# Automatically generated failing test case" ++ "\n" ++ show test)
+                      let prelude = case sourceFile of
+                                      Just name -> "# Generated from input file: " ++ show name ++ "\n"
+                                      Nothing   -> "# Automatically generated failing test case\n"
+                      writeFile (dir ++ "/failure-" ++ tstamp ++ ".S") (prelude ++ showAnnotatedTrace (isNothing m_implB) archDesc test)
   let checkTrapAndSave sourceFile test = saveOnFail sourceFile test (check_mcause_on_trap :: Test TestResult -> Test TestResult)
   let checkResult = if optVerbosity flags > 1 then verboseCheckWithResult else quickCheckWithResult
   let checkGen gen remainingTests =
