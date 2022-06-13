@@ -4,7 +4,7 @@
 -- Copyright (c) 2019-2020 Peter Rugg
 -- Copyright (c) 2019, 2020 Alexandre Joannou
 -- Copyright (c) 2021 Jonathan Woodruff
--- Copyright (c) 2021 Franz Fuchs
+-- Copyright (c) 2021-2022 Franz Fuchs
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -35,12 +35,12 @@
 --
 
 module QuickCheckVEngine.Templates.GenTransExec (
-  gen_data_scc_verify
-, gen_sbc_cond_1_verify
-, gen_inst_scc_verify
-, gen_sbc_jumps_verify
-, gen_sbc_exceptions_verify
-, gen_stc_verify
+  gen_csc_data_verify
+, gen_bsc_cond_1_verify
+, gen_csc_inst_verify
+, gen_bsc_jumps_verify
+, gen_bsc_exceptions_verify
+, gen_tsc_verify
 ) where
 
 import InstrCodec
@@ -60,8 +60,8 @@ import QuickCheckVEngine.RVFI_DII.RVFI
 import QuickCheckVEngine.Templates.GenMemory
 import Data.Bits
 
-genDataSCCTorture :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
-genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
+genCSCDataTorture :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
+genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
   srcAddr  <- src
   srcData  <- src
   dest     <- dest
@@ -82,8 +82,8 @@ genDataSCCTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
                      ])
 
 
-genSBC_Cond_1_Torture :: ArchDesc -> Template
-genSBC_Cond_1_Torture arch = random $ do
+genBSC_Cond_1_Torture :: ArchDesc -> Template
+genBSC_Cond_1_Torture arch = random $ do
   imm_rand      <- bits 12
   longImm_rand  <- bits 20
   fenceOp1      <- bits 3
@@ -110,8 +110,8 @@ genSBC_Cond_1_Torture arch = random $ do
                    , instUniform $ rv32_xcheri_mem arch capsrc1 capsrc2 imm 0xb tmpReg
                    ]
 
-genSBC_Jumps_Torture :: Template
-genSBC_Jumps_Torture = random $ do
+genBSC_Jumps_Torture :: Template
+genBSC_Jumps_Torture = random $ do
   imm_branches <- bits 7
   longImm_jumps <- bits 8
   imm <- bits 12
@@ -131,8 +131,8 @@ genSBC_Jumps_Torture = random $ do
                    , instUniform $ rv32_i_ctrl_branches src1 src2 imm_branches
                    ]
 
-genSBC_Excps_Torture :: ArchDesc -> Integer -> Template
-genSBC_Excps_Torture arch tmpReg = random $ do
+genBSC_Excps_Torture :: ArchDesc -> Integer -> Template
+genBSC_Excps_Torture arch tmpReg = random $ do
   imm <- bits 12
   longImm <- bits 20
   src1 <- sbcRegs
@@ -155,8 +155,8 @@ genSBC_Excps_Torture arch tmpReg = random $ do
                    ]
 
 
-genSTCTorture :: Template
-genSTCTorture = random $ do
+genTSCTorture :: Template
+genTSCTorture = random $ do
   imm_bits <- bits 10
   longImm <- bits 20
   src1 <- choose(16,18)
@@ -174,8 +174,8 @@ genSTCTorture = random $ do
                    , inst $ sret
                    ]
 
-prepareSBCExcpsGen :: Template
-prepareSBCExcpsGen = random $ do
+prepareBSCExcpsGen :: Template
+prepareBSCExcpsGen = random $ do
   let fcsr = unsafe_csrs_indexFromName "fcsr"
   let mstatus = unsafe_csrs_indexFromName "mstatus"
   let a0 = 10
@@ -206,8 +206,8 @@ setUpPageTable = random $ do
                    , inst $ sd a0 t0 40
                    ]
 
-prepareSTCGen :: Template
-prepareSTCGen = random $ do
+prepareTSCGen :: Template
+prepareTSCGen = random $ do
   let s0 = 8
   let s1 = 9
   let s2 = 18
@@ -264,7 +264,8 @@ prepareSTCGen = random $ do
                    , (sret)
                    ]
 
-gen_data_scc_verify = random $ do
+-- | Verify Data Capability Speculation Constraint (CSC)
+gen_csc_data_verify = random $ do
   let capReg = 1
   let tmpReg0 = 30
   let tmpReg1 = 31
@@ -280,7 +281,7 @@ gen_data_scc_verify = random $ do
                        , inst $ candperm nopermReg bitsReg 0
                        , inst $ ccleartag bitsReg bitsReg
                        , inst $ lw tmpReg1 capReg 0 ]
-  let body = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (repeatTillEnd (genDataSCCTorture capReg tmpReg1 bitsReg sldReg nopermReg authReg)) tmpReg0 hpmCntIdx Nothing
+  let body = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (repeatTillEnd (genCSCDataTorture capReg tmpReg1 bitsReg sldReg nopermReg authReg)) tmpReg0 hpmCntIdx Nothing
   let epilog = instAssert (addi tmpReg0 tmpReg0 0) 0
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
@@ -294,8 +295,8 @@ genJump memReg reg0 reg1 reg2 imm offset = random $ do
                    , cjalr czero ra
                    ]
 
-genInstSCC :: Integer -> Integer -> Integer -> Integer -> Template
-genInstSCC memReg reg0 reg1 reg2 = random $ do
+genCSCInst :: Integer -> Integer -> Integer -> Integer -> Template
+genCSCInst memReg reg0 reg1 reg2 = random $ do
   let czero = 0
   return $ instDist [ (1, cjalr czero reg0)
                     , (2, add 29 29 29)
@@ -303,8 +304,8 @@ genInstSCC memReg reg0 reg1 reg2 = random $ do
                     , (1, auipc reg2 0)
                     ]
 
--- | Verify instruction Speculative Capability Constraint (SCC)
-gen_inst_scc_verify = random $ do
+-- | Verify instruction Capability Speculation Constraint (CSC)
+gen_csc_inst_verify = random $ do
   let hpmEventIdx_dcache_miss = 0x31
   let hpmCntIdx_dcache_miss = 3
   let rand = 7
@@ -369,12 +370,12 @@ gen_inst_scc_verify = random $ do
                        , startSeq
                        , inst $ fence 3 3 -- fence rw, rw
                        ]
-  let body = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (repeatN (64)(genInstSCC memReg2 reg0 reg1 reg2)) counterReg hpmCntIdx_dcache_miss Nothing
+  let body = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (repeatN (64)(genCSCInst memReg2 reg0 reg1 reg2)) counterReg hpmCntIdx_dcache_miss Nothing
   let epilog = instAssert (addi counterReg counterReg 0) 0
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
--- | Verify condition 1 of Speculative Branching Constraint (SBC)
-gen_sbc_cond_1_verify arch = random $ do
+-- | Verify condition 1 of Branching Speculation Constraint (BSC)
+gen_bsc_cond_1_verify arch = random $ do
   let tmpReg1 = 1
   let tmpReg2 = 2
   let tmpReg3 = 3
@@ -388,7 +389,7 @@ gen_sbc_cond_1_verify arch = random $ do
   let hpmCntIdx_renamed_insts = 3
   let hpmEventIdx_traps = 0x2
   let hpmCntIdx_traps = 4
-  let inner_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (repeatTillEnd ( (genSBC_Cond_1_Torture arch))) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))
+  let inner_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (repeatTillEnd ( (genBSC_Cond_1_Torture arch))) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))
   let outer_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_traps inner_hpm_access tmpReg4 hpmCntIdx_traps Nothing
   let prolog = mconcat [ li64 addrReg addrVal
                        , makeCap capReg authReg tmpReg5 addrVal 0x10000 0 ]
@@ -398,8 +399,8 @@ gen_sbc_cond_1_verify arch = random $ do
                        , instAssert (sub tmpReg1 tmpReg1 tmpReg4) 2 ]
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
--- | Verify the jumping conditions of Speculative Branching Constraint (SBC)
-gen_sbc_jumps_verify = random $ do
+-- | Verify the jumping conditions of Branching Speculation Constraint (BSC)
+gen_bsc_jumps_verify = random $ do
   let zeroReg = 0
   let tmpReg = 21
   let regJump = 10
@@ -407,12 +408,12 @@ gen_sbc_jumps_verify = random $ do
   let hpmCntIdx_wild_jumps = 3
   let hpmEventIdx_wild_jumps = 0x71
   let prolog = li64 regJump addrVal
-  let body = surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (repeatTillEnd (genSBC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
+  let body = surroundWithHPMAccess_core False hpmEventIdx_wild_jumps (repeatTillEnd (genBSC_Jumps_Torture)) tmpReg hpmCntIdx_wild_jumps Nothing
   let epilog = instAssert (add tmpReg tmpReg zeroReg) 0
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
--- | Verify the exception conditions of Speculative Branching Constraint (SBC)
-gen_sbc_exceptions_verify arch = random $ do
+-- | Verify the exception conditions of Branching Speculation Constraint (BSC)
+gen_bsc_exceptions_verify arch = random $ do
   let zeroReg = 0
   let capReg = 12
   let authReg = 13
@@ -422,16 +423,16 @@ gen_sbc_exceptions_verify arch = random $ do
   let addr = 0x80002000
   let hpmCntIdx_wild_excps = 3
   let hpmEventIdx_wild_excps = 0x72
-  let prolog = mconcat [ prepareSBCExcpsGen
+  let prolog = mconcat [ prepareBSCExcpsGen
                        , makeCap capReg authReg tmpReg addr 0x100 0
                        , makeCap_core excReg authReg tmpReg 0x80000000
                        , inst $ cspecialrw 0 28 excReg ]
-  let body = surroundWithHPMAccess_core False hpmEventIdx_wild_excps (repeatTillEnd (genSBC_Excps_Torture arch tmpReg)) counterReg hpmCntIdx_wild_excps Nothing
+  let body = surroundWithHPMAccess_core False hpmEventIdx_wild_excps (repeatTillEnd (genBSC_Excps_Torture arch tmpReg)) counterReg hpmCntIdx_wild_excps Nothing
   let epilog = instAssert (add counterReg counterReg zeroReg) 0
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
--- | Verify Speculative Translation Constraint (STC)
-gen_stc_verify = random $ do
+-- | Verify Translation Speculation Constraint (TSC)
+gen_tsc_verify = random $ do
   let lxReg = 1
   let addrReg = 2
   let tmpReg = 31
@@ -443,13 +444,13 @@ gen_stc_verify = random $ do
   let hpmEventIdx_dcache_miss = 0x31
   let uepc = unsafe_csrs_indexFromName "uepc"
   let cntrIdx = hpmcounter_idx_to_counter_csr_idx 0
-  let prolog = mconcat [ prepareSTCGen
+  let prolog = mconcat [ prepareTSCGen
                        , inst $ sfence 0 0
                        , li64 addrReg1 0x80001800
                        , li64 addrReg2 0x80012000
                        , li64 addrReg3 0x80008000
                        , inst $ csrrs tmpReg cntrIdx 0 ]
-  let body = repeatN (20) (genSTCTorture)
+  let body = repeatN (20) (genTSCTorture)
   let epilog = mconcat [ inst $ csrrs counterReg cntrIdx 0
                        , instAssert (sub counterReg counterReg tmpReg) 0 ]
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
