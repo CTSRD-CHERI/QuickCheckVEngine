@@ -77,6 +77,7 @@ genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
   let rv32_xcheri_misc_alt = filter (/= (cspecialrw tmpReg csrAddr src1)) (rv32_xcheri_misc src1 src2 csrAddr imm tmpReg)
   return $  (uniform [ instUniform $ rv32_xcheri_arithmetic src1 src2 imm tmpReg
                      , instUniform $ rv32_xcheri_misc_alt
+                     , instUniform $ rv32_xcheri_inspection src1 dest
                      , inst $ cinvoke src2 src1
                      , inst $ cload tmpReg tmpReg 0x08
                      ])
@@ -127,6 +128,7 @@ genBSC_Jumps_Torture = random $ do
   let regJump = 10
   return $ uniform [ instUniform $ rv64_i_arith src1 src2 dest imm
                    , instUniform $ rv32_i_arith src1 src2 dest imm longImm
+                   , instUniform $ rv32_xcheri_inspection src1 dest
                    , instUniform $ rv32_i_ctrl_jumps regJump dest_jumps imm_jumps longImm_jumps
                    , instUniform $ rv32_i_ctrl_branches src1 src2 imm_branches
                    ]

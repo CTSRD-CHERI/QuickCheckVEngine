@@ -209,7 +209,7 @@ allTests = [
            , ("csc_data",   "Data CSC Verification",                                  andPs [has_cheri, has_icsr],              const gen_csc_data_verify)
            , ("bsc_cond_1", "BSC Condition 1 Verification",                           andPs [has_cheri, has_icsr, has_xlen_64], gen_bsc_cond_1_verify)
            , ("bsc_jumps",  "BSC Jumps Verification",                                 andPs [has_cheri, has_icsr, has_xlen_64], const gen_bsc_jumps_verify)
-           , ("bsc_excps",  "BSC Execeptions Verification",                           andPs [has_cheri, has_icsr, has_xlen_64], gen_bsc_exceptions_verify)
+           , ("bsc_excps",  "BSC Exceptions Verification",                           andPs [has_cheri, has_icsr, has_xlen_64], gen_bsc_exceptions_verify)
            , ("tsc",        "TSC Verification",                                       andPs [has_s, has_icsr, has_xlen_64],     const gen_tsc_verify)
            , ("csc_inst",   "Instruction CSC Verification",                           andPs [has_cheri, has_icsr, has_xlen_64], const gen_csc_inst_verify)
            , ("mem",        "Memory Verification",                                    const True,                               const $ T.repeatTillEnd gen_rv32_i_memory)
