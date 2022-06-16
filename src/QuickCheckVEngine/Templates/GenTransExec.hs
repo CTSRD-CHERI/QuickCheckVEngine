@@ -60,6 +60,18 @@ import QuickCheckVEngine.RVFI_DII.RVFI
 import QuickCheckVEngine.Templates.GenMemory
 import Data.Bits
 
+rv32_xcheri_misc_alt :: Integer -> Integer -> Integer -> Integer -> [Instruction]
+rv32_xcheri_misc_alt src1 src2 imm dest =
+  [ cseal       dest src1 src2
+  , cunseal     dest src1 src2
+  , candperm    dest src1 src2
+  , cbuildcap   dest src1 src2
+  , csetflags   dest src1 src2
+  , ccopytype   dest src1 src2
+  , ccseal      dest src1 src2
+  , csealentry  dest src1
+  , ccleartag   dest src1 ]
+
 genCSCDataTorture :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
 genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
   srcAddr  <- src
@@ -74,9 +86,9 @@ genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
                         , (1, bits 12) ]
   src1     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   src2     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
-  let rv32_xcheri_misc_alt = filter (/= (cspecialrw tmpReg csrAddr src1)) (rv32_xcheri_misc src1 src2 csrAddr imm tmpReg)
+--  let rv32_xcheri_misc_alt = filter (/= (cspecialrw tmpReg csrAddr src1)) (rv32_xcheri_misc src1 src2 csrAddr imm tmpReg)
   return $  (uniform [ instUniform $ rv32_xcheri_arithmetic src1 src2 imm tmpReg
-                     , instUniform $ rv32_xcheri_misc_alt
+                     , instUniform $ rv32_xcheri_misc_alt src1 src2 imm dest
                      , instUniform $ rv32_xcheri_inspection src1 dest
                      , inst $ cinvoke src2 src1
                      , inst $ cload tmpReg tmpReg 0x08
