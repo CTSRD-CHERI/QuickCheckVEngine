@@ -75,18 +75,27 @@ nHPMCounters = 29
 
 -- | Turns an 'HPMCounterIdx' into an 'HPMCounterCSRIdx' for hpmcounter
 hpmcounter_idx_to_counter_csr_idx :: HPMCounterIdx -> HPMCounterCSRIdx
-hpmcounter_idx_to_counter_csr_idx idx =
-  hpmcounter_csr_indices !! fromInteger (idx - head hpmcounter_indices)
+hpmcounter_idx_to_counter_csr_idx idx
+  |    (fromInteger idx >= head hpmcounter_indices)
+    && (fromInteger idx < (fromInteger (head hpmcounter_indices) + nHPMCounters)) =
+      hpmcounter_csr_indices !! fromInteger (idx - head hpmcounter_indices)
+  | otherwise = error $ "hpmcounter_idx_to_counter_csr_idx idx is out of bounds: " ++ show idx
 
 -- | Turns an 'HPMCounterIdx' into an 'HPMCounterCSRIdx' for mhpmcounter
 hpmcounter_idx_to_mcounter_csr_idx :: HPMCounterIdx -> HPMCounterCSRIdx
-hpmcounter_idx_to_mcounter_csr_idx idx =
-  mhpmcounter_csr_indices !! fromInteger (idx - head hpmcounter_indices)
+hpmcounter_idx_to_mcounter_csr_idx idx
+  |    (fromInteger idx >= head hpmcounter_indices)
+    && (fromInteger idx < (fromInteger (head hpmcounter_indices) + nHPMCounters)) =
+      mhpmcounter_csr_indices !! fromInteger (idx - head hpmcounter_indices)
+  | otherwise = error $ "hpmcounter_idx_to_counter_csr_idx idx is out of bounds: " ++ show idx
 
 -- | Turns an 'HPMCounterIdx' into an 'HPMEventSelCSRIdx'
 hpmcounter_idx_to_mevent_sel_csr_idx :: HPMCounterIdx -> HPMEventSelCSRIdx
-hpmcounter_idx_to_mevent_sel_csr_idx idx =
-  mhpmevent_csr_indices !! fromInteger (idx - head hpmcounter_indices)
+hpmcounter_idx_to_mevent_sel_csr_idx idx
+  |    (fromInteger idx >= head hpmcounter_indices)
+    && (fromInteger idx < (fromInteger (head hpmcounter_indices) + nHPMCounters)) =
+      mhpmevent_csr_indices !! fromInteger (idx - head hpmcounter_indices)
+  | otherwise = error $ "hpmcounter_idx_to_counter_csr_idx idx is out of bounds: " ++ show idx
 
 -- | Return the list of available existing hpmcounter indices
 hpmcounter_indices :: [HPMCounterIdx]

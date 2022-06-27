@@ -457,7 +457,7 @@ gen_tsc_verify = random $ do
   let hpmCntIdx_dcache_miss = 3
   let hpmEventIdx_dcache_miss = 0x31
   let uepc = unsafe_csrs_indexFromName "uepc"
-  let cntrIdx = hpmcounter_idx_to_counter_csr_idx 0
+  let cntrIdx = hpmcounter_idx_to_counter_csr_idx 3
   let prolog = mconcat [ prepareTSCGen
                        , inst $ sfence 0 0
                        , li64 addrReg1 0x80001800
