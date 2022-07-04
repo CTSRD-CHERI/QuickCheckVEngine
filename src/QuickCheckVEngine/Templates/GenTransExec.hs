@@ -143,6 +143,7 @@ genBSC_Jumps_Torture = random $ do
                    , instUniform $ rv32_xcheri_inspection src1 dest
                    , instUniform $ rv32_i_ctrl_jumps regJump dest_jumps imm_jumps longImm_jumps
                    , instUniform $ rv32_i_ctrl_branches src1 src2 imm_branches
+                   , instUniform $ rv32_xcheri_control src1 src2 dest
                    ]
 
 genBSC_Excps_Torture :: ArchDesc -> Integer -> Template
@@ -152,6 +153,7 @@ genBSC_Excps_Torture arch tmpReg = random $ do
   src1 <- sbcRegs
   src2 <- sbcRegs
   src3 <- sbcRegs
+  srcSCr <- bits 5
   dest <- sbcRegs
   let rm = 0x7 -- dynamic rounding mode
   let fenceOp1 = 17
@@ -161,9 +163,11 @@ genBSC_Excps_Torture arch tmpReg = random $ do
                    , instUniform $ rv64_i_mem src1 src2 dest imm
                    , instUniform $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2
                    , instUniform $ rv32_i_exc
+                   , instUniform $ rv32_i_ctrl src1 src2 dest imm longImm
                    , instUniform $ rv32_xcheri_mem arch src1 src2 imm 0xb tmpReg
                    , instUniform $ rv32_xcheri_arithmetic src1 src2 imm dest
                    , instUniform $ rv32_xcheri_inspection src1 dest
+                   , instUniform $ rv32_xcheri_misc src1 src2 srcSCr imm dest
                    --, instUniform $ rv32_f_macc src1 src2 src3 dest rm
                    --, instUniform $ rv32_f_arith src1 src2 dest rm
                    ]
