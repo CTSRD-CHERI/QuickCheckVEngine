@@ -303,7 +303,7 @@ main = withSocketsDo $ do
                       let prelude = case sourceFile of
                                       Just name -> "# Generated from input file: " ++ show name ++ "\n"
                                       Nothing   -> "# Automatically generated failing test case\n"
-                      writeFile (dir ++ "/failure-" ++ tstamp ++ ".S") (prelude ++ showAnnotatedTrace (isNothing m_implB) archDesc test)
+                      writeFile (dir ++ "/failure-" ++ tstamp ++ ".S") (prelude ++ showAnnotatedTrace (isNothing m_implB) archDesc trace)
   let checkTrapAndSave sourceFile test = saveOnFail sourceFile test (check_mcause_on_trap :: Test TestResult -> Test TestResult)
   let checkResult = if optVerbosity flags > 1 then verboseCheckWithResult else quickCheckWithResult
   let checkGen gen remainingTests =
