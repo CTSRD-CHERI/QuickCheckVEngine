@@ -206,12 +206,12 @@ allTests = [
            -- CSC: Capability Speculation Constraint
            -- BSC: Branching Speculation Constraint
            -- TSC: Translation Speculation Constraint
-           , ("csc_data",   "Data CSC Verification",                                  andPs [has_cheri, has_icsr],              const gen_csc_data_verify)
-           , ("bsc_cond_1", "BSC Condition 1 Verification",                           andPs [has_cheri, has_icsr, has_xlen_64], gen_bsc_cond_1_verify)
-           , ("bsc_jumps",  "BSC Jumps Verification",                                 andPs [has_cheri, has_icsr, has_xlen_64], const gen_bsc_jumps_verify)
-           , ("bsc_excps",  "BSC Exceptions Verification",                           andPs [has_cheri, has_icsr, has_xlen_64], gen_bsc_exceptions_verify)
-           , ("tsc",        "TSC Verification",                                       andPs [has_s, has_icsr, has_xlen_64],     const gen_tsc_verify)
-           , ("csc_inst",   "Instruction CSC Verification",                           andPs [has_cheri, has_icsr, has_xlen_64], const gen_csc_inst_verify)
+           , ("csc_data",   "Data CSC Verification",                                  andPs [has_cheri, has_icsr, has_ihpm],              const gen_csc_data_verify)
+           , ("bsc_cond_1", "BSC Condition 1 Verification",                           andPs [has_cheri, has_icsr, has_ihpm, has_xlen_64], gen_bsc_cond_1_verify)
+           , ("bsc_jumps",  "BSC Jumps Verification",                                 andPs [has_cheri, has_icsr, has_ihpm, has_xlen_64], const gen_bsc_jumps_verify)
+           , ("bsc_excps",  "BSC Exceptions Verification",                            andPs [has_cheri, has_icsr, has_ihpm, has_xlen_64], gen_bsc_exceptions_verify)
+           , ("tsc",        "TSC Verification",                                       andPs [has_s, has_icsr, has_ihpm, has_xlen_64],     const gen_tsc_verify)
+           , ("csc_inst",   "Instruction CSC Verification",                           andPs [has_cheri, has_icsr, has_ihpm, has_xlen_64], const gen_csc_inst_verify)
            , ("mem",        "Memory Verification",                                    const True,                               const $ T.repeatTillEnd gen_rv32_i_memory)
            , ("control",    "Control Flow Verification",                              const True,                               const $ T.repeatTillEnd gen_rv32_i_controlflow)
            , ("cache",      "Cache Verification",                                     const True,                               const $ T.repeatTillEnd gen_rv32_i_cache)
@@ -235,7 +235,7 @@ allTests = [
            , ("fencei",     "Zifencei Extension Verification",                        has_ifencei,                              const $ T.repeatTillEnd gen_rv32_i_zifencei_memory)
            , ("fencei64",   "RV64 Zifencei Extension Verification",                   andPs [has_ifencei, has_xlen_64],         const $ T.repeatTillEnd gen_rv64_i_zifencei_memory)
            , ("pte",        "PTE Verification",                                       has_s,                                    const $ T.repeatN 2 $ T.uniform [gen_pte_perms, gen_pte_trans])
-           , ("hpm",        "HPM Verification",                                       has_icsr,                                 T.repeatTillEnd . genHPM)
+           , ("hpm",        "HPM Verification",                                       andPs [has_icsr, has_ihpm],               T.repeatTillEnd . genHPM)
            , ("capinspect", "Xcheri Extension Capability Inspection Verification",    has_cheri,                                const $ T.repeatTillEnd genCHERIinspection)
            , ("caparith",   "Xcheri Extension Capability Arithmetic Verification",    has_cheri,                                const $ T.repeatTillEnd genCHERIarithmetic)
            , ("capmisc",    "Xcheri Extension Capability Miscellaneous Verification", has_cheri,                                const $ T.repeatTillEnd genCHERImisc)
