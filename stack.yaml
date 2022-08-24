@@ -1,6 +1,4 @@
-# resolver: lts-3.5
-# Note: lts-13.30 seems to be the only version that include quickcheck 2.12
-resolver: lts-13.30
+resolver: lts-18.28
 
 # User packages to be built.
 packages:
