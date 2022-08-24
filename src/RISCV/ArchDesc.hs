@@ -65,6 +65,7 @@ data ArchDesc = ArchDesc { has_xlen_32     :: Bool
                          , has_c           :: Bool
                          , has_n           :: Bool
                          , has_icsr        :: Bool
+                         , has_ihpm        :: Bool
                          , has_ifencei     :: Bool
                          , has_cheri       :: Bool
                          , has_nocloadtags :: Bool }
@@ -84,6 +85,7 @@ instance Show ArchDesc where
                 ++ ext has_c "c"
                 ++ ext has_n "n"
                 ++ intercalate "_" [ x | x <- [ ext has_icsr "Zicsr"
+                                              , ext has_ihpm "Zihpm"
                                               , ext has_ifencei "Zifencei"
                                               , ext has_cheri "Xcheri"
                                               , ext has_nocloadtags "Xnocloadtags" ]
@@ -102,6 +104,7 @@ archDesc_null  = ArchDesc { has_xlen_32     = False
                           , has_c           = False
                           , has_n           = False
                           , has_icsr        = False
+                          , has_ihpm        = False
                           , has_ifencei     = False
                           , has_cheri       = False
                           , has_nocloadtags = False
@@ -120,6 +123,7 @@ archDesc_rv32i = ArchDesc { has_xlen_32     = True
                           , has_c           = False
                           , has_n           = False
                           , has_icsr        = False
+                          , has_ihpm        = False
                           , has_ifencei     = False
                           , has_cheri       = False
                           , has_nocloadtags = False
@@ -139,6 +143,7 @@ fromString str = ArchDesc { has_xlen_32     = True
                           , has_c           = c
                           , has_n           = n
                           , has_icsr        = icsr
+                          , has_ihpm        = ihpm
                           , has_ifencei     = ifencei
                           , has_cheri       = cheri
                           , has_nocloadtags = nocloadtags
@@ -153,6 +158,7 @@ fromString str = ArchDesc { has_xlen_32     = True
         f = (head archStrings =~ "f") || (head archStrings =~ "g")
         d = (head archStrings =~ "d") || (head archStrings =~ "g")
         icsr = elem "icsr" archStrings || (head archStrings =~ "g")
+        ihpm = elem "ihpm" archStrings || (head archStrings =~ "g")
         ifencei = elem "ifencei" archStrings || (head archStrings =~ "g")
         c = head archStrings =~ "c"
         n = head archStrings =~ "n"
