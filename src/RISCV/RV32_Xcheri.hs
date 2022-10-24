@@ -84,6 +84,7 @@ module RISCV.RV32_Xcheri (
 , ctestsubset
 , cspecialrw
 , clear
+, cclear
 , fpclear
 , croundrepresentablelength
 , crepresentablealignmentmask
@@ -195,6 +196,8 @@ ctestsubset rd cs1 cs2             = encode ctestsubset_raw                     
 -- Register Clearing
 clear_raw                          =                                        "1111111 01101 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
 clear q imm                        = encode clear_raw                                      q      imm
+cclear_raw                         =                                        "1111111 01110 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
+cclear q imm                       = encode cclear_raw                                     q      imm
 fpclear_raw                        =                                        "1111111 10000 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
 fpclear q imm                      = encode fpclear_raw                                    q      imm
 
@@ -344,6 +347,7 @@ rv32_xcheri_disass = [ cgetperm_raw                    --> prettyR_2op "cgetperm
                      , cinvoke_raw                     --> pretty_2src "cinvoke"
                      , ctestsubset_raw                 --> prettyR "ctestsubset"
                      , clear_raw                       --> pretty_reg_clear "clear"
+                     , cclear_raw                      --> pretty_reg_clear "cclear"
                      , fpclear_raw                     --> pretty_reg_clear "fpclear"
                      , croundrepresentablelength_raw   --> prettyR_2op "croundrepresentablelength"
                      , crepresentablealignmentmask_raw --> prettyR_2op "crepresentablealignmentmask"
@@ -403,6 +407,7 @@ rv32_xcheri_extract = [ cgetperm_raw                    --> extract_1op cgetperm
                       , cinvoke_raw                     --> extract_cinvoke
                       , ctestsubset_raw                 --> extract_2op ctestsubset_raw
 --                    , clear_raw                       --> noextract -- TODO
+--                    , cclear_raw                       --> noextract -- TODO
 --                    , fpclear_raw                     --> noextract -- TODO
                       , croundrepresentablelength_raw   --> extract_1op croundrepresentablelength_raw
                       , crepresentablealignmentmask_raw --> extract_1op crepresentablealignmentmask_raw
@@ -512,6 +517,7 @@ rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
                      , cinvoke_raw                     --> shrink_cinvoke
                      , ctestsubset_raw                 --> shrink_ctestsubset
 --                   , clear_raw                       --> noshrink
+--                   , cclear_raw                      --> noshrink
 --                   , fpclear_raw                     --> noshrink
 --                   , croundrepresentablelength_raw   --> noshrink
 --                   , crepresentablealignmentmask_raw --> noshrink
