@@ -35,6 +35,7 @@
 module QuickCheckVEngine.Templates.GenCHERI (
   capDecodeTest,
   cLoadTagsTest,
+  gen_simple_cclear,
   randomCHERITest
 ) where
 
@@ -44,6 +45,7 @@ import RISCV
 import InstrCodec
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.GenArithmetic
 import Data.Bits
 
 cLoadTagsTest :: ArchDesc -> Template
@@ -117,6 +119,20 @@ genRandomCHERITest arch = random $ do
                 , (10, clearASR tmpReg tmpReg2)
                 , (20, inst $ cgettag dest dest)
                 , (if has_nocloadtags arch then 0 else 10, loadTags srcAddr srcData)
+                ]
+
+gen_simple_cclear :: ArchDesc -> Template
+gen_simple_cclear _ = random $ do
+  mask <- bits 8
+  quarter <- bits 2
+  imm  <- bits 12
+  src1 <- src
+  src2 <- src
+  dest <- dest
+  return $ dist [ (4, prepReg64 dest)
+                , (8, gen_rv32_i_arithmetic)
+                , (8, instUniform $ rv64_i_arith src1 src2 dest imm)
+                , (2, inst $ cclear quarter mask)
                 ]
 
 randomCHERITest :: ArchDesc -> Template
