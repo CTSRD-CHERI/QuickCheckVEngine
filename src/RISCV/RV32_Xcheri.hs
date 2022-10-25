@@ -6,6 +6,7 @@
 -- Copyright (c) 2018 Matthew Naylor
 -- Copyright (c) 2019-2020 Alexandre Joannou
 -- Copyright (c) 2020 Peter Rugg
+-- Copyright (c) 2021-2022 Franz Fuchs
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -16,6 +17,11 @@
 -- This software was partly developed by the University of Cambridge
 -- Computer Laboratory as part of the Partially-Ordered Event-Triggered
 -- Systems (POETS) project, funded by EPSRC grant EP/N031768/1.
+--
+-- This software was developed by the University of  Cambridge
+-- Department of Computer Science and Technology under the
+-- SIPP (Secure IoT Processor Platform with Remote Attestation)
+-- project funded by EPSRC: EP/S030868/1
 --
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions
