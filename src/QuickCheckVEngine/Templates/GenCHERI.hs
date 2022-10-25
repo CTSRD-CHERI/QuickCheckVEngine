@@ -47,10 +47,10 @@ import QuickCheckVEngine.Templates.Utils
 import Data.Bits
 
 cLoadTagsTest :: ArchDesc -> Template
-cLoadTagsTest arch = loadTags 1 2
+cLoadTagsTest _ = loadTags 1 2
 
 capDecodeTest :: ArchDesc -> Template
-capDecodeTest arch = random $ do
+capDecodeTest _ = random $ do
   let bitAppend x (a,b) = (shift x b +) <$> a b
   cap <- oneof [bits 128, -- completely random cap
                 foldM bitAppend 0 [(bits,16),(bits,3),(const $ elements [0x00000,0x00001,0x00002,0x00003],18),(bits,27),(bits,64)], -- reserved otypes
