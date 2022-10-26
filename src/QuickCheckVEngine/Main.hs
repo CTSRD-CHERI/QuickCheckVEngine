@@ -213,6 +213,7 @@ allTests = [
            , ("tsc",        "TSC Verification",                                       andPs [has_s, has_icsr, has_ihpm, has_xlen_64],     const gen_tsc_verify)
            , ("csc_inst",   "Instruction CSC Verification",                           andPs [has_cheri, has_icsr, has_ihpm, has_xlen_64], const gen_csc_inst_verify)
            , ("cclear",     "CClear Verification",                                    andPs [has_cheri, has_xlen_64],                     gen_simple_cclear)
+           , ("fpclear",    "FPClear Verification",                                   andPs [has_cheri, has_xlen_64, has_d],              gen_simple_fpclear)
            , ("mem",        "Memory Verification",                                    const True,                               const $ T.repeatTillEnd gen_rv32_i_memory)
            , ("control",    "Control Flow Verification",                              const True,                               const $ T.repeatTillEnd gen_rv32_i_controlflow)
            , ("cache",      "Cache Verification",                                     const True,                               const $ T.repeatTillEnd gen_rv32_i_cache)
