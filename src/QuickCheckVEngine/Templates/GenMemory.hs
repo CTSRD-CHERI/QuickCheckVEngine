@@ -81,8 +81,8 @@ gen_rv32_i_zifencei_memory = gen_memory False True False False
 gen_rv32_i_a_zifencei_memory :: Template
 gen_rv32_i_a_zifencei_memory = gen_memory True True False False
 
-gen_rv32_i_cache :: Template
-gen_rv32_i_cache = gen_cache False True False False
+gen_rv32_i_cache :: Bool -> Template
+gen_rv32_i_cache has_zifencei = gen_cache (GenConf False has_zifencei False) False
 
 gen_rv64_i_memory :: Template
 gen_rv64_i_memory = gen_memory False False True False
@@ -96,14 +96,14 @@ gen_rv64_i_zifencei_memory = gen_memory False True True False
 gen_rv64_i_a_zifencei_memory :: Template
 gen_rv64_i_a_zifencei_memory = gen_memory True True True False
 
-gen_rv64_i_cache :: Template
-gen_rv64_i_cache = gen_cache False True True False
+gen_rv64_i_cache :: Bool -> Template
+gen_rv64_i_cache has_zifencei = gen_cache (GenConf False has_zifencei True) False
 
-gen_rv32_Xcheri_cache :: Template
-gen_rv32_Xcheri_cache = gen_cache False True False True
+gen_rv32_Xcheri_cache :: Bool -> Template
+gen_rv32_Xcheri_cache has_zifencei = gen_cache (GenConf False has_zifencei False) True
 
-gen_rv64_Xcheri_cache :: Template
-gen_rv64_Xcheri_cache = gen_cache False False True True
+gen_rv64_Xcheri_cache :: Bool -> Template
+gen_rv64_Xcheri_cache has_zifencei = gen_cache (GenConf False has_zifencei True) True
 
 gen_memory :: Bool -> Bool -> Bool -> Bool -> Template
 gen_memory has_a has_zifencei has_xlen_64 has_caplen = random $
@@ -129,8 +129,8 @@ gen_memory has_a has_zifencei has_xlen_64 has_caplen = random $
                     , (8, instUniform $ rv64_i_store src1 src2 offset)] | has_xlen_64]
      return $ dist $ concat insts
 
-gen_cache :: Bool -> Bool -> Bool -> Bool -> Template
-gen_cache has_a has_zifencei has_xlen_64 has_caplen = random $
+gen_cache :: GenConf -> Bool -> Template
+gen_cache conf has_caplen = random $
   do src1     <- elements [1, 2, 3]
      src2     <- elements [1, 2, 3]
      dest     <- elements [1, 2, 3]
@@ -160,13 +160,13 @@ gen_cache has_a has_zifencei has_xlen_64 has_caplen = random $
                   , (2, random $ do fenceOp1 <- bits 4
                                     fenceOp2 <- bits 4
                                     return $ instUniform $ rv32_i_fence fenceOp1 fenceOp2)]]
-              ++ [[(2, instUniform $ rv32_a src1 src2 dest aq rl)] | has_a]
-              ++ [[(2, inst fence_i)] | has_zifencei]
+              ++ [[(2, instUniform $ rv32_a src1 src2 dest aq rl)] | (has_a conf)]
+              ++ [[(2, inst fence_i)] | (has_zifencei conf)]
               ++ [[(2, random $ do src <- elements [1, 2, 3]
                                    return $ instUniform $ rv64_i_load  src 13 0)
                   ,(2, random $ do src1 <- elements [1, 2, 3]
                                    src2 <- elements [1, 2, 3]
-                                   return $ instUniform $ rv64_i_store src1 src2 0)] | has_xlen_64]
+                                   return $ instUniform $ rv64_i_store src1 src2 0)] | (has_xlen_64 conf)]
               ++ [[(2, random $ do srcAddr <- elements [1, 2, 3]
                                    return $ instSeq [ lq 13 srcAddr 0,
                                                       cgettag 13 13])
