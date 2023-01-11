@@ -37,7 +37,8 @@ module QuickCheckVEngine.Templates.GenCHERI (
   cLoadTagsTest,
   gen_simple_cclear,
   gen_simple_fpclear,
-  randomCHERITest
+  randomCHERITest,
+  randomCHERIRVCTest
 ) where
 
 import Test.QuickCheck
@@ -48,6 +49,7 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 import QuickCheckVEngine.Templates.GenArithmetic
 import QuickCheckVEngine.Templates.GenFP
+import QuickCheckVEngine.Templates.GenCompressed
 import Data.Bits
 
 cLoadTagsTest :: ArchDesc -> Template
@@ -122,6 +124,15 @@ genRandomCHERITest arch = random $ do
                 , (20, inst $ cgettag dest dest)
                 , (if has_nocloadtags arch then 0 else 10, loadTags srcAddr srcData)
                 ]
+
+randomCHERIRVCTest :: ArchDesc -> Template
+randomCHERIRVCTest arch = random $ do
+  rvcInst <- bits 16
+  return $ mconcat [ switchEncodingMode
+                   , genRandomCHERITest arch
+                   , uniform [inst $ MkInstruction rvcInst, gen_rv_c]
+                   , repeatN 5 genCHERIinspection
+                   ]
 
 gen_simple_cclear :: ArchDesc -> Template
 gen_simple_cclear _ = random $ do
