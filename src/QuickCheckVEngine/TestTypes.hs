@@ -63,7 +63,7 @@ type ShrinkStrategy = Test TestResult -> [Test TestResult]
 data MetaInfo = MetaShrinkStrategy ShrinkStrategy
               | MetaNoShrink
               | MetaShrinkScope
-              | MetaAssertLastVal Integer
+              | MetaAssertLastVal (RVFI_Packet -> Bool, String, Integer)
               | MetaAssertCompound (Test TestResult -> (Bool, String))
               | MetaReport Report
 

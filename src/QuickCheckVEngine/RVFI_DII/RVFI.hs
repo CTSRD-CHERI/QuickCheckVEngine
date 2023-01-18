@@ -455,19 +455,18 @@ rvfiCheck is64 x y
       && (compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata)
       && (maskUpper is64 (rvfi_pc_wdata x) == maskUpper is64 (rvfi_pc_wdata y))
 
-assertCheck :: Bool -> RVFI_Packet -> [Integer] -> Bool
+assertCheck :: Bool -> RVFI_Packet -> [(RVFI_Packet -> Bool, String, Integer)] -> Bool
 assertCheck is64 x asserts
   | rvfiIsHalt x = null asserts
-  | rvfiIsTrap x = null asserts
-  | otherwise = and ((== (toInteger $ getRDWData is64 x)) <$> asserts)
+  | otherwise = and ((\(f,_,_) -> f x) <$> asserts)
 
 -- | Compare 2 'RVFI_Packet's and produce a 'String' output displaying the
 --   the content of the packet once only for equal inputs or the content of
 --   each input 'RVFI_Packet' if inputs are not succeeding the 'rvfiCheck'
-rvfiCheckAndShow :: Bool -> Bool -> Maybe RVFI_Packet -> Maybe RVFI_Packet -> [Integer] -> (Bool, String)
+rvfiCheckAndShow :: Bool -> Bool -> Maybe RVFI_Packet -> Maybe RVFI_Packet -> [(RVFI_Packet -> Bool, String, Integer)] -> (Bool, String)
 rvfiCheckAndShow singleImp is64 x y asserts
   | singleImp, Just x' <- x, assertCheck is64 x' asserts = (True,  "     " ++ show x' ++ suffix)
   | Just x' <- x, Just y' <- y, rvfiCheck is64 x' y', assertCheck is64 x' asserts, assertCheck is64 y' asserts = (True,  "     " ++ show x' ++ suffix)
   | otherwise = (False,      " A < " ++ maybe "No report received" show x ++ suffix
                         ++ "\n B > " ++ maybe "No report received" show y ++ suffix)
-    where suffix = foldr (\v acc -> printf "%s (assert rd_wdata == 0x%x)" acc v) "" asserts
+    where suffix = foldr (\(_,f,v) acc -> printf "%s (assert %s == 0x%x)" acc f v) "" asserts

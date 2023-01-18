@@ -81,6 +81,7 @@ import RISCV (Instruction(..))
 --import Text.Parsec.Language
 --import Control.Monad
 import QuickCheckVEngine.TestTypes
+import QuickCheckVEngine.RVFI_DII
 
 data Template = TemplateEmpty
               | TemplateSingle Instruction
@@ -117,7 +118,7 @@ repeatTillEnd t = TemplateRandom $ do
     return $ (TemplateRandom $ resize s (pure t)) <> repeatTillEnd t
 
 assertLastVal :: Template -> Integer -> Template
-assertLastVal t v = TemplateMeta (MetaAssertLastVal v) t
+assertLastVal t v = TemplateMeta (MetaAssertLastVal (\r -> toInteger (rvfi_rd_wdata_or_zero r) == v, "rd_wdata", v)) t
 
 assertCompound :: Template -> (Test TestResult -> (Bool, String)) -> Template
 assertCompound t f = TemplateMeta (MetaAssertCompound f) t

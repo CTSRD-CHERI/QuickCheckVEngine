@@ -77,6 +77,7 @@ import Text.Parsec.Token
 import Text.Parsec.Language
 import Control.Monad (void)
 import QuickCheckVEngine.TestTypes
+import QuickCheckVEngine.RVFI_DII
 
 -- * Test shrinking
 --------------------------------------------------------------------------------
@@ -193,7 +194,7 @@ singleShrink f = recurseShrink defaultShrinkMethods { methodSingle = f }
 sequenceShrink :: (Test TestResult -> ShrinkStrategy) -> ShrinkStrategy
 sequenceShrink g = recurseShrink defaultShrinkMethods { methodSequence = g }
 
-mapWithAssertLastVal :: ([Integer] -> a -> b) -> Test a -> Test b
+mapWithAssertLastVal :: ([(RVFI_Packet -> Bool, String, Integer)] -> a -> b) -> Test a -> Test b
 mapWithAssertLastVal f x = snd $ go [] f x
   where go  _ _ TestEmpty = (False, TestEmpty)
         go vs f (TestSingle x) = (True, TestSingle (f vs x))
@@ -255,11 +256,11 @@ showTestWithComments x s c = printf "%s%s%s" magicTok versionTok (go x)
                                         magicTok endTok noShrinkTok
           go (TestMeta (MetaShrinkStrategy _, True) x) =
             error "Cannot serialise shrink strategy"
-          go (TestMeta (MetaAssertLastVal v, True) x) =
-            printf "\n%s%s%s%s\n%s%s%s rd_wdata == 0x%x \"\""
+          go (TestMeta (MetaAssertLastVal (_, field, v), True) x) =
+            printf "\n%s%s%s%s\n%s%s%s %s == 0x%x \"\""
                    magicTok startTok assertLastValTok
                    (go x)
-                   magicTok endTok assertLastValTok v
+                   magicTok endTok assertLastValTok field v
           go (TestMeta (MetaAssertCompound _, True) x) =
             error "Cannot serialise compound assertion"
           go (TestMeta (MetaReport r, True) x) =
@@ -272,6 +273,7 @@ instance Show t => Show (Test t) where
 type Parser = Parsec String ()
 
 -- Parse a legacy Test
+ltp :: TokenParser ()
 ltp = makeTokenParser $ emptyDef { commentLine   = "#"
                                  , reservedNames = [ ".shrink", ".noshrink"
                                                    , ".4byte", ".2byte"
@@ -298,20 +300,17 @@ legacyParseInst = do
 legacyParseSingleAssert :: Test Instruction -> Parser (Test Instruction)
 legacyParseSingleAssert x = do
   reserved ltp ".assert"
-  reserved ltp "rd_wdata"
-  symbol ltp "=="
-  val <- natural ltp
-  str <- stringLiteral ltp
+  val <- parseRVFIAssert ltp
   return $ TestMeta (MetaAssertLastVal val, True) x
 
 -- Parse a Test
+tp :: TokenParser ()
 tp = makeTokenParser $
   emptyDef { reservedNames =
                [ ".4byte", ".2byte", magicTok ++ versionTok ] ++
-               [ magicTok ++ pfx ++ sfx 
+               [ magicTok ++ pfx ++ sfx
                  | pfx <- [startTok, endTok]
                  , sfx <- [shrinkScopeTok, noShrinkTok, assertLastValTok] ]
-           , identStart = oneOf "#."
            , identLetter = alphaNum <|> char '>' <|> char '_' <|> char '.' }
 
 parseTest :: Parser (Test Instruction)
@@ -335,16 +334,24 @@ parseInst = do
   parseComments
   return $ TestSingle $ MkInstruction bits
 
+parseRVFIAssert :: TokenParser () -> Parser (RVFI_Packet -> Bool, String, Integer)
+parseRVFIAssert mtp = do
+  field <- identifier mtp
+  let m_extractor = rvfiGetFromString field
+  extractor <- maybe (fail $ "Unrecognised RVFI field in assert (" ++ field ++ ")") pure m_extractor
+  symbol mtp "=="
+  val <- natural mtp
+  stringLiteral mtp
+  return (\r -> extractor r == val, field, val)
+
 parseAssert :: Parser (Test Instruction)
 parseAssert = do
   reserved tp $ magicTok ++ startTok ++ assertLastValTok
   parseComments
   inner <- parseTestBody
+  parseComments
   reserved tp $ magicTok ++ endTok ++ assertLastValTok
-  symbol tp "rd_wdata"
-  symbol tp "=="
-  val <- natural tp
-  stringLiteral tp
+  val <- parseRVFIAssert tp
   parseComments
   return $ TestMeta (MetaAssertLastVal val, True) inner
 
