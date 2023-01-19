@@ -78,6 +78,7 @@ import Text.Parsec.Language
 import Control.Monad (void)
 import QuickCheckVEngine.TestTypes
 import QuickCheckVEngine.RVFI_DII
+import Data.List
 
 -- * Test shrinking
 --------------------------------------------------------------------------------
@@ -383,7 +384,8 @@ parseComments = whiteSpace tp >> many p >> return ()
 
 instance Read (Test Instruction) where
   readsPrec _ str =
-    case parse (partial (try parseTest <|> legacyParseTest)) "Read" str of
+    case parse (partial parser) "Read" str of
       Left  e -> error $ show e ++ ", in:\n" ++ str ++ "\n"
       Right (x, s) -> [(removeEmpties x, s)]
     where partial p = (,) <$> p <*> getInput
+          parser = if isInfixOf (magicTok ++ versionTok) str then parseTest else legacyParseTest
