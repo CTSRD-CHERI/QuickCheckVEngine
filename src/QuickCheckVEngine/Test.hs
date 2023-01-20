@@ -297,12 +297,13 @@ legacyParseInst = do
   reserved ltp ".4byte" <|> reserved ltp ".2byte"
   bits <- natural ltp
   let inst = TestSingle $ MkInstruction bits
-  option inst (try $ legacyParseSingleAssert inst)
-legacyParseSingleAssert :: Test Instruction -> Parser (Test Instruction)
-legacyParseSingleAssert x = do
+  wrap <- many legacyParseSingleAssert
+  return $ foldl (\a b -> b a) inst wrap
+legacyParseSingleAssert :: Parser (Test Instruction -> Test Instruction)
+legacyParseSingleAssert = do
   reserved ltp ".assert"
   val <- parseRVFIAssert ltp
-  return $ TestMeta (MetaAssertLastVal val, True) x
+  return $ \i -> TestMeta (MetaAssertLastVal val, True) i
 
 -- Parse a Test
 tp :: TokenParser ()
@@ -332,8 +333,11 @@ parseInst :: Parser (Test Instruction)
 parseInst = do
   reserved tp ".4byte" <|> reserved tp ".2byte"
   bits <- natural tp
+  let inst = TestSingle $ MkInstruction bits
   parseComments
-  return $ TestSingle $ MkInstruction bits
+  wrap <- many legacyParseSingleAssert
+  parseComments
+  return $ foldl (\a b -> b a) inst wrap
 
 parseRVFIAssert :: TokenParser () -> Parser (RVFI_Packet -> Bool, String, Integer)
 parseRVFIAssert mtp = do
