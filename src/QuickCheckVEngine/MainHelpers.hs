@@ -175,7 +175,11 @@ prop connA m_connB alive onFail arch delay verbosity ignoreAsserts gen =
   forAllShrink gen shrink mkProp
   where mkProp test = whenFail (onFail test) (doProp test)
         doProp test = monadicIO $ run $ runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequentDeaths
-        diffFunc asserts (DII_Instruction _ _, a, b) = rvfiCheckAndShow (isNothing m_connB) (has_xlen_64 arch) a b asserts
+        colourGreen = "\ESC[32m"
+        colourRed = "\ESC[31m"
+        colourEnd = "\ESC[0m"
+        colourise (b, s) = (b, (if b then colourGreen else colourRed) ++ s ++ colourEnd)
+        diffFunc asserts (DII_Instruction _ _, a, b) = colourise $ rvfiCheckAndShow (isNothing m_connB) (has_xlen_64 arch) a b asserts
         diffFunc _ (DII_End _, _, _) = (True, "Test end")
         diffFunc _ _ = (True, "")
         handleAsserts (ReportAssert False s, _) = do putStrLn $ "Failed assert: " ++ s
