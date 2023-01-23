@@ -195,7 +195,7 @@ singleShrink f = recurseShrink defaultShrinkMethods { methodSingle = f }
 sequenceShrink :: (Test TestResult -> ShrinkStrategy) -> ShrinkStrategy
 sequenceShrink g = recurseShrink defaultShrinkMethods { methodSequence = g }
 
-mapWithAssertLastVal :: ([(RVFI_Packet -> Bool, String, Integer)] -> a -> b) -> Test a -> Test b
+mapWithAssertLastVal :: ([(RVFI_Packet -> Bool, String, Integer, String)] -> a -> b) -> Test a -> Test b
 mapWithAssertLastVal f x = snd $ go [] f x
   where go  _ _ TestEmpty = (False, TestEmpty)
         go vs f (TestSingle x) = (True, TestSingle (f vs x))
@@ -257,11 +257,11 @@ showTestWithComments x s c = printf "%s%s%s" magicTok versionTok (go x)
                                         magicTok endTok noShrinkTok
           go (TestMeta (MetaShrinkStrategy _, True) x) =
             error "Cannot serialise shrink strategy"
-          go (TestMeta (MetaAssertLastVal (_, field, v), True) x) =
-            printf "\n%s%s%s%s\n%s%s%s %s == 0x%x \"\""
+          go (TestMeta (MetaAssertLastVal (_, field, v, desc), True) x) =
+            printf "\n%s%s%s%s\n%s%s%s %s == 0x%x \"%s\""
                    magicTok startTok assertLastValTok
                    (go x)
-                   magicTok endTok assertLastValTok field v
+                   magicTok endTok assertLastValTok field v desc
           go (TestMeta (MetaAssertCompound _, True) x) =
             error "Cannot serialise compound assertion"
           go (TestMeta (MetaReport r, True) x) =
@@ -339,15 +339,15 @@ parseInst = do
   parseComments
   return $ foldl (\a b -> b a) inst wrap
 
-parseRVFIAssert :: TokenParser () -> Parser (RVFI_Packet -> Bool, String, Integer)
+parseRVFIAssert :: TokenParser () -> Parser (RVFI_Packet -> Bool, String, Integer, String)
 parseRVFIAssert mtp = do
   field <- identifier mtp
   let m_extractor = rvfiGetFromString field
   extractor <- maybe (fail $ "Unrecognised RVFI field in assert (" ++ field ++ ")") pure m_extractor
   symbol mtp "=="
   val <- natural mtp
-  stringLiteral mtp
-  return (\r -> extractor r == val, field, val)
+  desc <- stringLiteral mtp
+  return (\r -> extractor r == val, field, val, desc)
 
 parseAssert :: Parser (Test Instruction)
 parseAssert = do

@@ -455,18 +455,20 @@ rvfiCheck is64 x y
       && (compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata)
       && (maskUpper is64 (rvfi_pc_wdata x) == maskUpper is64 (rvfi_pc_wdata y))
 
-assertCheck :: Bool -> RVFI_Packet -> [(RVFI_Packet -> Bool, String, Integer)] -> Bool
+assertCheck :: Bool -> RVFI_Packet -> [(RVFI_Packet -> Bool, String, Integer, String)] -> [String]
 assertCheck is64 x asserts
-  | rvfiIsHalt x = null asserts
-  | otherwise = and ((\(f,_,_) -> f x) <$> asserts)
+  | rvfiIsHalt x = (\(_,b,_,_) -> printf "Failed assert \"%s\" due to halt packet" b) <$> asserts
+  | otherwise = catMaybes (evalAssert <$> asserts)
+  where evalAssert (pred, field, val, desc) = if pred x then Nothing else Just (printf "Failed assert \"%s\" (%s == 0x%x)" desc field val)
 
 -- | Compare 2 'RVFI_Packet's and produce a 'String' output displaying the
 --   the content of the packet once only for equal inputs or the content of
 --   each input 'RVFI_Packet' if inputs are not succeeding the 'rvfiCheck'
-rvfiCheckAndShow :: Bool -> Bool -> Maybe RVFI_Packet -> Maybe RVFI_Packet -> [(RVFI_Packet -> Bool, String, Integer)] -> (Bool, String)
+rvfiCheckAndShow :: Bool -> Bool -> Maybe RVFI_Packet -> Maybe RVFI_Packet -> [(RVFI_Packet -> Bool, String, Integer, String)] -> (Bool, String)
 rvfiCheckAndShow singleImp is64 x y asserts
-  | singleImp, Just x' <- x, assertCheck is64 x' asserts = (True,  "     " ++ show x' ++ suffix)
-  | Just x' <- x, Just y' <- y, rvfiCheck is64 x' y', assertCheck is64 x' asserts, assertCheck is64 y' asserts = (True,  "     " ++ show x' ++ suffix)
-  | otherwise = (False,      " A < " ++ maybe "No report received" show x ++ suffix
-                        ++ "\n B > " ++ maybe "No report received" show y ++ suffix)
-    where suffix = foldr (\(_,f,v) acc -> printf "%s (assert %s == 0x%x)" acc f v) "" asserts
+  | singleImp, Just x' <- x, assertFails <- assertCheck is64 x' asserts = (null assertFails,  "     " ++ show x' ++ (suffix assertFails))
+  | Just x' <- x, Just y' <- y, rvfiCheck is64 x' y', assertFails <- assertCheck is64 x' asserts, assertFails <- assertCheck is64 y' asserts = (null assertFails,  "     " ++ show x' ++ (suffix assertFails))
+  | otherwise = (False,      " A < " ++ maybe "No report received" show x ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x)
+                        ++ "\n B > " ++ maybe "No report received" show y ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))
+    where suffix assertFails = foldr (\(_,f,v,_) acc -> printf "%s (assert %s == 0x%x)" acc f v) "" asserts
+                               ++ foldl (\x y -> x ++ "\n       " ++ y) "" assertFails
