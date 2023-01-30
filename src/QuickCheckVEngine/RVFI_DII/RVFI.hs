@@ -382,19 +382,35 @@ rvfiEmptyHaltPacket = RVFI_Packet {
     , rvfi_mem_data = Nothing
     }
 
+instance Show RVFI_MemAccessData where
+  show tok =
+    let rmask = rvfi_mem_rmask tok
+     in let wmask = rvfi_mem_wmask tok
+         in printf
+              "MA: 0x%016x, MWD: %s, MWM: 0b%08b, MRD: %s, MRM: 0b%08b "
+              (rvfi_mem_addr tok) -- MA
+              (printMemData wmask (toInteger (toNatural (rvfi_mem_wdata tok)))) -- MWD
+              wmask -- MWM
+              (printMemData rmask (toInteger (toNatural (rvfi_mem_rdata tok)))) -- MRD
+              rmask -- MRM
+    where
+      printMemData :: Word32 -> Integer -> String
+      printMemData _mask value
+        | _mask <= 255 = printf "0x%016x" value
+        | _mask <= 65535 = printf "0x%032x" value
+        | otherwise = printf "0x%064x" value
+
 instance Show RVFI_Packet where
   show tok
     | rvfiIsHalt tok = "halt token"
     | otherwise =
       printf
-        "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, MA: 0x%016x, MWD: 0x%016x, MWM: 0b%08b, I: 0x%016x %s XL:%s (%s)"
+        "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, %sI: 0x%016x %s XL:%s (%s)"
         (show $ rvfi_trap tok /= 0) -- Trap
         (rvfi_pc_wdata tok) -- PCWD
         (maybe 0 rvfi_rd_addr $ rvfi_int_data tok) -- RD
         (maybe 0 rvfi_rd_wdata $ rvfi_int_data tok) -- RWD
-        (maybe 0 rvfi_mem_addr $ rvfi_mem_data tok) -- MA
-        (toNatural (maybe 0 rvfi_mem_wdata $ rvfi_mem_data tok)) -- MWD
-        (maybe 0 rvfi_mem_wmask $ rvfi_mem_data tok) -- MWM
+        (maybe "" show $ rvfi_mem_data tok) -- mem data
         (rvfi_insn tok)
         (privString (rvfi_mode tok))
         (xlenString (rvfi_ixl tok))
