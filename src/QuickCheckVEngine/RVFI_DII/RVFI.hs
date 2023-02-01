@@ -382,19 +382,36 @@ rvfiEmptyHaltPacket = RVFI_Packet {
     , rvfi_mem_data = Nothing
     }
 
+instance Show RVFI_MemAccessData where
+  show tok =
+    printf
+      "MA: 0x%016x, MWD: %s, MWM: 0b%08b, MRD: %s, MRM: 0b%08b "
+      (rvfi_mem_addr tok) -- MA
+      (printMemData wmask wdata) -- MWD
+      wmask -- MWM
+      (printMemData rmask rdata) -- MRD
+      rmask -- MRM
+    where rmask = rvfi_mem_rmask tok
+          rdata = toInteger . toNatural . rvfi_mem_rdata $ tok
+          wmask = rvfi_mem_wmask tok
+          wdata = toInteger . toNatural . rvfi_mem_wdata $ tok
+          printMemData :: Word32 -> Integer -> String
+          printMemData mask value
+            | mask <= 255 = printf "0x%016x" value
+            | mask <= 65535 = printf "0x%032x" value
+            | otherwise = printf "0x%064x" value
+
 instance Show RVFI_Packet where
   show tok
     | rvfiIsHalt tok = "halt token"
     | otherwise =
       printf
-        "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, MA: 0x%016x, MWD: 0x%016x, MWM: 0b%08b, I: 0x%016x %s XL:%s (%s)"
+        "Trap: %5s, PCWD: 0x%016x, RD: %02d, RWD: 0x%016x, %sI: 0x%016x %s XL:%s (%s)"
         (show $ rvfi_trap tok /= 0) -- Trap
         (rvfi_pc_wdata tok) -- PCWD
         (maybe 0 rvfi_rd_addr $ rvfi_int_data tok) -- RD
         (maybe 0 rvfi_rd_wdata $ rvfi_int_data tok) -- RWD
-        (maybe 0 rvfi_mem_addr $ rvfi_mem_data tok) -- MA
-        (toNatural (maybe 0 rvfi_mem_wdata $ rvfi_mem_data tok)) -- MWD
-        (maybe 0 rvfi_mem_wmask $ rvfi_mem_data tok) -- MWM
+        (maybe "" show $ rvfi_mem_data tok) -- mem data
         (rvfi_insn tok)
         (privString (rvfi_mode tok))
         (xlenString (rvfi_ixl tok))
@@ -438,22 +455,44 @@ compareMemData is64 x y getMask getData = do
 maskUpper _is64 _x = if _is64 then _x else _x Data.Bits..&. 0x00000000FFFFFFFF
 getRDAddr pkt = maybe 0 rvfi_rd_addr $ rvfi_int_data pkt
 getRDWData _is64 pkt = maskUpper _is64 (maybe 0 rvfi_rd_wdata $ rvfi_int_data pkt)
+getRS1Addr pkt = maybe 0 rvfi_rs1_addr $ rvfi_int_data pkt
+getRS1RData _is64 pkt = maskUpper _is64 (maybe 0 rvfi_rs1_rdata $ rvfi_int_data pkt)
+getRS2Addr pkt = maybe 0 rvfi_rs2_addr $ rvfi_int_data pkt
+getRS2RData _is64 pkt = maskUpper _is64 (maybe 0 rvfi_rs2_rdata $ rvfi_int_data pkt)
+getMemAddr _is64 pkt = maskUpper _is64 (maybe 0 rvfi_mem_addr $ rvfi_mem_data pkt)
+
+_checkField :: String -> Bool -> String -> Maybe String
+_checkField msg matches ctx = if matches then Nothing else Just ("mismatch in field " ++ msg ++ ": " ++ ctx)
+
+checkField :: Show a => Eq a => String -> a -> a -> Maybe String
+checkField msg a b = _checkField msg (a == b) (show a ++ " != " ++ show b)
+
+checkOptionalField :: Show a => Eq a => String -> Maybe a -> Maybe a -> Maybe String
+checkOptionalField msg a b = _checkField msg (optionalFieldsSame a b) (show a ++ " != " ++ show b)
 
 -- | Compare 'RVFI_Packet's
-rvfiCheck :: Bool -> RVFI_Packet -> RVFI_Packet -> Bool
+rvfiCheck :: Bool -> RVFI_Packet -> RVFI_Packet -> Maybe String
 rvfiCheck is64 x y
-  | rvfiIsHalt x = rvfi_halt x == rvfi_halt y
-  | rvfiIsTrap x = (rvfi_trap x == rvfi_trap y) && (maskUpper is64 (rvfi_pc_wdata x) == maskUpper is64 (rvfi_pc_wdata y))
+  | rvfiIsHalt x = if rvfi_halt x == rvfi_halt y then Nothing else Just "expected halt package"
   | otherwise =
-    (maskUpper False (rvfi_insn x) == maskUpper False (rvfi_insn y))
-      && (rvfi_trap x == rvfi_trap y)
-      && (rvfi_halt x == rvfi_halt y)
-      && (optionalFieldsSame (rvfi_mode x) (rvfi_mode y))
-      && (optionalFieldsSame (rvfi_ixl x) (rvfi_ixl y))
-      && (getRDAddr x == getRDAddr y)
-      && ((getRDAddr x == 0) || (getRDWData is64 x == getRDWData is64 y))
-      && (compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata)
-      && (maskUpper is64 (rvfi_pc_wdata x) == maskUpper is64 (rvfi_pc_wdata y))
+    msum
+      [ checkField "insn" (maskUpper False (rvfi_insn x)) (maskUpper False (rvfi_insn y)),
+        checkField "insn" (maskUpper False (rvfi_insn x)) (maskUpper False (rvfi_insn y)),
+        checkField "trap" (rvfi_trap x) (rvfi_trap y),
+        checkField "halt" (rvfi_halt x) (rvfi_halt y),
+        checkOptionalField "mode" (rvfi_mode x) (rvfi_mode y),
+        checkOptionalField "XLEN" (rvfi_ixl x) (rvfi_ixl y),
+        checkField "rd_addr" (getRDAddr x) (getRDAddr y),
+        checkField "rd_wdata" (getRDWData is64 x) (getRDWData is64 y),
+        checkField "rs1_addr" (getRS1Addr x) (getRS1Addr y),
+        checkField "rs1_rdata" (getRS1RData is64 x) (getRS1RData is64 y),
+        checkField "rs2_addr" (getRS2Addr x) (getRS2Addr y),
+        checkField "rs2_rdata" (getRS2RData is64 x) (getRS2RData is64 y),
+        checkField "pc_wdata" (maskUpper is64 (rvfi_pc_wdata x)) (maskUpper is64 (rvfi_pc_wdata y)),
+        checkField "mem_addr" (getMemAddr is64 x) (getMemAddr is64 y),
+        _checkField "mem_wdata" (compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata) "", -- TODO: context
+        _checkField "mem_rdata" (compareMemData is64 x y rvfi_mem_rmask rvfi_mem_rdata) "" -- TODO: context
+      ]
 
 assertCheck :: Bool -> RVFI_Packet -> [(RVFI_Packet -> Bool, String, Integer, String)] -> [String]
 assertCheck is64 x asserts
@@ -467,7 +506,11 @@ assertCheck is64 x asserts
 rvfiCheckAndShow :: Bool -> Bool -> Maybe RVFI_Packet -> Maybe RVFI_Packet -> [(RVFI_Packet -> Bool, String, Integer, String)] -> (Bool, String)
 rvfiCheckAndShow singleImp is64 x y asserts
   | singleImp, Just x' <- x, assertFails <- assertCheck is64 x' asserts = (null assertFails,  "     " ++ show x' ++ (suffix assertFails))
-  | Just x' <- x, Just y' <- y, rvfiCheck is64 x' y', assertFails <- assertCheck is64 x' asserts, assertFails <- assertCheck is64 y' asserts = (null assertFails,  "     " ++ show x' ++ (suffix assertFails))
+  | Just x' <- x, Just y' <- y, isNothing (rvfiCheck is64 x' y'),  assertFails <- assertCheck is64 y' asserts = (null assertFails,  "     " ++ show x' ++ (suffix assertFails))
+  | Just x' <- x, Just y' <- y, mismatch <- rvfiCheck is64 x' y' =
+    (False, "     " ++ fromJust mismatch
+         ++ "\n A < " ++ show x' ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x)
+         ++ "\n B > " ++ show y' ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))
   | otherwise = (False,      " A < " ++ maybe "No report received" show x ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x)
                         ++ "\n B > " ++ maybe "No report received" show y ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))
     where suffix assertFails = foldr (\(_,f,v,_) acc -> printf "%s (assert %s == 0x%x)" acc f v) "" asserts
