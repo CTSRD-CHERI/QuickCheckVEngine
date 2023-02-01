@@ -384,21 +384,22 @@ rvfiEmptyHaltPacket = RVFI_Packet {
 
 instance Show RVFI_MemAccessData where
   show tok =
-    let rmask = rvfi_mem_rmask tok
-     in let wmask = rvfi_mem_wmask tok
-         in printf
-              "MA: 0x%016x, MWD: %s, MWM: 0b%08b, MRD: %s, MRM: 0b%08b "
-              (rvfi_mem_addr tok) -- MA
-              (printMemData wmask (toInteger (toNatural (rvfi_mem_wdata tok)))) -- MWD
-              wmask -- MWM
-              (printMemData rmask (toInteger (toNatural (rvfi_mem_rdata tok)))) -- MRD
-              rmask -- MRM
-    where
-      printMemData :: Word32 -> Integer -> String
-      printMemData _mask value
-        | _mask <= 255 = printf "0x%016x" value
-        | _mask <= 65535 = printf "0x%032x" value
-        | otherwise = printf "0x%064x" value
+    printf
+      "MA: 0x%016x, MWD: %s, MWM: 0b%08b, MRD: %s, MRM: 0b%08b "
+      (rvfi_mem_addr tok) -- MA
+      (printMemData wmask wdata) -- MWD
+      wmask -- MWM
+      (printMemData rmask rdata) -- MRD
+      rmask -- MRM
+    where rmask = rvfi_mem_rmask tok
+          rdata = toInteger . toNatural . rvfi_mem_rdata $ tok
+          wmask = rvfi_mem_wmask tok
+          wdata = toInteger . toNatural . rvfi_mem_wdata $ tok
+          printMemData :: Word32 -> Integer -> String
+          printMemData mask value
+            | mask <= 255 = printf "0x%016x" value
+            | mask <= 65535 = printf "0x%032x" value
+            | otherwise = printf "0x%064x" value
 
 instance Show RVFI_Packet where
   show tok
