@@ -36,7 +36,7 @@ jobs:
         with:
           pedantic: true
           # TODO: would be nice if we could remove those -fno-warn flags
-          stack-arguments: --ghc-options -fno-warn-unused-matches --ghc-options -fno-warn-name-shadowing
+          stack-arguments: --ghc-options -fno-warn-unused-matches --ghc-options -fno-warn-name-shadowing --ghc-options -fno-warn-orphans
 
   hlint:
     runs-on: ubuntu-latest
