@@ -70,7 +70,6 @@ import Data.Word
 import Data.Binary
 import Data.Binary.Get
 import Data.Bits
-import Data.Semigroup -- Should no longer be required with modern ghc
 import qualified Data.Bits.Bitwise as BW
 import qualified Data.ByteString.Lazy as BS
 import Data.ByteString.Builder (lazyByteStringHex, toLazyByteString)
@@ -452,23 +451,38 @@ compareMemData is64 x y getMask getData = do
     maskWith a b = a Data.Bits..&. byteMask2bitMask b
 
 -- Internal assert + rvfi helper functions
+maskUpper :: (Bits p, Num p) => Bool -> p -> p
 maskUpper _is64 _x = if _is64 then _x else _x Data.Bits..&. 0x00000000FFFFFFFF
+getRDAddr :: RVFI_Packet -> RV_RegIdx
 getRDAddr pkt = maybe 0 rvfi_rd_addr $ rvfi_int_data pkt
-getRDWData _is64 pkt = maskUpper _is64 (maybe 0 rvfi_rd_wdata $ rvfi_int_data pkt)
+getRDWData :: Bool -> RVFI_Packet -> RV_WordXLEN
+getRDWData _is64 pkt =
+  maskUpper _is64 (maybe 0 rvfi_rd_wdata $ rvfi_int_data pkt)
+getRS1Addr :: RVFI_Packet -> RV_RegIdx
 getRS1Addr pkt = maybe 0 rvfi_rs1_addr $ rvfi_int_data pkt
-getRS1RData _is64 pkt = maskUpper _is64 (maybe 0 rvfi_rs1_rdata $ rvfi_int_data pkt)
+getRS1RData :: Bool -> RVFI_Packet -> RV_WordXLEN
+getRS1RData _is64 pkt =
+  maskUpper _is64 (maybe 0 rvfi_rs1_rdata $ rvfi_int_data pkt)
+getRS2Addr :: RVFI_Packet -> RV_RegIdx
 getRS2Addr pkt = maybe 0 rvfi_rs2_addr $ rvfi_int_data pkt
-getRS2RData _is64 pkt = maskUpper _is64 (maybe 0 rvfi_rs2_rdata $ rvfi_int_data pkt)
-getMemAddr _is64 pkt = maskUpper _is64 (maybe 0 rvfi_mem_addr $ rvfi_mem_data pkt)
+getRS2RData :: Bool -> RVFI_Packet -> RV_WordXLEN
+getRS2RData _is64 pkt =
+  maskUpper _is64 (maybe 0 rvfi_rs2_rdata $ rvfi_int_data pkt)
+getMemAddr :: Bool -> RVFI_Packet -> RV_WordXLEN
+getMemAddr _is64 pkt =
+  maskUpper _is64 (maybe 0 rvfi_mem_addr $ rvfi_mem_data pkt)
 
 _checkField :: String -> Bool -> String -> Maybe String
-_checkField msg matches ctx = if matches then Nothing else Just ("mismatch in field " ++ msg ++ ": " ++ ctx)
+_checkField msg matches ctx =
+  if matches then Nothing else Just ("mismatch in field " ++ msg ++ ": " ++ ctx)
 
 checkField :: Show a => Eq a => String -> a -> a -> Maybe String
 checkField msg a b = _checkField msg (a == b) (show a ++ " != " ++ show b)
 
-checkOptionalField :: Show a => Eq a => String -> Maybe a -> Maybe a -> Maybe String
-checkOptionalField msg a b = _checkField msg (optionalFieldsSame a b) (show a ++ " != " ++ show b)
+checkOptionalField :: Show a => Eq a => String -> Maybe a -> Maybe a
+                   -> Maybe String
+checkOptionalField msg a b =
+  _checkField msg (optionalFieldsSame a b) (show a ++ " != " ++ show b)
 
 -- | Compare 'RVFI_Packet's
 rvfiCheck :: Bool -> RVFI_Packet -> RVFI_Packet -> Maybe String

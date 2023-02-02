@@ -1,3 +1,5 @@
+{-# LANGUAGE BlockArguments      #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
@@ -49,18 +51,14 @@ import RISCV.RV32_I
 import RISCV.RV64_I
 import RISCV.RV32_Xcheri
 import RISCV.RV32_Zicsr
-import RISCV.RV32_F
-import RISCV.RV32_D
 import RISCV.RV_CSRs
 import RISCV.ArchDesc
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.GenMemory
 import QuickCheckVEngine.Templates.Utils
-import QuickCheckVEngine.RVFI_DII.RVFI
-import QuickCheckVEngine.Templates.GenMemory
 import Data.Bits
 
-rv32_xcheri_misc_alt :: Integer -> Integer -> Integer -> Integer -> [Instruction]
+rv32_xcheri_misc_alt :: Integer -> Integer -> Integer -> Integer
+                     -> [Instruction]
 rv32_xcheri_misc_alt src1 src2 imm dest =
   [ cseal       dest src1 src2
   , cunseal     dest src1 src2
@@ -72,8 +70,10 @@ rv32_xcheri_misc_alt src1 src2 imm dest =
   , csealentry  dest src1
   , ccleartag   dest src1 ]
 
-genCSCDataTorture :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
-genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
+genCSCDataTorture :: Integer -> Integer -> Integer
+                  -> Integer -> Integer -> Integer
+                  -> Template
+genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random do
   srcAddr  <- src
   srcData  <- src
   dest     <- dest
@@ -96,7 +96,7 @@ genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
 
 
 genBSC_Cond_1_Torture :: ArchDesc -> Template
-genBSC_Cond_1_Torture arch = random $ do
+genBSC_Cond_1_Torture arch = random do
   imm_rand      <- bits 12
   longImm_rand  <- bits 20
   fenceOp1      <- bits 3
@@ -107,7 +107,6 @@ genBSC_Cond_1_Torture arch = random $ do
   let tmpReg = 10
   let src1 = 12
   let src2 = 13
-  let captmpReg = 14
   let capsrc1 = 15
   let capsrc2 = 16
   let dest = 17
@@ -124,7 +123,7 @@ genBSC_Cond_1_Torture arch = random $ do
                    ]
 
 genBSC_Jumps_Torture :: Template
-genBSC_Jumps_Torture = random $ do
+genBSC_Jumps_Torture = random do
   imm_branches <- bits 7
   longImm_jumps <- bits 8
   imm <- bits 12
@@ -147,7 +146,7 @@ genBSC_Jumps_Torture = random $ do
                    ]
 
 genBSC_Excps_Torture :: ArchDesc -> Integer -> Template
-genBSC_Excps_Torture arch tmpReg = random $ do
+genBSC_Excps_Torture arch tmpReg = random do
   imm <- bits 12
   longImm <- bits 20
   src1 <- sbcRegs
@@ -155,7 +154,7 @@ genBSC_Excps_Torture arch tmpReg = random $ do
   src3 <- sbcRegs
   srcSCr <- bits 5
   dest <- sbcRegs
-  let rm = 0x7 -- dynamic rounding mode
+  --let rm = 0x7 -- dynamic rounding mode
   let fenceOp1 = 17
   let fenceOp2 = 18
   return $ uniform [ instUniform $ rv64_i_arith src1 src2 dest imm
@@ -174,7 +173,7 @@ genBSC_Excps_Torture arch tmpReg = random $ do
 
 
 genTSCTorture :: Template
-genTSCTorture = random $ do
+genTSCTorture = random do
   imm_bits <- bits 10
   longImm <- bits 20
   src1 <- choose(16,18)
@@ -193,7 +192,7 @@ genTSCTorture = random $ do
                    ]
 
 prepareBSCExcpsGen :: Template
-prepareBSCExcpsGen = random $ do
+prepareBSCExcpsGen = random do
   let fcsr = unsafe_csrs_indexFromName "fcsr"
   let mstatus = unsafe_csrs_indexFromName "mstatus"
   let a0 = 10
@@ -205,7 +204,7 @@ prepareBSCExcpsGen = random $ do
 
 
 setUpPageTable :: Template
-setUpPageTable = random $ do
+setUpPageTable = random do
   let a0 = 10
   let t0 = 6
   return $ mconcat [ li64 a0 0x80002000
@@ -225,7 +224,7 @@ setUpPageTable = random $ do
                    ]
 
 prepareTSCGen :: Template
-prepareTSCGen = random $ do
+prepareTSCGen = random do
   let s0 = 8
   let s1 = 9
   let s2 = 18
@@ -238,7 +237,6 @@ prepareTSCGen = random $ do
   let sepc = unsafe_csrs_indexFromName "sepc"
   let satp = unsafe_csrs_indexFromName "satp"
   let medeleg = unsafe_csrs_indexFromName "medeleg"
-  let sedeleg = unsafe_csrs_indexFromName "sedeleg"
   let stval = unsafe_csrs_indexFromName "stval"
   return $ instSeq [ (lui s1 0x100)
                    , (csrrc 0 mstatus s1)
@@ -283,7 +281,8 @@ prepareTSCGen = random $ do
                    ]
 
 -- | Verify Data Capability Speculation Constraint (CSC)
-gen_csc_data_verify = random $ do
+gen_csc_data_verify :: Template
+gen_csc_data_verify = random do
   let capReg = 1
   let tmpReg0 = 30
   let tmpReg1 = 31
@@ -314,7 +313,7 @@ genJump memReg reg0 reg1 reg2 imm offset = random $ do
                    ]
 
 genCSCInst :: Integer -> Integer -> Integer -> Integer -> Template
-genCSCInst memReg reg0 reg1 reg2 = random $ do
+genCSCInst memReg reg0 reg1 reg2 = random do
   let czero = 0
   return $ instDist [ (1, cjalr czero reg0)
                     , (2, add 29 29 29)
@@ -323,31 +322,26 @@ genCSCInst memReg reg0 reg1 reg2 = random $ do
                     ]
 
 -- | Verify instruction Capability Speculation Constraint (CSC)
-gen_csc_inst_verify = random $ do
+gen_csc_inst_verify :: Template
+gen_csc_inst_verify = random do
   let hpmEventIdx_dcache_miss = 0x31
   let hpmCntIdx_dcache_miss = 3
-  let rand = 7
   let zeroReg = 0
   let jumpReg = 10
-  let dataReg = 11
   let tmpReg = 12
   let counterReg = 13
-  let authReg = 14
   let startReg = 15
   let pccReg = 16
   let loadReg = 17
   let authReg2 = 18
   let memReg = 19
   let memReg2 = 20
-  let memReg3 = 21
   let reg0 = 23
   let reg1 = 24
   let reg2 = 25
   let mtcc = 28
   let startSeq = inst $ cjalr zeroReg startReg
   let trainSeq = repeatN (18) (genJump memReg tmpReg pccReg loadReg 0x20 0x0)
-  let leakSeq = repeatN (1) (genJump memReg2 tmpReg pccReg loadReg 0x20 0x100)
-  let tortSeq = startSeq <> leakSeq
   let prolog = mconcat [ switchEncodingMode
                        , inst $ cspecialrw authReg2 0 0 -- read PCC
                        , makeCap_core jumpReg authReg2 tmpReg 0x80001000
@@ -393,7 +387,8 @@ gen_csc_inst_verify = random $ do
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
 -- | Verify condition 1 of Branching Speculation Constraint (BSC)
-gen_bsc_cond_1_verify arch = random $ do
+gen_bsc_cond_1_verify :: ArchDesc -> Template
+gen_bsc_cond_1_verify arch = random do
   let tmpReg1 = 1
   let tmpReg2 = 2
   let tmpReg3 = 3
@@ -418,7 +413,8 @@ gen_bsc_cond_1_verify arch = random $ do
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
 -- | Verify the jumping conditions of Branching Speculation Constraint (BSC)
-gen_bsc_jumps_verify = random $ do
+gen_bsc_jumps_verify :: Template
+gen_bsc_jumps_verify = random do
   let zeroReg = 0
   let tmpReg = 21
   let regJump = 10
@@ -431,7 +427,8 @@ gen_bsc_jumps_verify = random $ do
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
 -- | Verify the exception conditions of Branching Speculation Constraint (BSC)
-gen_bsc_exceptions_verify arch = random $ do
+gen_bsc_exceptions_verify :: ArchDesc -> Template
+gen_bsc_exceptions_verify arch = random do
   let zeroReg = 0
   let capReg = 12
   let authReg = 13
@@ -450,17 +447,13 @@ gen_bsc_exceptions_verify arch = random $ do
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
 -- | Verify Translation Speculation Constraint (TSC)
-gen_tsc_verify = random $ do
-  let lxReg = 1
-  let addrReg = 2
+gen_tsc_verify :: Template
+gen_tsc_verify = random do
   let tmpReg = 31
   let counterReg = 30
   let addrReg1 = 16
   let addrReg2 = 17
   let addrReg3 = 18
-  let hpmCntIdx_dcache_miss = 3
-  let hpmEventIdx_dcache_miss = 0x31
-  let uepc = unsafe_csrs_indexFromName "uepc"
   let cntrIdx = hpmcounter_idx_to_counter_csr_idx 3
   let prolog = mconcat [ prepareTSCGen
                        , inst $ sfence 0 0

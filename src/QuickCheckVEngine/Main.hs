@@ -55,7 +55,7 @@ import Test.QuickCheck
 import Text.Regex.TDFA
 
 import RISCV hiding (or)
-import InstrCodec
+--import InstrCodec
 import QuickCheckVEngine.MainHelpers
 import QuickCheckVEngine.RVFI_DII
 import qualified QuickCheckVEngine.Template as T
@@ -288,7 +288,7 @@ main = withSocketsDo $ do
                 writeFile "last_failure.S" ("# last failing test case:\n" ++ showTraceInput trace)
                 when (optVerbosity flags > 0) $ do
                   putStrLn "Replaying shrunk failed test case:"
-                  checkSingle (testTrans trace) 2 False (testLen flags) (const $ return ())
+                  _<- checkSingle (testTrans trace) 2 False (testLen flags) (const $ return ())
                   return ()
                 when (optSave flags) $ do
                   case saveDir flags of
@@ -356,7 +356,7 @@ main = withSocketsDo $ do
                         putStrLn $ "Warning: skipping " ++ label ++ " since architecture requirements not met"
                     repeatTillTarget f t = if t <= 0 then return () else f t >>= (\x -> repeatTillTarget f (t - x))
             Just sock -> do
-              doCheck (liftM (wrapTest . singleSeq . (MkInstruction <$>)) $ listOf (genInstrServer sock)) (nTests flags)
+              _ <- doCheck (liftM (wrapTest . singleSeq . (MkInstruction <$>)) $ listOf (genInstrServer sock)) (nTests flags)
               return ()
   --
   rvfiDiiClose implA

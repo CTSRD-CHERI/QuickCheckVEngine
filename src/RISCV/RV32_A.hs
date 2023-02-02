@@ -61,27 +61,49 @@ module RISCV.RV32_A (
 import RISCV.Helpers (prettyR_A_1op, prettyR_A)
 import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
+lr_w_raw :: String
 lr_w_raw                   =                      "00010 aq[0] rl[0]    00000 rs1[4:0] 010 rd[4:0] 0101111"
+lr_w :: Integer -> Integer -> Integer -> Integer -> Instruction
 lr_w rd rs1 aq rl          = encode lr_w_raw             aq    rl             rs1          rd
+sc_w_raw :: String
 sc_w_raw                   =                      "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+sc_w :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 sc_w rd rs1 rs2 aq rl      = encode sc_w_raw             aq    rl    rs2      rs1          rd
+amoswap_w_raw :: String
 amoswap_w_raw              =                      "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amoswap_w :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 amoswap_w rd rs1 rs2 aq rl = encode amoswap_w_raw        aq    rl    rs2      rs1          rd
+amoadd_w_raw :: String
 amoadd_w_raw               =                      "00000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amoadd_w :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 amoadd_w rd rs1 rs2 aq rl  = encode amoadd_w_raw         aq    rl    rs2      rs1          rd
+amoxor_w_raw :: String
 amoxor_w_raw               =                      "00100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amoxor_w :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 amoxor_w rd rs1 rs2 aq rl  = encode amoxor_w_raw         aq    rl    rs2      rs1          rd
+amoand_w_raw :: String
 amoand_w_raw               =                      "01100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amoand_w :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 amoand_w rd rs1 rs2 aq rl  = encode amoand_w_raw         aq    rl    rs2      rs1          rd
+amoor_w_raw :: String
 amoor_w_raw                =                      "01000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amoor_w :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 amoor_w rd rs1 rs2 aq rl   = encode amoor_w_raw          aq    rl    rs2      rs1          rd
+amomin_w_raw :: String
 amomin_w_raw               =                      "10000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amomin_w :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 amomin_w rd rs1 rs2 aq rl  = encode amomin_w_raw         aq    rl    rs2      rs1          rd
+amomax_w_raw :: String
 amomax_w_raw               =                      "10100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amomax_w :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 amomax_w rd rs1 rs2 aq rl  = encode amomax_w_raw         aq    rl    rs2      rs1          rd
+amominu_w_raw :: String
 amominu_w_raw              =                      "11000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amominu_w :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 amominu_w rd rs1 rs2 aq rl = encode amominu_w_raw        aq    rl    rs2      rs1          rd
+amomaxu_w_raw :: String
 amomaxu_w_raw              =                      "11100 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
+amomaxu_w :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 amomaxu_w rd rs1 rs2 aq rl = encode amomaxu_w_raw        aq    rl    rs2      rs1          rd
 
 -- | Dissassembly of RV32 atomic instructions

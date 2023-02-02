@@ -39,9 +39,6 @@ module QuickCheckVEngine.Templates.GenAtomics (
 
 import Test.QuickCheck
 import RISCV
-import RISCV.RV32_A
-import RISCV.RV64_A
-import RISCV.RV32_Xcheri
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 

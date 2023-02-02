@@ -54,7 +54,6 @@ module QuickCheckVEngine.Templates.Utils.CHERI (
 import Test.QuickCheck
 import Data.Bits
 import RISCV
-import InstrCodec
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils.General
 

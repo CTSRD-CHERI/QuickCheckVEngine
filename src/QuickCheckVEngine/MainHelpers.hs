@@ -68,7 +68,7 @@ import Control.Monad
 import Control.Exception (try, SomeException(..))
 import qualified Data.ByteString.Lazy as BS
 
-import qualified InstrCodec
+--import qualified InstrCodec
 import RISCV hiding (and, or)
 import QuickCheckVEngine.RVFI_DII
 import QuickCheckVEngine.Test
@@ -83,9 +83,19 @@ instance Show DII_Packet where
 instance {-# OVERLAPPING #-} Show (Test TestResult) where
   show = showTraceInput
 
+showTraceInput :: Test TestResult -> String
 showTraceInput t = show ((\(x, _, _) -> x) <$> t)
 
-showAnnotatedTrace singleImp arch t = showTestWithComments t (\(x, _, _) -> show x) (\(_, a, b) -> Just . unlines . (("# " ++) <$>) . lines . (\(a, b) -> b) $ rvfiCheckAndShow singleImp (has_xlen_64 arch) a b [])
+showAnnotatedTrace :: Show a
+                   => Bool -> ArchDesc
+                   -> Test (a, Maybe RVFI_Packet, Maybe RVFI_Packet)
+                   -> String
+showAnnotatedTrace singleImp arch t =
+  showTestWithComments
+    t
+    (\(x, _, _) -> show x)
+    (\(_, a, b) -> Just . unlines . (("# " ++) <$>) . lines . (\(a, b) -> b) $
+                     rvfiCheckAndShow singleImp (has_xlen_64 arch) a b [])
 
 bypassShrink :: ShrinkStrategy
 bypassShrink = sequenceShrink f'
@@ -124,11 +134,16 @@ readDataFile inFile = do
   test <- generate $ readData (lines contents)
   putStrLn $ show (length test)
   return test
-  where readData ss = T.genTest $
-          mconcat (map (\(addr:ws) -> writeData addr ws) write_args)
-          <> (li64 1 0x80000000)
-          <> (T.inst $ jalr 0 1 0)
-          where write_args = map (map (fst . head . readHex) . words) ss
+  where
+    readHexLine l = case (((fst . head . readHex) <$>) . words) l of
+      addr : ws -> (addr, ws)
+      [] -> error "malformed mem init file"
+    readData ss =
+      let args = readHexLine <$> ss
+      in T.genTest $
+           mconcat ((\(addr, ws) -> writeData addr ws) <$> args)
+           <> (li64 1 0x80000000)
+           <> (T.inst $ jalr 0 1 0)
 
 -- | Retrieve an instruction from 'Socket' to an external instruction server
 genInstrServer :: Socket -> Gen Integer

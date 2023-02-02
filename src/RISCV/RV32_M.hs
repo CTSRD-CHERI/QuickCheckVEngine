@@ -60,21 +60,37 @@ import Prelude hiding (rem, div)
 import RISCV.Helpers (prettyR)
 import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
+mul_raw :: String
 mul_raw           =                   "0000001 rs2[4:0] rs1[4:0] 000 rd[4:0] 0110011"
+mul :: Integer -> Integer -> Integer -> Instruction
 mul rd rs1 rs2    = encode mul_raw             rs2      rs1          rd
+mulh_raw :: String
 mulh_raw          =                   "0000001 rs2[4:0] rs1[4:0] 001 rd[4:0] 0110011"
+mulh :: Integer -> Integer -> Integer -> Instruction
 mulh rd rs1 rs2   = encode mulh_raw            rs2      rs1          rd
+mulhsu_raw :: String
 mulhsu_raw        =                   "0000001 rs2[4:0] rs1[4:0] 010 rd[4:0] 0110011"
+mulhsu :: Integer -> Integer -> Integer -> Instruction
 mulhsu rd rs1 rs2 = encode mulhsu_raw          rs2      rs1          rd
+mulhu_raw :: String
 mulhu_raw         =                   "0000001 rs2[4:0] rs1[4:0] 011 rd[4:0] 0110011"
+mulhu :: Integer -> Integer -> Integer -> Instruction
 mulhu rd rs1 rs2  = encode mulhu_raw           rs2      rs1          rd
+div_raw :: String
 div_raw           =                   "0000001 rs2[4:0] rs1[4:0] 100 rd[4:0] 0110011"
+div :: Integer -> Integer -> Integer -> Instruction
 div rd rs1 rs2    = encode div_raw             rs2      rs1          rd
+divu_raw :: String
 divu_raw          =                   "0000001 rs2[4:0] rs1[4:0] 101 rd[4:0] 0110011"
+divu :: Integer -> Integer -> Integer -> Instruction
 divu rd rs1 rs2   = encode divu_raw            rs2      rs1          rd
+rem_raw :: String
 rem_raw           =                   "0000001 rs2[4:0] rs1[4:0] 110 rd[4:0] 0110011"
+rem :: Integer -> Integer -> Integer -> Instruction
 rem rd rs1 rs2    = encode rem_raw             rs2      rs1          rd
+remu_raw :: String
 remu_raw          =                   "0000001 rs2[4:0] rs1[4:0] 111 rd[4:0] 0110011"
+remu :: Integer -> Integer -> Integer -> Instruction
 remu rd rs1 rs2   = encode remu_raw            rs2      rs1          rd
 
 -- | Dissassembly of RV32 multiply/divide instructions

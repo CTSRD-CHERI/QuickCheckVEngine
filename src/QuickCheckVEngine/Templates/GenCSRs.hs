@@ -36,7 +36,6 @@ module QuickCheckVEngine.Templates.GenCSRs (
   gen_rv32_i_zicsr
 ) where
 
-import RISCV.RV32_I
 import RISCV.RV32_Zicsr
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils

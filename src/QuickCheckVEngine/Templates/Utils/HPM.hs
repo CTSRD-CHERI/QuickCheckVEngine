@@ -50,7 +50,6 @@ module QuickCheckVEngine.Templates.Utils.HPM (
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils.General
 import RISCV
-import Data.Bits
 import Test.QuickCheck
 
 -- | Sets up the provided HPM counter to count the provided HPM event

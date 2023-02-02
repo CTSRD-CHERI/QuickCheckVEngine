@@ -100,114 +100,220 @@ module RISCV.RV_C (
 , rv_c
 ) where
 
-import InstrCodec (DecodeBranch, (-->), encode, Instruction)
+import InstrCodec (DecodeBranch, encode, Instruction)
 
+c_illegal_raw :: String
 c_illegal_raw           =                            "000                                          00000000      000 00"
+c_illegal :: Instruction
 c_illegal               = encode c_illegal_raw
+c_addi4spn_raw :: String
 c_addi4spn_raw          =                            "000 nzuimm[5:4] nzuimm[9:6] nzuimm[2]       nzuimm[3] rd'[2:0] 00"
+c_addi4spn :: Integer -> Integer -> Instruction
 c_addi4spn rd' nzuimm   = encode c_addi4spn_raw           nzuimm                                            rd'
+c_fld_raw :: String
 c_fld_raw               =                            "001   uimm[5:3]             rs1'[2:0]       uimm[7:6] rd'[2:0] 00"
+c_fld :: Integer -> Integer -> Integer -> Instruction
 c_fld rd' rs1' uimm     = encode c_fld_raw                  uimm                  rs1'                      rd'
+c_flq_raw :: String
 c_flq_raw               =                            "001   uimm[5:4]     uimm[8] rs1'[2:0]       uimm[7:6] rd'[2:0] 00"
+c_flq :: Integer -> Integer -> Integer -> Instruction
 c_flq rd' rs1' uimm     = encode c_flq_raw                  uimm          uimm    rs1'                      rd'
+c_lw_raw :: String
 c_lw_raw                =                            "010   uimm[5:3]             rs1'[2:0] uimm[2] uimm[6] rd'[2:0] 00"
+c_lw :: Integer -> Integer -> Integer -> Instruction
 c_lw rd' rs1' uimm      = encode c_lw_raw                   uimm                  rs1'                      rd'
+c_flw_raw :: String
 c_flw_raw               =                            "011   uimm[5:3]             rs1'[2:0] uimm[2] uimm[6] rd'[2:0] 00"
+c_flw :: Integer -> Integer -> Integer -> Instruction
 c_flw rd' rs1' uimm     = encode c_flw_raw                  uimm                  rs1'                      rd'
+c_ld_raw :: String
 c_ld_raw                =                            "011   uimm[5:3]             rs1'[2:0] uimm[2] uimm[6] rd'[2:0] 00"
+c_ld :: Integer -> Integer -> Integer -> Instruction
 c_ld rd' rs1' uimm      = encode c_ld_raw                   uimm                  rs1'                      rd'
+--c_res_a_raw :: String
 --c_res_a_raw             =                            "100                       _                          00"
+--c_res_a :: Instruction
 --c_res_a                 = encode c_res_a_raw
+c_fsd_raw :: String
 c_fsd_raw               =                            "101   uimm[5:3]            rs1'[2:0]       uimm[7:6] rs2'[2:0] 00"
+c_fsd :: Integer -> Integer -> Integer -> Instruction
 c_fsd rs1' rs2' uimm    = encode c_fsd_raw                  uimm                 rs1'                      rs2'
+c_fsq_raw :: String
 c_fsq_raw               =                            "101   uimm[5:4]   uimm[8]  rs1'[2:0]       uimm[7:6] rs2'[2:0] 00"
+c_fsq :: Integer -> Integer -> Integer -> Instruction
 c_fsq rs1' rs2' uimm    = encode c_fsq_raw                  uimm        uimm     rs1'                      rs2'
+c_sw_raw :: String
 c_sw_raw                =                            "110   uimm[5:3]            rs1'[2:0] uimm[2] uimm[6] rs2'[2:0] 00"
+c_sw :: Integer -> Integer -> Integer -> Instruction
 c_sw rs1' rs2' uimm     = encode c_sw_raw                   uimm                 rs1'                      rs2'
+c_fsw_raw :: String
 c_fsw_raw               =                            "111   uimm[5:3]            rs1'[2:0] uimm[2] uimm[6] rs2'[2:0] 00"
+c_fsw :: Integer -> Integer -> Integer -> Instruction
 c_fsw rs1' rs2' uimm    = encode c_fsw_raw                  uimm                 rs1'                      rs2'
+c_sd_raw :: String
 c_sd_raw                =                            "111   uimm[5:3]            rs1'[2:0]       uimm[7:6] rs2'[2:0] 00"
+c_sd :: Integer -> Integer -> Integer -> Instruction
 c_sd rs1' rs2' uimm     = encode c_sd_raw                   uimm                 rs1'                      rs2'
 
+c_nop_raw :: String
 c_nop_raw               =                            "000 nzimm[5]          00000 nzimm[4:0] 01"
+c_nop :: Integer -> Instruction
 c_nop nzimm             = encode c_nop_raw                nzimm
+c_addi_raw :: String
 c_addi_raw              =                            "000 nzimm[5] rs1_rd_nz[4:0] nzimm[4:0] 01"
+c_addi :: Integer -> Integer -> Instruction
 c_addi rs1_rd_nz nzimm  = encode c_addi_raw               nzimm    rs1_rd_nz
+c_jal_raw :: String
 c_jal_raw               =                            "001 imm[11] imm[4] imm[9:8] imm[10] imm[6] imm[7] imm[3:1] imm[5] 01"
+c_jal :: Integer -> Instruction
 c_jal imm               = encode c_jal_raw                imm
+c_addiw_raw :: String
 c_addiw_raw             =                            "001   imm[5] rs1_rd_nz[4:0]   imm[4:0] 01"
+c_addiw :: Integer -> Integer -> Instruction
 c_addiw rs1_rd_nz imm   = encode c_addiw_raw                imm    rs1_rd_nz
+c_li_raw :: String
 c_li_raw                =                            "010   imm[5]     rd_nz[4:0]   imm[4:0] 01"
+c_li :: Integer -> Integer -> Instruction
 c_li rd_nz imm          = encode c_li_raw                   imm        rd_nz
+c_addi16sp_raw :: String
 c_addi16sp_raw          =                            "011  nzimm[9] 00010 nzimm[4] nzimm[6] nzimm[8:7] nzimm[5] 01"
+c_addi16sp :: Integer -> Instruction
 c_addi16sp nzimm        = encode c_addi16sp_raw            nzimm
+c_lui_raw :: String
 c_lui_raw               =                            "011 nzimm[17] rd_nz_n2[4:0]                  nzimm[16:12] 01"
+c_lui :: Integer -> Integer -> Instruction
 c_lui rd_nz_n2 nzimm    = encode c_lui_raw                nzimm     rd_nz_n2
+c_srli64_raw :: String
 c_srli64_raw            =                            "100         0 00 rs1'_rd'[2:0]            0 01"
+c_srli64 :: Integer -> Instruction
 c_srli64 rs1'_rd'       = encode c_srli64_raw                          rs1'_rd'
+c_srli_raw :: String
 c_srli_raw              =                            "100 nzuimm[5] 00 rs1'_rd'[2:0]  nzuimm[4:0] 01"
+c_srli :: Integer -> Integer -> Instruction
 c_srli rs1'_rd' nzuimm  = encode c_srli_raw               nzuimm       rs1'_rd'
+c_srai64_raw :: String
 c_srai64_raw            =                            "100         0 01 rs1'_rd'[2:0]            0 01"
+c_srai64 :: Integer -> Instruction
 c_srai64 rs1'_rd'       = encode c_srai64_raw                          rs1'_rd'
+c_srai_raw :: String
 c_srai_raw              =                            "100 nzuimm[5] 01 rs1'_rd'[2:0]  nzuimm[4:0] 01"
+c_srai :: Integer -> Integer -> Instruction
 c_srai rs1'_rd' nzuimm  = encode c_srai_raw               nzuimm       rs1'_rd'
+c_andi_raw :: String
 c_andi_raw              =                            "100    imm[5] 10 rs1'_rd'[2:0]     imm[4:0] 01"
+c_andi :: Integer -> Integer -> Instruction
 c_andi rs1'_rd' imm     = encode c_andi_raw                  imm       rs1'_rd'
+c_sub_raw :: String
 c_sub_raw               =                            "100         0 11 rs1'_rd'[2:0] 00 rs2'[2:0] 01"
+c_sub :: Integer -> Integer -> Instruction
 c_sub rs1'_rd' rs2'     = encode c_sub_raw                             rs1'_rd'         rs2'
+c_xor_raw :: String
 c_xor_raw               =                            "100         0 11 rs1'_rd'[2:0] 01 rs2'[2:0] 01"
+c_xor :: Integer -> Integer -> Instruction
 c_xor rs1'_rd' rs2'     = encode c_xor_raw                             rs1'_rd'         rs2'
+c_or_raw :: String
 c_or_raw                =                            "100         0 11 rs1'_rd'[2:0] 10 rs2'[2:0] 01"
+c_or :: Integer -> Integer -> Instruction
 c_or rs1'_rd' rs2'      = encode c_or_raw                              rs1'_rd'         rs2'
+c_and_raw :: String
 c_and_raw               =                            "100         0 11 rs1'_rd'[2:0] 11 rs2'[2:0] 01"
+c_and :: Integer -> Integer -> Instruction
 c_and rs1'_rd' rs2'     = encode c_and_raw                             rs1'_rd'         rs2'
+c_subw_raw :: String
 c_subw_raw              =                            "100         1 11 rs1'_rd'[2:0] 00 rs2'[2:0] 01"
+c_subw :: Integer -> Integer -> Instruction
 c_subw rs1'_rd' rs2'    = encode c_subw_raw                            rs1'_rd'         rs2'
+c_addw_raw :: String
 c_addw_raw              =                            "100         1 11 rs1'_rd'[2:0] 01 rs2'[2:0] 01"
+c_addw :: Integer -> Integer -> Instruction
 c_addw rs1'_rd' rs2'    = encode c_addw_raw                            rs1'_rd'         rs2'
+--c_res_b_raw :: String
 --c_res_b_raw             =                            "100         1 11             _ 10         _ 01"
+--c_res_b :: Instruction
 --c_res_b                 = encode c_res_b_raw
+--c_res_c_raw :: String
 --c_res_c_raw             =                            "100         1 11             _ 11         _ 01"
+--c_res_c :: Instruction
 --c_res_c                 = encode c_res_c_raw
+c_j_raw :: String
 c_j_raw                 =                            "101 imm[11] imm[4] imm[9:8] imm[10] imm[6] imm[7] imm[3:1] imm[5] 01"
+c_j :: Integer -> Instruction
 c_j imm                 = encode c_j_raw                  imm
+c_beqz_raw :: String
 c_beqz_raw              =                            "110 imm[8] imm[4:3] rs1'[2:0] imm[7:6] imm[2:1] imm[5] 01"
+c_beqz :: Integer -> Integer -> Instruction
 c_beqz rs1' imm         = encode c_beqz_raw               imm             rs1'
+c_bnez_raw :: String
 c_bnez_raw              =                            "111 imm[8] imm[4:3] rs1'[2:0] imm[7:6] imm[2:1] imm[5] 01"
+c_bnez :: Integer -> Integer -> Instruction
 c_bnez rs1' imm         = encode c_bnez_raw               imm             rs1'
+c_slli64_raw :: String
 c_slli64_raw            =                            "000         0 rs1_rd_nz[4:0]                   0 10"
+c_slli64 :: Integer -> Instruction
 c_slli64 rs1_rd_nz      = encode c_slli64_raw                       rs1_rd_nz
+c_slli_raw :: String
 c_slli_raw              =                            "000 nzuimm[5] rs1_rd_nz[4:0]         nzuimm[4:0] 10"
+c_slli :: Integer -> Integer -> Instruction
 c_slli rs1_rd_nz nzuimm = encode c_slli_raw               nzuimm    rs1_rd_nz
+c_fldsp_raw :: String
 c_fldsp_raw             =                            "001   uimm[5]        rd[4:0] uimm[4:3] uimm[8:6] 10"
+c_fldsp :: Integer -> Integer -> Instruction
 c_fldsp rd uimm         = encode c_fldsp_raw                uimm           rd
+c_lqsp_raw :: String
 c_lqsp_raw              =                            "001   uimm[5]     rd_nz[4:0]   uimm[4] uimm[9:6] 10"
+c_lqsp :: Integer -> Integer -> Instruction
 c_lqsp rd_nz uimm       = encode c_lqsp_raw                 uimm        rd_nz
+c_lwsp_raw :: String
 c_lwsp_raw              =                            "010   uimm[5]     rd_nz[4:0] uimm[4:2] uimm[7:6] 10"
+c_lwsp :: Integer -> Integer -> Instruction
 c_lwsp rd_nz uimm       = encode c_lwsp_raw                 uimm        rd_nz
+c_flwsp_raw :: String
 c_flwsp_raw             =                            "011   uimm[5]        rd[4:0] uimm[4:2] uimm[7:6] 10"
+c_flwsp :: Integer -> Integer -> Instruction
 c_flwsp rd uimm         = encode c_flwsp_raw                uimm           rd
+c_ldsp_raw :: String
 c_ldsp_raw              =                            "011   uimm[5]     rd_nz[4:0] uimm[4:2] uimm[7:6] 10"
+c_ldsp :: Integer -> Integer -> Instruction
 c_ldsp rd_nz uimm       = encode c_ldsp_raw                 uimm        rd_nz
+c_jr_raw :: String
 c_jr_raw                =                            "100         0    rs1_nz[4:0]                   0 10"
+c_jr :: Integer -> Instruction
 c_jr rs1_nz             = encode c_jr_raw                              rs1_nz
+c_mv_raw :: String
 c_mv_raw                =                            "100         0     rd_nz[4:0]         rs2_nz[4:0] 10"
+c_mv :: Integer -> Integer -> Instruction
 c_mv rd_nz rs2_nz       = encode c_mv_raw                               rd_nz              rs2_nz
+c_ebreak_raw :: String
 c_ebreak_raw            =                            "100         1              0                   0 10"
+c_ebreak :: Instruction
 c_ebreak                = encode c_ebreak_raw
+c_jalr_raw :: String
 c_jalr_raw              =                            "100         1    rs1_nz[4:0]                   0 10"
+c_jalr :: Integer -> Instruction
 c_jalr rs1_nz           = encode c_jalr_raw                            rs1_nz
+c_add_raw :: String
 c_add_raw               =                            "100         1 rs1_rd_nz[4:0]         rs2_nz[4:0] 10"
+c_add :: Integer -> Integer -> Instruction
 c_add rs1_rd_nz rs2_nz  = encode c_add_raw                          rs1_rd_nz              rs2_nz
+c_fsdsp_raw :: String
 c_fsdsp_raw             =                            "101      uimm[5:3] uimm[8:6]            rs2[4:0] 10"
+c_fsdsp :: Integer -> Integer -> Instruction
 c_fsdsp rs2 uimm        = encode c_fsdsp_raw                   uimm                           rs2
+c_sqsp_raw :: String
 c_sqsp_raw              =                            "101      uimm[5:4] uimm[9:6]            rs2[4:0] 10"
+c_sqsp :: Integer -> Integer -> Instruction
 c_sqsp rs2 uimm         = encode c_sqsp_raw                    uimm                           rs2
+c_swsp_raw :: String
 c_swsp_raw              =                            "110      uimm[5:2] uimm[7:6]            rs2[4:0] 10"
+c_swsp :: Integer -> Integer -> Instruction
 c_swsp rs2 uimm         = encode c_swsp_raw                    uimm                           rs2
+c_fswsp_raw :: String
 c_fswsp_raw             =                            "111      uimm[5:2] uimm[7:6]            rs2[4:0] 10"
+c_fswsp :: Integer -> Integer -> Instruction
 c_fswsp rs2 uimm        = encode c_fswsp_raw                   uimm                           rs2
+c_sdsp_raw :: String
 c_sdsp_raw              =                            "111      uimm[5:3] uimm[8:6]            rs2[4:0] 10"
+c_sdsp :: Integer -> Integer -> Instruction
 c_sdsp rs2 uimm         = encode c_sdsp_raw                    uimm                           rs2
 
 -- | TODO Dissassembly of RISC-V compressed instructions

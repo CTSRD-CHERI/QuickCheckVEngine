@@ -34,10 +34,8 @@
 
 module QuickCheckVEngine.Templates.GenAll where
 
-import InstrCodec
 import Test.QuickCheck
 import RISCV
-import RISCV.ArchDesc
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 

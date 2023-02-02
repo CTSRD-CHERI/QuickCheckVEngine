@@ -120,7 +120,7 @@ recurseShrink s@MkShrinkMethods{..} (TestSequence x y) =
 recurseShrink                     _ (TestMeta (MetaNoShrink, _) _) = []
 recurseShrink s@MkShrinkMethods{..} (TestMeta m@(MetaShrinkScope, _) x) =
   methodShrinkScope x ++ (TestMeta m <$> recurseShrink s x)
-recurseShrink s@MkShrinkMethods{..} (TestMeta m x) =
+recurseShrink s@MkShrinkMethods{} (TestMeta m x) =
   TestMeta m <$> recurseShrink s x
 
 -- * Test API
@@ -232,12 +232,19 @@ filterTest p (TestMeta m x) = TestMeta m (filterTest p x)
 -- * IO of tests
 --------------------------------------------------------------------------------
 
+shrinkScopeTok :: String
 shrinkScopeTok = "SHRINK_SCOPE"
+noShrinkTok :: String
 noShrinkTok = "NO_SHRINK"
+assertLastValTok :: String
 assertLastValTok = "ASSERT_LAST_VAL"
+startTok :: String
 startTok = "START_"
+endTok :: String
 endTok = "END_"
+versionTok :: String
 versionTok = "QCVENGINE_TEST_V2.0"
+magicTok :: String
 magicTok = "#>"
 
 showTestWithComments :: Test t -> (t -> String) -> (t -> Maybe String) -> String
@@ -344,7 +351,7 @@ parseRVFIAssert mtp = do
   field <- identifier mtp
   let m_extractor = rvfiGetFromString field
   extractor <- maybe (fail $ "Unrecognised RVFI field in assert (" ++ field ++ ")") pure m_extractor
-  symbol mtp "=="
+  _ <- symbol mtp "=="
   val <- natural mtp
   desc <- stringLiteral mtp
   return (\r -> extractor r == val, field, val, desc)
@@ -381,9 +388,9 @@ parseNoShrink = do
 
 parseComments :: Parser ()
 parseComments = whiteSpace tp >> many p >> return ()
-  where p = try $ do char '#'
+  where p = try $ do _ <- char '#'
                      notFollowedBy $ char '>'
-                     manyTill anyChar (void newline <|> eof)
+                     _ <- manyTill anyChar (void newline <|> eof)
                      whiteSpace tp
 
 instance Read (Test Instruction) where

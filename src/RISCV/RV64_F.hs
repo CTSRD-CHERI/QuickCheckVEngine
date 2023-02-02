@@ -54,13 +54,21 @@ module RISCV.RV64_F (
 import RISCV.Helpers (prettyR_IF_1op_rm, prettyR_FI_1op_rm)
 import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
+fcvt_l_s_raw :: String
 fcvt_l_s_raw                             =                       "1100000 00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_l_s :: Integer -> Integer -> Integer -> Instruction
 fcvt_l_s rd rs1 rm                       = encode fcvt_l_s_raw                  rs1      rm      rd
+fcvt_lu_s_raw :: String
 fcvt_lu_s_raw                            =                       "1100000 00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_lu_s :: Integer -> Integer -> Integer -> Instruction
 fcvt_lu_s rd rs1 rm                      = encode fcvt_lu_s_raw                 rs1      rm      rd
+fcvt_s_l_raw :: String
 fcvt_s_l_raw                             =                       "1101000 00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_s_l :: Integer -> Integer -> Integer -> Instruction
 fcvt_s_l rd rs1 rm                       = encode fcvt_s_l_raw                  rs1      rm      rd
+fcvt_s_lu_raw :: String
 fcvt_s_lu_raw                            =                       "1101000 00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_s_lu :: Integer -> Integer -> Integer -> Instruction
 fcvt_s_lu rd rs1 rm                      = encode fcvt_s_lu_raw                 rs1      rm      rd
 
 -- | Dissassembly of RV64 floating-point instructions

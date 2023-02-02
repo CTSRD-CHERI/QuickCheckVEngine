@@ -56,17 +56,29 @@ module RISCV.RV64_D (
 import RISCV.Helpers (prettyR_FI_1op_rm, prettyR_IF_1op_rm, prettyR_FI_1op, prettyR_IF_1op)
 import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
+fcvt_l_d_raw :: String
 fcvt_l_d_raw        =                      "1100001    00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_l_d :: Integer -> Integer -> Integer -> Instruction
 fcvt_l_d rd rs1 rm  = encode fcvt_l_d_raw                    rs1      rm      rd
+fcvt_lu_d_raw :: String
 fcvt_lu_d_raw       =                      "1100001    00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_lu_d :: Integer -> Integer -> Integer -> Instruction
 fcvt_lu_d rd rs1 rm = encode fcvt_lu_d_raw                   rs1      rm      rd
+fmv_x_d_raw :: String
 fmv_x_d_raw         =                      "1110001    00000 rs1[4:0]     000 rd[4:0] 1010011"
+fmv_x_d :: Integer -> Integer -> Instruction
 fmv_x_d rd rs1      = encode fmv_x_d_raw                     rs1              rd
+fcvt_d_l_raw :: String
 fcvt_d_l_raw        =                      "1101001    00010 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_d_l :: Integer -> Integer -> Integer -> Instruction
 fcvt_d_l rd rs1 rm  = encode fcvt_d_l_raw                    rs1      rm      rd
+fcvt_d_lu_raw :: String
 fcvt_d_lu_raw       =                      "1101001    00011 rs1[4:0] rm[2:0] rd[4:0] 1010011"
+fcvt_d_lu :: Integer -> Integer -> Integer -> Instruction
 fcvt_d_lu rd rs1 rm = encode fcvt_d_lu_raw                   rs1      rm      rd
+fmv_d_x_raw :: String
 fmv_d_x_raw         =                      "1111001    00000 rs1[4:0]     000 rd[4:0] 1010011"
+fmv_d_x :: Integer -> Integer -> Instruction
 fmv_d_x rd rs1      = encode fmv_d_x_raw                     rs1              rd
 
 -- | Dissassembly of RV64 double-precision floating-point instructions

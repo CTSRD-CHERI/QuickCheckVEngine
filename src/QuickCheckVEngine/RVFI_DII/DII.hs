@@ -62,7 +62,6 @@ import Data.Word
 import Data.Binary
 import Data.Binary.Put
 import Data.Binary.Get
-import Data.Semigroup -- Should no longer be required with modern ghc
 
 -- | Type synonym for a DII command
 type DII_Cmd = Word8
@@ -72,18 +71,22 @@ type DII_Time = Word16
 type DII_Instruction = Word32
 
 -- | A DII instruction command
+pattern DII_Instruction :: DII_Time -> DII_Instruction -> DII_Packet
 pattern DII_Instruction t i = DII_Packet { dii_cmd = 1
                                          , dii_time = t
                                          , dii_insn = i }
 -- | A DII end command
+pattern DII_End :: DII_Time -> DII_Packet
 pattern DII_End t = DII_Packet { dii_cmd = 0
                                , dii_time = t
                                , dii_insn = 0 }
 -- | A DII version negotiation command
+pattern DII_VersionNegotiate :: DII_Time -> DII_Packet
 pattern DII_VersionNegotiate t = DII_Packet { dii_cmd = 0
                                             , dii_time = t
                                             , dii_insn = 0x56455253 } -- send 'V' 'E' 'R' 'S'
 -- | A set-version command
+pattern DII_SetVersion :: DII_Time -> DII_Instruction -> DII_Packet
 pattern DII_SetVersion t v = DII_Packet { dii_cmd = 0x76 -- 'v'
                                         , dii_time = t
                                         , dii_insn = v }

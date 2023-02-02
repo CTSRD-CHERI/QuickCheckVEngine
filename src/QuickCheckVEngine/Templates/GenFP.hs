@@ -41,11 +41,9 @@ module QuickCheckVEngine.Templates.GenFP (
 , gen_rv64_fd
 ) where
 
-import InstrCodec
 import RISCV
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
-import Test.QuickCheck
 
 gen_rv32_f :: Template
 gen_rv32_f = genFP True False False

@@ -44,7 +44,6 @@ module QuickCheckVEngine.Templates.GenCHERI (
 import Test.QuickCheck
 import Control.Monad
 import RISCV
-import InstrCodec
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 import QuickCheckVEngine.Templates.GenArithmetic

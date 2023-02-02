@@ -77,63 +77,115 @@ module RISCV.RV32_F (
 , rv32_f
 ) where
 
-import RISCV.Helpers (prettyR, prettyL, prettyS, prettyR4_rm, prettyR_rm,
-                      prettyR_FI_1op, prettyR_FF_1op, prettyR_IF_1op,
+import RISCV.Helpers (prettyR, prettyL, prettyR4_rm, prettyR_rm,
+                      prettyR_FI_1op, prettyR_IF_1op,
                       prettyR_FF_1op_rm, prettyR_FI_1op_rm, prettyR_IF_1op_rm,
                       prettyS_F)
 import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
+flw_raw :: String
 flw_raw                    =                      "imm[11:0]            rs1[4:0]     010  rd[4:0] 0000111"
+flw :: Integer -> Integer -> Integer -> Instruction
 flw rd rs1 imm             = encode flw_raw        imm                  rs1               rd
+fsw_raw :: String
 fsw_raw                    =                      "imm[11:5]   rs2[4:0] rs1[4:0]     010 imm[4:0] 0100111"
+fsw :: Integer -> Integer -> Integer -> Instruction
 fsw rs1 rs2 imm            = encode fsw_raw        imm         rs2      rs1
+fmadd_s_raw :: String
 fmadd_s_raw                =                      "rs3[4:0] 00 rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1000011"
+fmadd_s :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 fmadd_s rd rs1 rs2 rs3 rm  = encode fmadd_s_raw    rs3         rs2      rs1      rm       rd
+fmsub_s_raw :: String
 fmsub_s_raw                =                      "rs3[4:0] 00 rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1000111"
+fmsub_s :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 fmsub_s rd rs1 rs2 rs3 rm  = encode fmsub_s_raw    rs3         rs2      rs1      rm       rd
+fnmsub_s_raw :: String
 fnmsub_s_raw               =                      "rs3[4:0] 00 rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1001011"
+fnmsub_s :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 fnmsub_s rd rs1 rs2 rs3 rm = encode fnmsub_s_raw   rs3         rs2      rs1      rm       rd
+fnmadd_s_raw :: String
 fnmadd_s_raw               =                      "rs3[4:0] 00 rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1001111"
+fnmadd_s :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 fnmadd_s rd rs1 rs2 rs3 rm = encode fnmadd_s_raw   rs3         rs2      rs1      rm       rd
+fadd_s_raw :: String
 fadd_s_raw                 =                      "0000000     rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fadd_s :: Integer -> Integer -> Integer -> Integer -> Instruction
 fadd_s rs2 rd rs1 rm       = encode fadd_s_raw                 rs2      rs1      rm       rd
+fsub_s_raw :: String
 fsub_s_raw                 =                      "0000100     rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fsub_s :: Integer -> Integer -> Integer -> Integer -> Instruction
 fsub_s rs2 rd rs1 rm       = encode fsub_s_raw                 rs2      rs1      rm       rd
+fmul_s_raw :: String
 fmul_s_raw                 =                      "0001000     rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fmul_s :: Integer -> Integer -> Integer -> Integer -> Instruction
 fmul_s rs2 rd rs1 rm       = encode fmul_s_raw                 rs2      rs1      rm       rd
+fdiv_s_raw :: String
 fdiv_s_raw                 =                      "0001100     rs2[4:0] rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fdiv_s :: Integer -> Integer -> Integer -> Integer -> Instruction
 fdiv_s rs2 rd rs1 rm       = encode fdiv_s_raw                 rs2      rs1      rm       rd
+fsqrt_s_raw :: String
 fsqrt_s_raw                =                      "0101100        00000 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fsqrt_s :: Integer -> Integer -> Integer -> Instruction
 fsqrt_s rs1 rd rm          = encode fsqrt_s_raw                         rs1      rm       rd
+fsgnj_s_raw :: String
 fsgnj_s_raw                =                      "0010000     rs2[4:0] rs1[4:0]     000  rd[4:0] 1010011"
+fsgnj_s :: Integer -> Integer -> Integer -> Instruction
 fsgnj_s rs2 rd rs1         = encode fsgnj_s_raw                rs2      rs1               rd
+fsgnjn_s_raw :: String
 fsgnjn_s_raw               =                      "0010000     rs2[4:0] rs1[4:0]     001  rd[4:0] 1010011"
+fsgnjn_s :: Integer -> Integer -> Integer -> Instruction
 fsgnjn_s rs2 rd rs1        = encode fsgnjn_s_raw               rs2      rs1               rd
+fsgnjx_s_raw :: String
 fsgnjx_s_raw               =                      "0010000     rs2[4:0] rs1[4:0]     010  rd[4:0] 1010011"
+fsgnjx_s :: Integer -> Integer -> Integer -> Instruction
 fsgnjx_s rs2 rd rs1        = encode fsgnjx_s_raw               rs2      rs1               rd
+fmin_s_raw :: String
 fmin_s_raw                 =                      "0010100     rs2[4:0] rs1[4:0]     000  rd[4:0] 1010011"
+fmin_s :: Integer -> Integer -> Integer -> Instruction
 fmin_s rs2 rd rs1          = encode fmin_s_raw                 rs2      rs1               rd
+fmax_s_raw :: String
 fmax_s_raw                 =                      "0010100     rs2[4:0] rs1[4:0]     001  rd[4:0] 1010011"
+fmax_s :: Integer -> Integer -> Integer -> Instruction
 fmax_s rs2 rd rs1          = encode fmax_s_raw                 rs2      rs1               rd
+fcvt_w_s_raw :: String
 fcvt_w_s_raw               =                      "1100000        00000 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fcvt_w_s :: Integer -> Integer -> Integer -> Instruction
 fcvt_w_s rd rs1 rm         = encode fcvt_w_s_raw                        rs1      rm       rd
+fcvt_wu_s_raw :: String
 fcvt_wu_s_raw              =                      "1100000        00001 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fcvt_wu_s :: Integer -> Integer -> Integer -> Instruction
 fcvt_wu_s rd rs1 rm        = encode fcvt_wu_s_raw                       rs1      rm       rd
+fmv_x_w_raw :: String
 fmv_x_w_raw                =                      "1110000        00000 rs1[4:0]     000  rd[4:0] 1010011"
+fmv_x_w :: Integer -> Integer -> Instruction
 fmv_x_w rd rs1             = encode fmv_x_w_raw                         rs1               rd
+feq_s_raw :: String
 feq_s_raw                  =                      "1010000     rs2[4:0] rs1[4:0]     010  rd[4:0] 1010011"
+feq_s :: Integer -> Integer -> Integer -> Instruction
 feq_s rd rs1 rs2           = encode feq_s_raw                  rs2      rs1               rd
+flt_s_raw :: String
 flt_s_raw                  =                      "1010000     rs2[4:0] rs1[4:0]     001  rd[4:0] 1010011"
+flt_s :: Integer -> Integer -> Integer -> Instruction
 flt_s rd rs1 rs2           = encode flt_s_raw                  rs2      rs1               rd
+fle_s_raw :: String
 fle_s_raw                  =                      "1010000     rs2[4:0] rs1[4:0]     000  rd[4:0] 1010011"
+fle_s :: Integer -> Integer -> Integer -> Instruction
 fle_s rd rs1 rs2           = encode fle_s_raw                  rs2      rs1               rd
+fclass_s_raw :: String
 fclass_s_raw               =                      "1110000        00000 rs1[4:0]     001  rd[4:0] 1010011"
+fclass_s :: Integer -> Integer -> Instruction
 fclass_s rd rs1            = encode fclass_s_raw                        rs1               rd
+fcvt_s_w_raw :: String
 fcvt_s_w_raw               =                      "1101000        00000 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fcvt_s_w :: Integer -> Integer -> Integer -> Instruction
 fcvt_s_w rd rs1 rm         = encode fcvt_s_w_raw                        rs1      rm       rd
+fcvt_s_wu_raw :: String
 fcvt_s_wu_raw              =                      "1101000        00001 rs1[4:0] rm[2:0]  rd[4:0] 1010011"
+fcvt_s_wu :: Integer -> Integer -> Integer -> Instruction
 fcvt_s_wu rd rs1 rm        = encode fcvt_s_wu_raw                       rs1      rm       rd
+fmv_w_x_raw :: String
 fmv_w_x_raw                =                      "1111000        00000 rs1[4:0]     000  rd[4:0] 1010011"
+fmv_w_x :: Integer -> Integer -> Instruction
 fmv_w_x rd rs1             = encode fmv_w_x_raw                         rs1               rd
 
 

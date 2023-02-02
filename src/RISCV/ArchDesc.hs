@@ -93,25 +93,27 @@ instance Show ArchDesc where
             where ext pred str = if pred a then str else ""
 
 -- | 'archDesc_null' is an 'ArchDesc' with all its fields set to 'False'
-archDesc_null  = ArchDesc { has_xlen_32     = False
-                          , has_xlen_64     = False
-                          , has_i           = False
-                          , has_m           = False
-                          , has_s           = False
-                          , has_a           = False
-                          , has_f           = False
-                          , has_d           = False
-                          , has_c           = False
-                          , has_n           = False
-                          , has_icsr        = False
-                          , has_ihpm        = False
-                          , has_ifencei     = False
-                          , has_cheri       = False
-                          , has_nocloadtags = False
-                          }
+archDesc_null :: ArchDesc
+archDesc_null = ArchDesc { has_xlen_32     = False
+                         , has_xlen_64     = False
+                         , has_i           = False
+                         , has_m           = False
+                         , has_s           = False
+                         , has_a           = False
+                         , has_f           = False
+                         , has_d           = False
+                         , has_c           = False
+                         , has_n           = False
+                         , has_icsr        = False
+                         , has_ihpm        = False
+                         , has_ifencei     = False
+                         , has_cheri       = False
+                         , has_nocloadtags = False
+                         }
 
 -- | 'archDesc_rv32i' is an 'ArchDesc' with its 'has_xlen_32' and 'has_i' fields
 --   set to 'True' and all others set to 'False'
+archDesc_rv32i :: ArchDesc
 archDesc_rv32i = ArchDesc { has_xlen_32     = True
                           , has_xlen_64     = False
                           , has_i           = True

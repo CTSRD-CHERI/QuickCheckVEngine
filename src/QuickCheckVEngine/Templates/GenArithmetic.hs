@@ -37,8 +37,6 @@ module QuickCheckVEngine.Templates.GenArithmetic (
 , gen_rv64_i_arithmetic
 ) where
 
-import InstrCodec
-import Test.QuickCheck
 import RISCV.RV32_I
 import RISCV.RV64_I
 import QuickCheckVEngine.Template

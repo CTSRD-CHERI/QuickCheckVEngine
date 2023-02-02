@@ -78,6 +78,8 @@ module RISCV.Helpers (
 , reg
 , int
 , fpRoundingMode
+, intRegABI
+, fpRegABI
 , PrivMode
 , privString
 , XLen
@@ -208,57 +210,70 @@ toSigned w x | x >= 0 = if x >= 2^(w-1) then x - 2^w else x
 -- ** Instructions
 
 -- | R-type instruction pretty printer
+prettyR :: String -> Integer -> Integer -> Integer -> String
 prettyR instr rs2 rs1 rd =
   concat [instr, " ", reg rd, ", ", reg rs1, ", ", reg rs2]
 
 -- | I-type instruction pretty printer
+prettyI :: String -> Integer -> Integer -> Integer -> String
 prettyI instr imm rs1 rd =
   concat [instr, " ", reg rd, ", ", reg rs1, ", ", int imm]
 
 -- | I-type instruction pretty printer signed immediates
+prettyI_sig :: String -> Integer -> Integer -> Integer -> String
 prettyI_sig instr imm rs1 rd =
   concat [instr, " ", reg rd, ", ", reg rs1, ", ", int $ toSigned 12 imm]
 
 
 -- | Pretty printer for load instructions
+prettyL :: String -> Integer -> Integer -> Integer -> String
 prettyL instr imm rs1 rd =
   concat [instr, " ", reg rd, ", ", reg rs1, "[", int $ toSigned 12 imm, "]"]
 
 -- | S-type instruction pretty printer
+prettyS :: String -> Integer -> Integer -> Integer -> String
 prettyS instr imm rs2 rs1 =
   concat [instr, " ", reg rs2, ", ", reg rs1, "[", int $ toSigned 12 imm, "]"]
 
 -- | U-type instruction pretty printer
+prettyU :: String -> Integer -> Integer -> String
 prettyU instr imm rd =
   concat [instr, " ", reg rd, ", ", int imm]
 
 -- | U-type instruction pretty printer for jal instructions
+prettyU_jal :: String -> Integer -> Integer -> String
 prettyU_jal instr imm rd =
   concat [instr, " ", reg rd, ", ", int $ toSigned 21 (imm `shiftL` 1)]
 
 -- | B-type instruction pretty printer
+prettyB :: String -> Integer -> Integer -> Integer -> String
 prettyB instr imm rs2 rs1 =
   concat [instr, " ", reg rs1, ", ", reg rs2, ", ", int $ toSigned 13 (imm `shiftL` 1)]
 
 -- | Pretty printer for fence instructions
+prettyF :: Integer -> Integer -> String
 prettyF pred succ =
   concat ["fence ", int pred, ", ", int succ]
 
 -- | Pretty printer for sfence.vma instructions
+prettySfence :: Integer -> Integer -> String
 prettySfence rs1 rs2 =
   concat ["sfence.vma ", int rs1, ", ", int rs2]
 
 -- | R-type, 2-operand instruction pretty printer
+prettyR_2op :: String -> Integer -> Integer -> String
 prettyR_2op instr cs1 cd =
   concat [instr, " ", reg cd, ", ", reg cs1]
 
 -- | Pretty printer for CSR instructions
+prettyCSR :: String -> Integer -> Integer -> Integer -> String
 prettyCSR instr csr rs1 rd =
   concat [instr, " ", reg rd, ", ", csr_nm, ", ", reg rs1]
   where csr_nm  = (fromMaybe "unknown" (csrs_nameFromIndex csr)) ++ idx_str
         idx_str = " (0x" ++ showHex csr "" ++ ")"
 
 -- | Pretty printer for immediate CSR instructions
+prettyCSR_imm :: String -> Integer -> Integer -> Integer -> String
 prettyCSR_imm instr csr imm rd =
   concat [instr, " ", reg rd, ", ", csr_nm, ", ", int imm]
   where csr_nm  = (fromMaybe "unknown" (csrs_nameFromIndex csr)) ++ idx_str
@@ -294,35 +309,46 @@ fpRoundingMode 0b111 = "rdyn"
 fpRoundingMode x =
   "unsupported floating point rounding mode 0x" ++ (showHex x "")
 
+prettyR_FF_1op :: String -> Integer -> Integer -> String
 prettyR_FF_1op instr rs1 rd =
   concat [instr, " ", fpReg rd, ", ", fpReg rs1]
 
+prettyR_FI_1op :: String -> Integer -> Integer -> String
 prettyR_FI_1op instr rs1 rd =
   concat [instr, " ", fpReg rd, ", ", reg rs1]
 
+prettyR_IF_1op :: String -> Integer -> Integer -> String
 prettyR_IF_1op instr rs1 rd =
   concat [instr, " ", reg rd, ", ", fpReg rs1]
 
+prettyR_FF_1op_rm :: String -> Integer -> Integer -> Integer -> String
 prettyR_FF_1op_rm instr rs1 rm rd =
   concat $  [instr, " ", fpReg rd, ", ", fpReg rs1]
          ++ [", " ++ fpRoundingMode rm ]
 
+prettyR_IF_1op_rm :: String -> Integer -> Integer -> Integer -> String
 prettyR_IF_1op_rm instr rs1 rm rd =
   concat $  [instr, " ", reg rd, ", ", fpReg rs1]
          ++ [", " ++ fpRoundingMode rm ]
 
+prettyR_FI_1op_rm :: String -> Integer -> Integer -> Integer -> String
 prettyR_FI_1op_rm instr rs1 rm rd =
   concat $  [instr, " ", fpReg rd, ", ", reg rs1]
          ++ [", " ++ fpRoundingMode rm ]
 
+prettyR_rm :: String -> Integer -> Integer -> Integer -> Integer -> String
 prettyR_rm instr rs2 rs1 rm rd =
   concat $  [instr, " ", fpReg rd, ", ", fpReg rs1, ", ", fpReg rs2]
          ++ [", " ++ fpRoundingMode rm ]
 
+prettyR4_rm :: String -> Integer -> Integer -> Integer -> Integer -> Integer
+            -> String
 prettyR4_rm instr rs3 rs2 rs1 rm rd =
-  concat $  [instr, " ", fpReg rd, ", ", fpReg rs1, ", ", fpReg rs2, ", ", fpReg rs3]
+  concat $  [ instr, " ", fpReg rd, ", "
+            , fpReg rs1, ", ", fpReg rs2, ", ", fpReg rs3 ]
          ++ [", " ++ fpRoundingMode rm ]
 
+prettyS_F :: String -> Integer -> Integer -> Integer -> String
 prettyS_F instr imm rs2 rs1 =
   concat [instr, " ", fpReg rs2, ", ", reg rs1, "(", int imm, ")"]
 

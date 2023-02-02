@@ -120,113 +120,205 @@ import RISCV.RV32_I
 import RISCV.ArchDesc
 
 -- Capability Inspection
+cgetperm_raw :: String
 cgetperm_raw                       =                                        "1111111 00000 cs1[4:0] 000 rd[4:0] 1011011"
+cgetperm :: Integer -> Integer -> Instruction
 cgetperm rd cs1                    = encode cgetperm_raw                                   cs1          rd
+cgettype_raw :: String
 cgettype_raw                       =                                        "1111111 00001 cs1[4:0] 000 rd[4:0] 1011011"
+cgettype :: Integer -> Integer -> Instruction
 cgettype rd cs1                    = encode cgettype_raw                                   cs1          rd
+cgetbase_raw :: String
 cgetbase_raw                       =                                        "1111111 00010 cs1[4:0] 000 rd[4:0] 1011011"
+cgetbase :: Integer -> Integer -> Instruction
 cgetbase rd cs1                    = encode cgetbase_raw                                   cs1          rd
+cgetlen_raw :: String
 cgetlen_raw                        =                                        "1111111 00011 cs1[4:0] 000 rd[4:0] 1011011"
+cgetlen :: Integer -> Integer -> Instruction
 cgetlen rd cs1                     = encode cgetlen_raw                                    cs1          rd
+cgettag_raw :: String
 cgettag_raw                        =                                        "1111111 00100 cs1[4:0] 000 rd[4:0] 1011011"
+cgettag :: Integer -> Integer -> Instruction
 cgettag rd cs1                     = encode cgettag_raw                                    cs1          rd
+cgetsealed_raw :: String
 cgetsealed_raw                     =                                        "1111111 00101 cs1[4:0] 000 rd[4:0] 1011011"
+cgetsealed :: Integer -> Integer -> Instruction
 cgetsealed rd cs1                  = encode cgetsealed_raw                                 cs1          rd
+cgetoffset_raw :: String
 cgetoffset_raw                     =                                        "1111111 00110 cs1[4:0] 000 rd[4:0] 1011011"
+cgetoffset :: Integer -> Integer -> Instruction
 cgetoffset rd cs1                  = encode cgetoffset_raw                                 cs1          rd
+cgetflags_raw :: String
 cgetflags_raw                      =                                        "1111111 00111 cs1[4:0] 000 rd[4:0] 1011011"
+cgetflags :: Integer -> Integer -> Instruction
 cgetflags rd cs1                   = encode cgetflags_raw                                  cs1          rd
+cgetaddr_raw :: String
 cgetaddr_raw                       =                                        "1111111 01111 cs1[4:0] 000 rd[4:0] 1011011"
+cgetaddr :: Integer -> Integer -> Instruction
 cgetaddr rd cs1                    = encode cgetaddr_raw                                   cs1          rd
 
 -- Capability Modification
+cseal_raw :: String
 cseal_raw                          =                                        "0001011 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cseal :: Integer -> Integer -> Integer -> Instruction
 cseal cd cs1 cs2                   = encode cseal_raw                                cs2      cs1          cd
+cunseal_raw :: String
 cunseal_raw                        =                                        "0001100 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cunseal :: Integer -> Integer -> Integer -> Instruction
 cunseal cd cs1 cs2                 = encode cunseal_raw                              cs2      cs1          cd
+candperm_raw :: String
 candperm_raw                       =                                        "0001101 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+candperm :: Integer -> Integer -> Integer -> Instruction
 candperm cd cs1 rs2                = encode candperm_raw                             rs2      cs1          cd
+csetflags_raw :: String
 csetflags_raw                      =                                        "0001110 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csetflags :: Integer -> Integer -> Integer -> Instruction
 csetflags cd cs1 rs2               = encode csetflags_raw                            rs2      cs1          cd
+csetoffset_raw :: String
 csetoffset_raw                     =                                        "0001111 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csetoffset :: Integer -> Integer -> Integer -> Instruction
 csetoffset cd cs1 rs2              = encode csetoffset_raw                           rs2      cs1          cd
+csetaddr_raw :: String
 csetaddr_raw                       =                                        "0010000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csetaddr :: Integer -> Integer -> Integer -> Instruction
 csetaddr cd cs1 rs2                = encode csetaddr_raw                             rs2      cs1          cd
+cincoffset_raw :: String
 cincoffset_raw                     =                                        "0010001 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cincoffset :: Integer -> Integer -> Integer -> Instruction
 cincoffset cd cs1 rs2              = encode cincoffset_raw                           rs2      cs1          cd
+cincoffsetimmediate_raw :: String
 cincoffsetimmediate_raw            =                                        "imm[11:0] cs1[4:0] 001 cd[4:0] 1011011"
+cincoffsetimmediate :: Integer -> Integer -> Integer -> Instruction
 cincoffsetimmediate cd cs1 imm     = encode cincoffsetimmediate_raw          imm       cs1          cd
+csetbounds_raw :: String
 csetbounds_raw                     =                                        "0001000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csetbounds :: Integer -> Integer -> Integer -> Instruction
 csetbounds cd cs1 rs2              = encode csetbounds_raw                           rs2      cs1          cd
+csetboundsexact_raw :: String
 csetboundsexact_raw                =                                        "0001001 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csetboundsexact :: Integer -> Integer -> Integer -> Instruction
 csetboundsexact cd cs1 rs2         = encode csetboundsexact_raw                      rs2      cs1          cd
+csetboundsimmediate_raw :: String
 csetboundsimmediate_raw            =                                        "imm[11:0] cs1[4:0] 010 cd[4:0] 1011011"
+csetboundsimmediate :: Integer -> Integer -> Integer -> Instruction
 csetboundsimmediate cd cs1 imm     = encode csetboundsimmediate_raw          imm       cs1          cd
+ccleartag_raw :: String
 ccleartag_raw                      =                                        "1111111 01011 cs1[4:0] 000 cd[4:0] 1011011"
+ccleartag :: Integer -> Integer -> Instruction
 ccleartag cd cs1                   = encode ccleartag_raw                                  cs1          cd
+cbuildcap_raw :: String
 cbuildcap_raw                      =                                        "0011101 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cbuildcap :: Integer -> Integer -> Integer -> Instruction
 cbuildcap cd cs1 cs2               = encode cbuildcap_raw                            cs2      cs1          cd
+ccopytype_raw :: String
 ccopytype_raw                      =                                        "0011110 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+ccopytype :: Integer -> Integer -> Integer -> Instruction
 ccopytype cd cs1 cs2               = encode ccopytype_raw                            cs2      cs1          cd
+ccseal_raw :: String
 ccseal_raw                         =                                        "0011111 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+ccseal :: Integer -> Integer -> Integer -> Instruction
 ccseal cd cs1 cs2                  = encode ccseal_raw                               cs2      cs1          cd
+csealentry_raw :: String
 csealentry_raw                     =                                        "1111111 10001 cs1[4:0] 000 cd[4:0] 1011011"
+csealentry :: Integer -> Integer -> Instruction
 csealentry cd cs1                  = encode csealentry_raw                                 cs1          cd
+cloadtags_raw :: String
 cloadtags_raw                      =                                        "1111111 10010 cs1[4:0] 000 rd[4:0] 1011011"
+cloadtags :: Integer -> Integer -> Instruction
 cloadtags rd cs1                   = encode cloadtags_raw                                  cs1          rd
 
 
 -- Capability Pointer Arithmetic
+ctoptr_raw :: String
 ctoptr_raw                         =                                        "0010010 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+ctoptr :: Integer -> Integer -> Integer -> Instruction
 ctoptr cd cs1 cs2                  = encode ctoptr_raw                               cs2      cs1          cd
+cfromptr_raw :: String
 cfromptr_raw                       =                                        "0010011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cfromptr :: Integer -> Integer -> Integer -> Instruction
 cfromptr cd cs1 rs2                = encode cfromptr_raw                             rs2      cs1          cd
+csub_raw :: String
 csub_raw                           =                                        "0010100 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csub :: Integer -> Integer -> Integer -> Instruction
 csub cd cs1 cs2                    = encode csub_raw                                 cs2      cs1          cd
+cmove_raw :: String
 cmove_raw                          =                                        "1111111 01010 cs1[4:0] 000 cd[4:0] 1011011"
+cmove :: Integer -> Integer -> Instruction
 cmove cd cs1                       = encode cmove_raw                                      cs1          cd
+cspecialrw_raw :: String
 cspecialrw_raw                     =                                        "0000001 cSP[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cspecialrw :: Integer -> Integer -> Integer -> Instruction
 cspecialrw cd cSP cs1              = encode cspecialrw_raw                           cSP      cs1          cd
 
 
 -- Control Flow
+cjalr_raw :: String
 cjalr_raw                          =                                        "1111111 01100 cs1[4:0] 000 cd[4:0] 1011011"
+cjalr :: Integer -> Integer -> Instruction
 cjalr cd cs1                       = encode cjalr_raw                                      cs1          cd
+cinvoke_raw :: String
 cinvoke_raw                        =                                        "1111110 cs2[4:0] cs1[4:0] 000 00001 1011011"
+cinvoke :: Integer -> Integer -> Instruction
 cinvoke cs2 cs1                    = encode cinvoke_raw                              cs2      cs1
 
 -- Assertion
+ctestsubset_raw :: String
 ctestsubset_raw                    =                                        "0100000 cs2[4:0] cs1[4:0] 000 rd[4:0] 1011011"
+ctestsubset :: Integer -> Integer -> Integer -> Instruction
 ctestsubset rd cs1 cs2             = encode ctestsubset_raw                          cs2      cs1          rd
 
 -- Register Clearing
+clear_raw :: String
 clear_raw                          =                                        "1111111 01101 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
+clear :: Integer -> Integer -> Instruction
 clear q imm                        = encode clear_raw                                      q      imm
+cclear_raw :: String
 cclear_raw                         =                                        "1111111 01110 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
+cclear :: Integer -> Integer -> Instruction
 cclear q imm                       = encode cclear_raw                                     q      imm
+fpclear_raw :: String
 fpclear_raw                        =                                        "1111111 10000 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
+fpclear :: Integer -> Integer -> Instruction
 fpclear q imm                      = encode fpclear_raw                                    q      imm
 
 -- Adjusting to Compressed Capability Precision
+croundrepresentablelength_raw :: String
 croundrepresentablelength_raw      =                                        "1111111 01000 rs1[4:0] 000 rd[4:0] 1011011"
+croundrepresentablelength :: Integer -> Integer -> Instruction
 croundrepresentablelength rd rs1   = encode croundrepresentablelength_raw                  rs1          rd
+crepresentablealignmentmask_raw :: String
 crepresentablealignmentmask_raw    =                                        "1111111 01001 rs1[4:0] 000 rd[4:0] 1011011"
+crepresentablealignmentmask :: Integer -> Integer -> Instruction
 crepresentablealignmentmask rd rs1 = encode crepresentablealignmentmask_raw                rs1          rd
 
 -- Memory -- Needs further refinement
+cload_raw :: String
 cload_raw                          =                                        "1111101 mop[4:0] cb[4:0] 000 cd[4:0] 1011011"
+cload :: Integer -> Integer -> Integer -> Instruction
 cload cd cb mop                    = encode cload_raw                                mop      cb          cd
+cstore_raw :: String
 cstore_raw                         =                                        "1111100 rs2[4:0] cs1[4:0] 000 mop[4:0] 1011011"
+cstore :: Integer -> Integer -> Integer -> Instruction
 cstore rs2 cs1 mop                 = encode cstore_raw                               rs2      cs1          mop
+lq_raw :: String
 lq_raw                             =                                        "imm[11:0] rs1[4:0] 010 cd[4:0] 0001111"
+lq :: Integer -> Integer -> Integer -> Instruction
 lq cd rs1 imm                      = encode lq_raw                           imm       rs1          cd
+sq_raw :: String
 sq_raw                             =                                        "imm[11:5] cs2[4:0] rs1[4:0] 100 imm[4:0] 0100011"
+sq :: Integer -> Integer -> Integer -> Instruction
 sq rs1 cs2 imm                     = encode sq_raw                           imm       cs2      rs1
+lr_q_raw :: String
 lr_q_raw                           =                                        "00010 aq[0] rl[0]    00000 rs1[4:0] 100 rd[4:0] 0101111"
+lr_q :: Integer -> Integer -> Integer -> Integer -> Instruction
 lr_q rd rs1 aq rl                  = encode lr_q_raw                               aq    rl             rs1          rd
+sc_q_raw :: String
 sc_q_raw                           =                                        "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
+sc_q :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 sc_q rd rs1 rs2 aq rl              = encode sc_q_raw                               aq    rl    rs2      rs1          rd
+amoswap_q_raw :: String
 amoswap_q_raw                      =                                        "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
+amoswap_q :: Integer -> Integer -> Integer -> Integer -> Integer -> Instruction
 amoswap_q rd rs1 rs2 aq rl         = encode amoswap_q_raw                               aq    rl    rs2      rs1          rd
 
 -- | Pretty-print a capability load instruction
@@ -294,12 +386,15 @@ prettyCStore rs2 rs1 mop =
                               _ -> "INVALID"
 
 -- | Pretty-print a register clear instruction
+pretty_reg_clear :: String -> Integer -> Integer -> String
 pretty_reg_clear instr imm qt = concat [instr, " ", int qt, ", ", int imm]
 
 -- | Pretty-print a 2 sources instruction
+pretty_2src :: String -> Integer -> Integer -> String
 pretty_2src instr src2 src1 = concat [instr, " ", reg src1, ", ", reg src2]
 
 -- | Pretty-print a special capability read/write instruction
+pretty_cspecialrw :: String -> Integer -> Integer -> Integer -> String
 pretty_cspecialrw instr idx cs1 cd =
   concat [instr, " ", reg cd, ", ", name_scr idx, ", ", reg cs1]
   where name_scr 0 = "pcc"
@@ -479,15 +574,17 @@ shrink_cmove cs cd = [cgetaddr cd cs]
 shrink_cinvoke :: Integer -> Integer -> [Instruction]
 shrink_cinvoke cs2 cs1 = shrink_capcap cs2 cs1 31
 
+shrink_ctestsubset :: Integer -> Integer -> Integer -> [Instruction]
 shrink_ctestsubset cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
 
+shrink_cfromptr :: Integer -> Integer -> Integer -> [Instruction]
 shrink_cfromptr rs cs cd = [csetoffset cd cs rs] ++ shrink_capint rs cs cd
 
 shrink_cload :: Integer -> Integer -> Integer -> [Instruction]
-shrink_cload cb cd mop = [addi 0 0 0];
+shrink_cload cb cd mop = [addi 0 0 0]
 
 shrink_cstore :: Integer -> Integer -> Integer -> [Instruction]
-shrink_cstore rs2 cs1 mop = [addi 0 0 0];
+shrink_cstore rs2 cs1 mop = [addi 0 0 0]
 
 rv32_xcheri_shrink :: [DecodeBranch [Instruction]]
 rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm

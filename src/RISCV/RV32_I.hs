@@ -128,95 +128,185 @@ import RISCV.Helpers (prettyR, prettyI, prettyI_sig, prettyU, prettyU_jal, prett
 import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 import Prelude hiding (and, or)
 
+add_raw :: String
 add_raw          =                   "0000000 rs2[4:0] rs1[4:0] 000 rd[4:0] 0110011"
+add :: Integer -> Integer -> Integer -> Instruction
 add rd rs1 rs2   = encode add_raw             rs2      rs1          rd
+slt_raw :: String
 slt_raw          =                   "0000000 rs2[4:0] rs1[4:0] 010 rd[4:0] 0110011"
+slt :: Integer -> Integer -> Integer -> Instruction
 slt rd rs1 rs2   = encode slt_raw             rs2      rs1          rd
+sltu_raw :: String
 sltu_raw         =                   "0000000 rs2[4:0] rs1[4:0] 011 rd[4:0] 0110011"
+sltu :: Integer -> Integer -> Integer -> Instruction
 sltu rd rs1 rs2  = encode sltu_raw            rs2      rs1          rd
+and_raw :: String
 and_raw          =                   "0000000 rs2[4:0] rs1[4:0] 111 rd[4:0] 0110011"
+and :: Integer -> Integer -> Integer -> Instruction
 and rd rs1 rs2   = encode and_raw             rs2      rs1          rd
+or_raw :: String
 or_raw           =                   "0000000 rs2[4:0] rs1[4:0] 110 rd[4:0] 0110011"
+or :: Integer -> Integer -> Integer -> Instruction
 or rd rs1 rs2    = encode or_raw              rs2      rs1          rd
+xor_raw :: String
 xor_raw          =                   "0000000 rs2[4:0] rs1[4:0] 100 rd[4:0] 0110011"
+xor :: Integer -> Integer -> Integer -> Instruction
 xor rd rs1 rs2   = encode xor_raw             rs2      rs1          rd
+sll_raw :: String
 sll_raw          =                   "0000000 rs2[4:0] rs1[4:0] 001 rd[4:0] 0110011"
+sll :: Integer -> Integer -> Integer -> Instruction
 sll rd rs1 rs2   = encode sll_raw             rs2      rs1          rd
+srl_raw :: String
 srl_raw          =                   "0000000 rs2[4:0] rs1[4:0] 101 rd[4:0] 0110011"
+srl :: Integer -> Integer -> Integer -> Instruction
 srl rd rs1 rs2   = encode srl_raw             rs2      rs1          rd
+sub_raw :: String
 sub_raw          =                   "0100000 rs2[4:0] rs1[4:0] 000 rd[4:0] 0110011"
+sub :: Integer -> Integer -> Integer -> Instruction
 sub rd rs1 rs2   = encode sub_raw             rs2      rs1          rd
+sra_raw :: String
 sra_raw          =                   "0100000 rs2[4:0] rs1[4:0] 101 rd[4:0] 0110011"
+sra :: Integer -> Integer -> Integer -> Instruction
 sra rd rs1 rs2   = encode sra_raw             rs2      rs1          rd
+addi_raw :: String
 addi_raw         =                   "imm[11:0] rs1[4:0] 000 rd[4:0] 0010011"
+addi :: Integer -> Integer -> Integer -> Instruction
 addi rd rs1 imm  = encode addi_raw    imm       rs1          rd
+slti_raw :: String
 slti_raw         =                   "imm[11:0] rs1[4:0] 010 rd[4:0] 0010011"
+slti :: Integer -> Integer -> Integer -> Instruction
 slti rd rs1 imm  = encode slti_raw    imm       rs1          rd
+sltiu_raw :: String
 sltiu_raw        =                   "imm[11:0] rs1[4:0] 011 rd[4:0] 0010011"
+sltiu :: Integer -> Integer -> Integer -> Instruction
 sltiu rd rs1 imm = encode sltiu_raw   imm       rs1          rd
+andi_raw :: String
 andi_raw         =                   "imm[11:0] rs1[4:0] 111 rd[4:0] 0010011"
+andi :: Integer -> Integer -> Integer -> Instruction
 andi rd rs1 imm  = encode andi_raw    imm       rs1          rd
+ori_raw :: String
 ori_raw          =                   "imm[11:0] rs1[4:0] 110 rd[4:0] 0010011"
+ori :: Integer -> Integer -> Integer -> Instruction
 ori rd rs1 imm   = encode ori_raw     imm       rs1          rd
+xori_raw :: String
 xori_raw         =                   "imm[11:0] rs1[4:0] 100 rd[4:0] 0010011"
+xori :: Integer -> Integer -> Integer -> Instruction
 xori rd rs1 imm  = encode xori_raw    imm       rs1          rd
+slli_raw :: String
 slli_raw         =                   "0000000 imm[4:0] rs1[4:0] 001 rd[4:0] 0010011"
+slli :: Integer -> Integer -> Integer -> Instruction
 slli rd rs1 imm  = encode slli_raw            imm      rs1          rd
+srli_raw :: String
 srli_raw         =                   "0000000 imm[4:0] rs1[4:0] 101 rd[4:0] 0010011"
+srli :: Integer -> Integer -> Integer -> Instruction
 srli rd rs1 imm  = encode srli_raw            imm      rs1          rd
+srai_raw :: String
 srai_raw         =                   "0100000 imm[4:0] rs1[4:0] 101 rd[4:0] 0010011"
+srai :: Integer -> Integer -> Integer -> Instruction
 srai rd rs1 imm  = encode srai_raw            imm      rs1          rd
+lui_raw :: String
 lui_raw          =                   "imm[19:0] rd[4:0] 0110111"
+lui :: Integer -> Integer -> Instruction
 lui rd imm       = encode lui_raw     imm       rd
+auipc_raw :: String
 auipc_raw        =                   "imm[19:0] rd[4:0] 0010111"
+auipc :: Integer -> Integer -> Instruction
 auipc rd imm     = encode auipc_raw   imm       rd
+jal_raw :: String
 jal_raw          =                   "imm[19:19] imm[9:0] imm[10:10] imm[18:11] rd[4:0] 1101111"
+jal :: Integer -> Integer -> Instruction
 jal rd imm       = encode jal_raw     imm                                       rd
+jalr_raw :: String
 jalr_raw         =                   "imm[11:0] rs1[4:0] 000 rd[4:0] 1100111"
+jalr :: Integer -> Integer -> Integer -> Instruction
 jalr rd rs1 imm  = encode jalr_raw    imm       rs1          rd
+beq_raw :: String
 beq_raw          =                   "im[11:11] im[9:4] rs2[4:0] rs1[4:0] 000 im[3:0] im[10:10] 1100011"
+beq :: Integer -> Integer -> Integer -> Instruction
 beq rs1 rs2 im   = encode beq_raw     im                rs2      rs1
+bne_raw :: String
 bne_raw          =                   "im[11:11] im[9:4] rs2[4:0] rs1[4:0] 001 im[3:0] im[10:10] 1100011"
+bne :: Integer -> Integer -> Integer -> Instruction
 bne rs1 rs2 im   = encode bne_raw     im                rs2      rs1
+blt_raw :: String
 blt_raw          =                   "im[11:11] im[9:4] rs2[4:0] rs1[4:0] 100 im[3:0] im[10:10] 1100011"
+blt :: Integer -> Integer -> Integer -> Instruction
 blt rs1 rs2 im   = encode blt_raw     im                rs2      rs1
+bltu_raw :: String
 bltu_raw         =                   "im[11:11] im[9:4] rs2[4:0] rs1[4:0] 110 im[3:0] im[10:10] 1100011"
+bltu :: Integer -> Integer -> Integer -> Instruction
 bltu rs1 rs2 im  = encode bltu_raw    im                rs2      rs1
+bge_raw :: String
 bge_raw          =                   "im[11:11] im[9:4] rs2[4:0] rs1[4:0] 101 im[3:0] im[10:10] 1100011"
+bge :: Integer -> Integer -> Integer -> Instruction
 bge rs1 rs2 im   = encode bge_raw     im                rs2      rs1
+bgeu_raw :: String
 bgeu_raw         =                   "im[11:11] im[9:4] rs2[4:0] rs1[4:0] 111 im[3:0] im[10:10] 1100011"
+bgeu :: Integer -> Integer -> Integer -> Instruction
 bgeu rs1 rs2 im  = encode bgeu_raw    im                rs2      rs1
+lb_raw :: String
 lb_raw           =                   "imm[11:0] rs1[4:0] 000 rd[4:0] 0000011"
+lb :: Integer -> Integer -> Integer -> Instruction
 lb rd rs1 imm    = encode lb_raw      imm       rs1          rd
+lbu_raw :: String
 lbu_raw          =                   "imm[11:0] rs1[4:0] 100 rd[4:0] 0000011"
+lbu :: Integer -> Integer -> Integer -> Instruction
 lbu rd rs1 imm   = encode lbu_raw     imm       rs1          rd
+lh_raw :: String
 lh_raw           =                   "imm[11:0] rs1[4:0] 001 rd[4:0] 0000011"
+lh :: Integer -> Integer -> Integer -> Instruction
 lh rd rs1 imm    = encode lh_raw      imm       rs1          rd
+lhu_raw :: String
 lhu_raw          =                   "imm[11:0] rs1[4:0] 101 rd[4:0] 0000011"
+lhu :: Integer -> Integer -> Integer -> Instruction
 lhu rd rs1 imm   = encode lhu_raw     imm       rs1          rd
+lw_raw :: String
 lw_raw           =                   "imm[11:0] rs1[4:0] 010 rd[4:0] 0000011"
+lw :: Integer -> Integer -> Integer -> Instruction
 lw rd rs1 imm    = encode lw_raw      imm       rs1          rd
+sb_raw :: String
 sb_raw           =                   "imm[11:5] rs2[4:0] rs1[4:0] 000 imm[4:0] 0100011"
+sb :: Integer -> Integer -> Integer -> Instruction
 sb rs1 rs2 imm   = encode sb_raw      imm       rs2      rs1
+sh_raw :: String
 sh_raw           =                   "imm[11:5] rs2[4:0] rs1[4:0] 001 imm[4:0] 0100011"
+sh :: Integer -> Integer -> Integer -> Instruction
 sh rs1 rs2 imm   = encode sh_raw      imm       rs2      rs1
+sw_raw :: String
 sw_raw           =                   "imm[11:5] rs2[4:0] rs1[4:0] 010 imm[4:0] 0100011"
+sw :: Integer -> Integer -> Integer -> Instruction
 sw rs1 rs2 imm   = encode sw_raw      imm       rs2      rs1
+fence_raw :: String
 fence_raw        =                   "0000 pred[3:0] succ[3:0] 00000 000 00000 0001111"
+fence :: Integer -> Integer -> Instruction
 fence pred succ  = encode fence_raw        pred      succ
+resrvd_raw :: String
 resrvd_raw       =                   "0000 0000 0000 00000 000 00000 0000000"
+resrvd :: Instruction
 resrvd           = encode resrvd_raw
+mret_raw :: String
 mret_raw         =                   "0011 0000 0010 00000 000 00000 1110011"
+mret :: Instruction
 mret             = encode mret_raw
+sret_raw :: String
 sret_raw         =                   "0001 0000 0010 00000 000 00000 1110011"
+sret :: Instruction
 sret             = encode sret_raw
+uret_raw :: String
 uret_raw         =                   "0000 0000 0010 00000 000 00000 1110011"
+uret :: Instruction
 uret             = encode uret_raw
+ecall_raw :: String
 ecall_raw        =                   "000000000000 00000 000 00000 1110011"
+ecall :: Instruction
 ecall            = encode ecall_raw
+ebreak_raw :: String
 ebreak_raw       =                   "000000000001 00000 000 00000 1110011"
+ebreak :: Instruction
 ebreak           = encode ebreak_raw
+sfence_raw :: String
 sfence_raw       =                   "0001001 rs2[4:0] rs1[4:0] 000 00000 1110011"
+sfence :: Integer -> Integer -> Instruction
 sfence rs1 rs2   = encode sfence_raw          rs2      rs1
 
 -- | Dissassembly of RV32 base integer instructions

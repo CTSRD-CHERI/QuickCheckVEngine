@@ -45,8 +45,6 @@ module QuickCheckVEngine.TestTypes (
 , MetaInfo(..)
 ) where
 
-import Data.Semigroup (Semigroup(..))
-
 import Control.Applicative (liftA2)
 import QuickCheckVEngine.RVFI_DII
 
