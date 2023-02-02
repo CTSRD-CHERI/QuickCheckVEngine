@@ -39,7 +39,7 @@
 module InstrCodec where
 
 import Data.Char
-import Data.List
+import Data.List (nub)
 import Data.Maybe
 import Data.Bits
 import Test.QuickCheck
@@ -90,7 +90,7 @@ tokenise = init []
           where n = read ds :: Int
 
     close acc (']':cs) = init acc cs
-    close acc other = error "Format error: expected ']'"
+    close _ _ = error "Format error: expected ']'"
 
     lit acc cs = init (Lit s : acc) (dropWhile isBit cs)
       where s = reverse (takeWhile isBit cs)
@@ -102,12 +102,12 @@ data TaggedToken = Tag Int Token
 tag :: [Token] -> [TaggedToken]
 tag = tagger 0
   where
-    tagger n [] = []
+    tagger _ [] = []
     tagger n (t:ts) =
       case t of
         Lit bs -> Tag n t : tagger (n + length bs) ts
-        Var v -> error "tag: unranged vars not supported"
-        Range v hi lo -> Tag n t : tagger (n + (hi-lo) + 1) ts
+        Var _ -> error "tag: unranged vars not supported"
+        Range _ hi lo -> Tag n t : tagger (n + (hi-lo) + 1) ts
 
 -- Mapping from var bit-index to subject bit-index
 type Mapping = [(Int, Int)]
@@ -125,30 +125,30 @@ subst m bs = unscatter [(bi, bs !! si) | (bi, si) <- m]
 unscatter :: [(Int, a)] -> [a]
 unscatter = join 0
   where
-   join i [] = []
+   join _ [] = []
    join i m =
      case [x | (j, x) <- m, i == j] of
        [] -> error "Format error: non-contiguous variable assignment"
        [x] -> x : join (i+1) [p | p <- m, fst p /= i]
-       other -> error "Format error: overlapping variable assignment"
+       _ -> error "Format error: overlapping variable assignment"
 
 -- Determine argument values to right-hand-side
-args :: BitList -> [TaggedToken] -> [BitList]
-args subj = get . reverse
+rhsArgs :: BitList -> [TaggedToken] -> [BitList]
+rhsArgs subj = get . reverse
   where
-    notVar v (Tag i (Range w hi lo)) = v /= w
-    notVar v other = False
+    notVar v (Tag _ (Range w _ _)) = v /= w
+    notVar _ _ = False
 
     get [] = []
-    get ts@(Tag i (Range v hi lo) : rest) =
+    get ts@(Tag _ (Range v _ _) : rest) =
       subst (mapping v ts) subj :
         get (filter (notVar v) rest)
-    get (t:ts) = get ts
+    get (_:ts) = get ts
 
 -- Determine width of a token
 tokenWidth :: Token -> Int
-tokenWidth (Var v) = error "Error: tokenWidth not defined for unranged vars"
-tokenWidth (Range v hi lo) = (hi-lo)+1
+tokenWidth (Var _) = error "Error: tokenWidth not defined for unranged vars"
+tokenWidth (Range _ hi lo) = (hi-lo)+1
 tokenWidth (Lit bs) = length bs
 
 -- Match literals in pattern against subject
@@ -159,11 +159,11 @@ matches subj toks
   where
     width = sum (map tokenWidth toks)
 
-    check n [] = True
+    check _ [] = True
     check n (t : rest) =
       case t of
-        Var v -> error "Format error: unranged vars not supported"
-        Range id hi lo -> check (n + (hi-lo) + 1) rest
+        Var _ -> error "Format error: unranged vars not supported"
+        Range _ hi lo -> check (n + (hi-lo) + 1) rest
         Lit bs ->
              and [ if c == '0' then not b else b
                  | (c, b) <- zip bs (drop n subj) ]
@@ -193,10 +193,10 @@ class Apply f a where
 
 instance Apply f f where
   apply f [] = f
-  apply f other = error "Format error: too many pattern vars"
+  apply _ _ = error "Format error: too many pattern vars"
 
 instance Apply f a => Apply (Integer -> f) a where
-  apply f [] = error "Format error: too few pattern vars"
+  apply _ [] = error "Format error: too few pattern vars"
   apply f (arg:args) = apply (f (fromBitList arg)) args
 
 decodeOne :: Apply f a => String -> f -> (Instruction, Int) -> Maybe a
@@ -207,7 +207,7 @@ decodeOne fmt rhs =
           subj' = w#subj
         in
           if   matches subj' toks
-          then Just $ apply rhs (args subj' (tag toks))
+          then Just $ apply rhs (rhsArgs subj' (tag toks))
           else Nothing
 
 type DecodeBranch a = (Instruction, Int) -> Maybe a
@@ -220,17 +220,17 @@ decode :: Int -> Instruction -> [(Instruction, Int) -> Maybe a] -> Maybe a
 decode n subj alts =
   case catMaybes [alt (subj, n) | alt <- alts] of
     [] -> Nothing
-    match:rest -> Just match
+    match:_-> Just match
 
 rangedVars :: [Token] -> [String]
-rangedVars toks = nub [v | Range v hi lo <- reverse toks]
+rangedVars toks = nub [v | Range v _ _ <- reverse toks]
 
 scatter :: [Token] -> [(String, Integer)] -> BitList
-scatter [] env = []
+scatter [] _ = []
 scatter (tok:toks) env =
   case tok of
     Lit bs -> [b == '1' | b <- bs] ++ scatter toks env
-    Var v -> error "Codec.scatter: unranged vars not supported"
+    Var _ -> error "Codec.scatter: unranged vars not supported"
     Range v hi lo ->
       case lookup v env of
         Nothing -> error ("Unknown variable " ++ v)
