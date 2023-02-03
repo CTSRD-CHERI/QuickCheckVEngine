@@ -151,17 +151,17 @@ instAssert i v = assertLastVal (TemplateSingle i) v
 -- specified by quickcheck, splitting the size equally among
 -- recursive Random template constructors
 genTest :: Template -> Gen (Test Instruction)
-genTest x = (\(a,_,_) -> a) <$> (go x (countTemplate x)) where
+genTest tst = (\(a,_,_) -> a) <$> (go tst (countTemplate tst)) where
   -- Determine the number of (static instructions, recursive random templates)
   -- there are in a template
   countTemplate TemplateEmpty = (0, 0)
-  countTemplate (TemplateSingle x) = (1, 0)
+  countTemplate (TemplateSingle _) = (1, 0)
   countTemplate (TemplateSequence x y) =
     (ix + iy, rx + ry)
     where (ix, rx) = countTemplate x
           (iy, ry) = countTemplate y
   countTemplate (TemplateMeta _ x) = countTemplate x
-  countTemplate (TemplateRandom g) = (0, 1)
+  countTemplate (TemplateRandom _) = (0, 1)
   -- Generate a test from a template, given the global number of static
   -- instructions and recursive calls. Also return the number of recursive
   -- calls resolved and the new instructions that resulted
@@ -192,7 +192,7 @@ genTest x = (\(a,_,_) -> a) <$> (go x (countTemplate x)) where
     -- Work out the characteristics of the template
     let (i', r') = countTemplate g'
     -- Turn the elaborated template into a test
-    (g'', i'', r'') <- resize targetSize $ go g' (i', r')
+    (g'', i'', _) <- resize targetSize $ go g' (i', r')
     -- The number of new dynamic instructions to return is the number of
     -- static + dynamic instructions in this sub-template. We have only
     -- evaluated one recursive call as far as the parent template is

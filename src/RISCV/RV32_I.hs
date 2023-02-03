@@ -279,7 +279,7 @@ sw rs1 rs2 imm   = encode sw_raw      imm       rs2      rs1
 fence_raw :: String
 fence_raw        =                   "0000 pred[3:0] succ[3:0] 00000 000 00000 0001111"
 fence :: Integer -> Integer -> Instruction
-fence pred succ  = encode fence_raw        pred      succ
+fence pre suc    = encode fence_raw        pre       suc
 resrvd_raw :: String
 resrvd_raw       =                   "0000 0000 0000 00000 000 00000 0000000"
 resrvd :: Instruction
@@ -358,23 +358,29 @@ rv32_i_disass = [ add_raw    --> prettyR "add"
                 , sfence_raw --> prettySfence ]
 
 extract_1op :: String -> Integer -> Integer -> ExtractedRegs
-extract_1op instr rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode instr y z)
+extract_1op instr rs1 rd =
+  (False, Nothing, Just rs1, Just rd, \_ y z -> encode instr y z)
 
 extract_2op :: String -> Integer -> Integer -> Integer -> ExtractedRegs
-extract_2op instr rs2 rs1 rd = (False, Just rs2, Just rs1, Just rd, \x y z -> encode instr x y z)
+extract_2op instr rs2 rs1 rd =
+  (False, Just rs2, Just rs1, Just rd, \x y z -> encode instr x y z)
 
 extract_imm :: String -> Integer -> Integer -> Integer -> ExtractedRegs
-extract_imm instr imm rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode instr imm y z)
+extract_imm instr imm rs1 rd =
+  (False, Nothing, Just rs1, Just rd, \_ y z -> encode instr imm y z)
 
 extract_addi :: Integer -> Integer -> Integer -> ExtractedRegs
-extract_addi imm rs1 rd = if imm == 0 then (True, Nothing, Just rs1, Just rd, \x y z -> encode addi_raw 0 y z)
-                                    else extract_imm addi_raw imm rs1 rd
+extract_addi imm rs1 rd = if imm == 0
+  then (True, Nothing, Just rs1, Just rd, \_ y z -> encode addi_raw 0 y z)
+  else extract_imm addi_raw imm rs1 rd
 
 extract_uimm :: String -> Integer -> Integer -> ExtractedRegs
-extract_uimm instr uimm rd = (False, Nothing, Nothing, Just rd, \x y z -> encode instr uimm z)
+extract_uimm instr uimm rd =
+  (False, Nothing, Nothing, Just rd, \_ _ z -> encode instr uimm z)
 
 extract_nodst :: String -> Integer -> Integer -> Integer -> ExtractedRegs
-extract_nodst instr imm rs2 rs1 = (False, Just rs2, Just rs1, Nothing, \x y z -> encode instr imm x y)
+extract_nodst instr imm rs2 rs1 =
+  (False, Just rs2, Just rs1, Nothing, \x y _ -> encode instr imm x y)
 
 rv32_i_extract :: [DecodeBranch ExtractedRegs]
 rv32_i_extract = [ add_raw    --> extract_2op add_raw
@@ -434,17 +440,21 @@ shrink_imm :: Integer -> Integer -> Integer -> [Instruction]
 shrink_imm imm rs rd = [addi rd 0 0, addi rd 0 1, addi rd rs imm, addi rd 0 imm, addi rd rs 0]
 
 shrink_uimm :: Integer -> Integer -> [Instruction]
-shrink_uimm uimm rd = [addi rd 0 0, addi rd 0 0xfff]
+shrink_uimm _uimm rd = [addi rd 0 0, addi rd 0 0xfff]
 
 shrink_branch :: Integer -> Integer -> Integer -> [Instruction]
-shrink_branch imm rs2 rs1 = [sltu 1 rs1 rs2 , sltu 1 rs2 rs1, slt 1 rs1 rs2, slt 1 rs2 rs1, jal 0 imm]
+shrink_branch imm rs2 rs1 = [ sltu 1 rs1 rs2
+                            , sltu 1 rs2 rs1
+                            , slt  1 rs1 rs2
+                            , slt  1 rs2 rs1
+                            , jal  0 imm ]
 
 shrink_load :: Integer -> Integer -> Integer -> [Instruction]
-shrink_load imm rs rd = []
+shrink_load _imm _rs _rd = []
 --shrink_load imm rs rd = [ecall, addi rd 0 0]
 
 shrink_store :: Integer -> Integer -> Integer -> [Instruction]
-shrink_store imm rs2 rs1 = []
+shrink_store _imm _rs2 _rs1 = []
 --shrink_store imm rs2 rs1 = [ecall]
 
 shrink_illegal :: [Instruction]

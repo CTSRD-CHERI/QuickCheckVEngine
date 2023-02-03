@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
@@ -79,13 +80,16 @@ randomCInvoke cs1 cs2 typeReg tmpReg =
              , cmove 31 1 ]
 
 clearASR :: Integer -> Integer -> Template
-clearASR tmp1 tmp2 = instSeq [ cspecialrw tmp1 0 0, -- Get PCC
-                               addi tmp2 0 0xbff, -- Load immediate without ASR set
-                               candperm tmp1 tmp1 tmp2, -- Mask out ASR
-                               cspecialrw 0 28 tmp1, -- Clear ASR in trap vector
-                               cjalr tmp1 0 ]
+clearASR tmp1 tmp2 = instSeq [
+    cspecialrw tmp1 0 0 -- Get PCC
+  , addi tmp2 0 0xbff -- Load immediate without ASR set
+  , candperm tmp1 tmp1 tmp2 -- Mask out ASR
+  , cspecialrw 0 28 tmp1 -- Clear ASR in trap vector
+  , cjalr tmp1 0
+  ]
 
-makeCap :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
+makeCap :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer
+        -> Template
 makeCap dst source tmp base len offset =
   mconcat [ makeCap_core dst source tmp base
           , li64 tmp len
@@ -99,45 +103,49 @@ makeCap_core dst source tmp base =
           , inst $ csetaddr dst source tmp]
 
 makeShortCap :: Template
-makeShortCap = random $ do
+makeShortCap = random do
   dst <- dest
   source <- src
   tmp <- src
   len <- choose (0, 32)
   offset <- oneof [choose (0,32), bits 14]
-  return $ instSeq [ csetboundsimmediate dst source len,
-                     addi tmp 0 (Data.Bits.shift offset (-12)),
-                     slli tmp tmp 12,
-                     csetoffset dst dst tmp,
-                     cincoffsetimmediate dst dst (offset Data.Bits..&. 0xfff)]
+  return $ instSeq [ csetboundsimmediate dst source len
+                   , addi tmp 0 (Data.Bits.shift offset (-12))
+                   , slli tmp tmp 12
+                   , csetoffset dst dst tmp
+                   , cincoffsetimmediate dst dst (offset Data.Bits..&. 0xfff)
+                   ]
 
 legalCapLoad :: Integer -> Integer -> Template
-legalCapLoad addrReg targetReg = random $ do
+legalCapLoad addrReg targetReg = random do
   tmpReg <- src
   return $ instSeq [ andi addrReg addrReg 0xff
                    , lui tmpReg 0x40004
                    , slli tmpReg tmpReg 1
                    , add addrReg tmpReg addrReg
-                   , cload targetReg addrReg 0x17 ]
+                   , cload targetReg addrReg 0x17
+                   ]
 
 legalCapStore :: Integer -> Template
-legalCapStore addrReg = random $ do
+legalCapStore addrReg = random do
   tmpReg  <- src
   dataReg <- dest
   return $ instSeq [ andi addrReg addrReg 0xff
                    , lui tmpReg 0x40004
                    , slli tmpReg tmpReg 1
                    , add addrReg tmpReg addrReg
-                   , cstore dataReg addrReg 0x4 ]
+                   , cstore dataReg addrReg 0x4
+                   ]
 
 loadTags :: Integer -> Integer -> Template
-loadTags addrReg capReg = random $ do
+loadTags addrReg capReg = random do
   tmpReg <- src
   dataReg <- dest
-  return $ ( instSeq [ lui tmpReg 0x40004
-                     , slli tmpReg tmpReg 1
-                     , csetaddr addrReg addrReg tmpReg
-                     , ccleartag tmpReg capReg ])
+  return $ instSeq [ lui tmpReg 0x40004
+                   , slli tmpReg tmpReg 1
+                   , csetaddr addrReg addrReg tmpReg
+                   , ccleartag tmpReg capReg
+                   ]
            <> maybeCapStore addrReg tmpReg capReg
            <> inst (cincoffsetimmediate addrReg addrReg 16)
            <> maybeCapStore addrReg tmpReg capReg
@@ -150,18 +158,23 @@ loadTags addrReg capReg = random $ do
            <> inst (cincoffsetimmediate addrReg addrReg 16)
            <> inst (cincoffsetimmediate addrReg addrReg (4096 - (16 * 5)))
            <> inst (cloadtags dataReg addrReg)
-              where maybeCapStore addrReg capReg tmpReg = instUniform [ sq addrReg capReg 0
-                                                                      , sq addrReg tmpReg 0 ]
+  where maybeCapStore aReg cReg tmpReg = instUniform [ sq aReg   cReg 0
+                                                     , sq aReg tmpReg 0 ]
 
 
 loadRegion ::  Integer -> Integer -> Integer -> Integer -> Template -> Template
 loadRegion numLines capReg cacheLSize tmpReg insts =
    if numLines == 0 then insts
    else if numLines == 1 then mconcat [insts, inst (cload tmpReg capReg 0x0)]
-   else loadRegion (numLines - 1) capReg cacheLSize tmpReg (mconcat [insts, inst (cload tmpReg capReg 0x0), inst (cincoffsetimmediate capReg capReg cacheLSize)])
+   else loadRegion
+          (numLines - 1) capReg cacheLSize tmpReg
+          (mconcat [ insts
+                   , inst (cload tmpReg capReg 0x0)
+                   , inst (cincoffsetimmediate capReg capReg cacheLSize)
+                   ])
 
 switchEncodingMode :: Template
-switchEncodingMode = random $ do
+switchEncodingMode = random do
   tmpReg1 <- sbcRegs
   let tmpReg2 = tmpReg1 + 1
   mode    <- elements [0, 1]
@@ -172,7 +185,7 @@ switchEncodingMode = random $ do
                    , cjalr 0 tmpReg1 ]
 
 cspecialRWChain :: Template
-cspecialRWChain = random $ do
+cspecialRWChain = random do
   tmpReg1 <- src
   tmpReg2 <- src
   tmpReg3 <- src
@@ -185,7 +198,7 @@ cspecialRWChain = random $ do
                    , cspecialrw tmpReg6 30 tmpReg5 ]
 
 tagCacheTest :: Template
-tagCacheTest = random $ do
+tagCacheTest = random do
   addrReg   <- src
   targetReg <- dest
   return $     legalCapStore addrReg
@@ -193,63 +206,67 @@ tagCacheTest = random $ do
             <> inst (cgettag targetReg targetReg)
 
 genCHERIinspection :: Template
-genCHERIinspection = random $ do
+genCHERIinspection = random do
   srcAddr  <- src
   srcData  <- src
-  dest     <- dest
+  dst      <- dest
   imm      <- bits 12
   longImm  <- bits 20
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
-  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
-                        , (1, return (unsafe_csrs_indexFromName "mcause"))
-                        , (1, bits 12) ]
-  return $ dist [ (1, instUniform $ rv32_xcheri_inspection srcAddr dest)
-                , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
+  -- TODO
+  --csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+  --                      , (1, return (unsafe_csrs_indexFromName "mcause"))
+  --                      , (1, bits 12) ]
+  return $ dist [ (1, instUniform $ rv32_xcheri_inspection srcAddr dst)
+                , (1, instUniform $ rv32_i srcAddr srcData dst imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
 
 genCHERIarithmetic :: Template
-genCHERIarithmetic = random $ do
+genCHERIarithmetic = random do
   srcAddr  <- src
   srcData  <- src
-  dest     <- dest
+  dst      <- dest
   imm      <- bits 12
   longImm  <- bits 20
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
-  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
-                        , (1, return (unsafe_csrs_indexFromName "mcause"))
-                        , (1, bits 12) ]
-  return $ dist [ (1, instUniform $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
-                , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
+  -- TODO
+  --csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+  --                      , (1, return (unsafe_csrs_indexFromName "mcause"))
+  --                      , (1, bits 12) ]
+  return $ dist [ (1, instUniform $ rv32_xcheri_arithmetic srcAddr srcData imm dst)
+                , (1, instUniform $ rv32_i srcAddr srcData dst imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
 
 genCHERImisc :: Template
-genCHERImisc = random $ do
+genCHERImisc = random do
   srcAddr  <- src
   srcData  <- src
-  dest     <- dest
+  dst      <- dest
   imm      <- bits 12
   longImm  <- bits 20
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
   srcScr   <- elements [0, 1, 28, 29, 30, 31]
-  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
-                        , (1, return (unsafe_csrs_indexFromName "mcause"))
-                        , (1, bits 12) ]
-  return $ dist [ (1, instUniform $ rv32_xcheri_misc srcAddr srcData srcScr imm dest)
-                , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
+  -- TODO
+  --csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+  --                      , (1, return (unsafe_csrs_indexFromName "mcause"))
+  --                      , (1, bits 12) ]
+  return $ dist [ (1, instUniform $ rv32_xcheri_misc srcAddr srcData srcScr imm dst)
+                , (1, instUniform $ rv32_i srcAddr srcData dst imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
 
 genCHERIcontrol :: Template
-genCHERIcontrol = random $ do
+genCHERIcontrol = random do
   srcAddr  <- src
   srcData  <- src
-  dest     <- dest
+  dst      <- dest
   imm      <- bits 12
   longImm  <- bits 20
   fenceOp1 <- bits 3
   fenceOp2 <- bits 3
-  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
-                        , (1, return (unsafe_csrs_indexFromName "mcause"))
-                        , (1, bits 12) ]
-  return $ dist [ (2, instUniform $ rv32_xcheri_control srcAddr srcData dest)
-                , (1, inst (csetbounds dest srcData srcAddr))
-                , (2, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
+  -- TODO
+  --csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+  --                      , (1, return (unsafe_csrs_indexFromName "mcause"))
+  --                      , (1, bits 12) ]
+  return $ dist [ (2, instUniform $ rv32_xcheri_control srcAddr srcData dst)
+                , (1, inst (csetbounds dst srcData srcAddr))
+                , (2, instUniform $ rv32_i srcAddr srcData dst imm longImm fenceOp1 fenceOp2) ] -- TODO add csr

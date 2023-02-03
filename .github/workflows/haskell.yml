@@ -18,7 +18,6 @@ jobs:
       - id: stack
         uses: freckle/stack-action@v3
         with:
-          # TODO: there are lots of name shadowing warnings that would be nice to fix
           pedantic: false
           stack-arguments: --ghc-options -fwrite-ide-info
       # Weeder requires running in the same Job (to access .hie artifacts)
@@ -35,8 +34,7 @@ jobs:
         uses: freckle/stack-action@v3
         with:
           pedantic: true
-          # TODO: would be nice if we could remove those -fno-warn flags
-          stack-arguments: --ghc-options -fno-warn-unused-matches --ghc-options -fno-warn-name-shadowing --ghc-options -fno-warn-orphans
+          stack-arguments: --ghc-options -fno-warn-orphans
 
   hlint:
     runs-on: ubuntu-latest

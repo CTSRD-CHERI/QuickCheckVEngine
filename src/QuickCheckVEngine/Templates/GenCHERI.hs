@@ -59,7 +59,7 @@ capDecodeTest _ = random $ do
   let bitAppend x (a,b) = (shift x b +) <$> a b
   cap <- oneof [bits 128, -- completely random cap
                 foldM bitAppend 0 [(bits,16),(bits,3),(const $ elements [0x00000,0x00001,0x00002,0x00003],18),(bits,27),(bits,64)], -- reserved otypes
-                choose(40,63) >>= \exp -> foldM bitAppend 0 [(bits,16),(bits,3),(bits,18),(const $ return 1,1),(bits,9),(const $ return $ shift exp (-3),3),(bits,11),(const $ return $ exp Data.Bits..&. 0x3,3),(bits,64)] -- tricky exponents
+                choose(40,63) >>= \e -> foldM bitAppend 0 [(bits,16),(bits,3),(bits,18),(const $ return 1,1),(bits,9),(const $ return $ shift e (-3),3),(bits,11),(const $ return $ e Data.Bits..&. 0x3,3),(bits,64)] -- tricky exponents
                 ]
   return $ mconcat [inst $ lui 1 0x40004,
                     inst $ slli 1 1 1,
@@ -86,41 +86,39 @@ capDecodeTest _ = random $ do
 
 genRandomCHERITest :: ArchDesc -> Template
 genRandomCHERITest arch = random $ do
-  srcAddr   <- src
-  srcData   <- src
-  tmpReg    <- src
-  tmpReg2   <- src
-  dest      <- dest
-  imm       <- bits 12
-  mop       <- elements [ 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,
-                          0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf,
-                          -- Skip LR,SC since these have non-determinism which is problematic for TestRIG
-                          0x17,0x1f]
-  longImm   <- (bits 20)
-  fenceOp1  <- (bits 4)
-  fenceOp2  <- (bits 4)
-  csrAddr   <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
-                         , (1, return (unsafe_csrs_indexFromName "mcause")) ]
-  srcScr    <- elements $ [0, 1, 28, 29, 30, 31] ++ (if has_s arch then [12, 13, 14, 15] else []) ++ [2]
-  srcCsr    <- elements [ unsafe_csrs_indexFromName "sepc"
-                        , unsafe_csrs_indexFromName "mepc" ]
-  srcCsrRO  <- elements [ unsafe_csrs_indexFromName "scause"
-                        , unsafe_csrs_indexFromName "mcause" ]
+  srcAddr  <- src
+  srcData  <- src
+  tmpReg   <- src
+  tmpReg2  <- src
+  dst      <- dest
+  imm      <- bits 12
+  mop      <- elements [ 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,
+                         0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf,
+                         -- Skip LR,SC since these have non-determinism which is problematic for TestRIG
+                         0x17,0x1f]
+  longImm  <- (bits 20)
+  fenceOp1 <- (bits 4)
+  fenceOp2 <- (bits 4)
+  srcScr   <- elements $ [0, 1, 28, 29, 30, 31] ++ (if has_s arch then [12, 13, 14, 15] else []) ++ [2]
+  srcCsr   <- elements [ unsafe_csrs_indexFromName "sepc"
+                       , unsafe_csrs_indexFromName "mepc" ]
+  srcCsrRO <- elements [ unsafe_csrs_indexFromName "scause"
+                       , unsafe_csrs_indexFromName "mcause" ]
   return $ dist [ (5, legalLoad arch)
                 , (5, legalStore arch)
-                , (5, legalCapLoad srcAddr dest)
+                , (5, legalCapLoad srcAddr dst)
                 , (5, legalCapStore srcAddr)
-                , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2)
-                , (10, instUniform $ rv32_xcheri arch srcAddr srcData srcScr imm mop dest)
-                , (10, inst $ cspecialrw dest srcScr srcAddr)
-                , (5, instUniform $ rv32_zicsr srcData dest srcCsr mop)
-                , (5, csrr dest srcCsrRO)
+                , (10, instUniform $ rv32_i srcAddr srcData dst imm longImm fenceOp1 fenceOp2)
+                , (10, instUniform $ rv32_xcheri arch srcAddr srcData srcScr imm mop dst)
+                , (10, inst $ cspecialrw dst srcScr srcAddr)
+                , (5, instUniform $ rv32_zicsr srcData dst srcCsr mop)
+                , (5, csrr dst srcCsrRO)
                 , (10, switchEncodingMode)
                 , (10, cspecialRWChain)
                 , (10, randomCInvoke srcAddr srcData tmpReg tmpReg2)
                 , (10, makeShortCap)
                 , (10, clearASR tmpReg tmpReg2)
-                , (20, inst $ cgettag dest dest)
+                , (20, inst $ cgettag dst dst)
                 , (if has_nocloadtags arch then 0 else 10, loadTags srcAddr srcData)
                 ]
 
@@ -140,10 +138,10 @@ gen_simple_cclear _ = random $ do
   imm  <- bits 12
   src1 <- src
   src2 <- src
-  dest <- dest
-  return $ dist [ (4, prepReg64 dest)
+  dst  <- dest
+  return $ dist [ (4, prepReg64 dst)
                 , (8, gen_rv32_i_arithmetic)
-                , (8, instUniform $ rv64_i_arith src1 src2 dest imm)
+                , (8, instUniform $ rv64_i_arith src1 src2 dst imm)
                 , (2, inst $ cclear quarter mask)
                 ]
 

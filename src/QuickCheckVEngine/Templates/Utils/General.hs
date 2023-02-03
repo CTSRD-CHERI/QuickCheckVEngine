@@ -294,18 +294,18 @@ surroundWithMemAccess arch x = random $ do
   regData <- dest
   offset  <- bits 8
   value   <- bits 12
-  shift   <- bits 6
-  return $    storeToAddress regAddr regData offset value shift
+  shamnt  <- bits 6
+  return $    storeToAddress regAddr regData offset value shamnt
            <> x
            <> loadFromAddress regAddr offset regData
-  where loadFromAddress reg offset dest =
+  where loadFromAddress reg offset dst =
           instSeq [ lui reg 0x40004
                   , slli reg reg 1
                   , addi reg reg offset ]
-          <> loadOp arch reg dest
-        storeToAddress regAddr regData offset value shift =
+          <> loadOp arch reg dst
+        storeToAddress regAddr regData offset value shft =
           instSeq [ addi regData 0 value
-                  , slli regData regData shift
+                  , slli regData regData shft
                   , lui regAddr 0x40004
                   , slli regAddr regAddr 1
                   , addi regAddr regAddr offset ]
@@ -318,9 +318,9 @@ surroundWithMemAccess arch x = random $ do
 csrBitSetOrClear :: Bool -> CSRIdx -> Integer -> Integer -> Template
 csrBitSetOrClear set csrIdx bitIdx tmpReg
   | bitIdx < 5 = insti csrIdx mask
-  | otherwise = li32 tmpReg mask <> inst csrIdx tmpReg
+  | otherwise = li32 tmpReg mask <> instr csrIdx tmpReg
   where mask  = (1 `shiftL` fromInteger bitIdx)
-        inst  = if set then  csrs else csrc
+        instr = if set then  csrs else csrc
         insti = if set then csrsi else csrci
 
 {- No longer used, use 'li32' instead

@@ -86,14 +86,14 @@ recvRVFIPacket (RvfiDiiConnection _ vers name) _ = error (name ++ " invalid trac
 recvRVFITrace :: Traversable t => RvfiDiiConnection -> Int -> t a -> IO (t (a, Maybe RVFI_Packet))
 recvRVFITrace conn verbosity tStruct = do
   activeRef <- newIORef True
-  let recv x = do active <- readIORef activeRef
-                  if active then do
-                    rvfiPkt <- recvRVFIPacket conn verbosity
-                    when (verbosity > 1) $ putStrLn $ "\t" ++ show rvfiPkt
-                    when (rvfiIsHalt rvfiPkt) $ writeIORef activeRef False
-                    return (x, Just rvfiPkt)
-                  else return (x, Nothing)
-  traverse recv tStruct
+  let rcv x = do active <- readIORef activeRef
+                 if active then do
+                   rvfiPkt <- recvRVFIPacket conn verbosity
+                   when (verbosity > 1) $ putStrLn $ "\t" ++ show rvfiPkt
+                   when (rvfiIsHalt rvfiPkt) $ writeIORef activeRef False
+                   return (x, Just rvfiPkt)
+                 else return (x, Nothing)
+  traverse rcv tStruct
 
 -- | Perform a trace version negotiation with an implementation and return the
 -- | accepted version.

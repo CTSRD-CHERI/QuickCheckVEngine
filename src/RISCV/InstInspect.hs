@@ -91,7 +91,7 @@ instance Show Instruction where
 
 rv_extract :: Instruction -> ExtractedRegs
 rv_extract instr = case decode 32 instr extractList of
-  Nothing -> (False, Nothing, Nothing, Nothing, (\a b c -> instr))
+  Nothing -> (False, Nothing, Nothing, Nothing, (\_ _ _ -> instr))
   Just i -> i
   where extractList = rv32_i_extract ++ rv32_xcheri_extract
 

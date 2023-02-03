@@ -76,7 +76,7 @@ instance Monoid (Test t) where
   mempty = TestEmpty
   mappend = (<>)
 instance Functor Test where
-  fmap f TestEmpty = TestEmpty
+  fmap _ TestEmpty = TestEmpty
   fmap f (TestSingle x) = TestSingle $ f x
   fmap f (TestSequence x y) = TestSequence (fmap f x) (fmap f y)
   fmap f (TestMeta m x) = TestMeta m (fmap f x)

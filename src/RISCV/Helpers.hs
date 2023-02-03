@@ -252,8 +252,8 @@ prettyB instr imm rs2 rs1 =
 
 -- | Pretty printer for fence instructions
 prettyF :: Integer -> Integer -> String
-prettyF pred succ =
-  concat ["fence ", int pred, ", ", int succ]
+prettyF pre suc =
+  concat ["fence ", int pre, ", ", int suc]
 
 -- | Pretty printer for sfence.vma instructions
 prettySfence :: Integer -> Integer -> String

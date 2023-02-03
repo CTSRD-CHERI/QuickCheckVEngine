@@ -64,22 +64,22 @@ gen_rv64_fd :: Template
 gen_rv64_fd = genFP True True True
 
 genFP :: Bool -> Bool -> Bool -> Template
-genFP has_f has_d has_xlen_64 = random $ do
+genFP use_f use_d use_xlen_64 = random $ do
   src1 <- src
   src2 <- src
   src3 <- src
-  dest <- dest
+  dst  <- dest
   rm   <- roundingMode
   imm  <- bits 12
-  let insts =    [ rv32_f src1 src2 src3 dest rm imm | has_f ]
-              ++ [ rv32_d src1 src2 src3 dest rm imm | has_d ]
-              ++ [ rv64_f src1 dest rm | has_f && has_xlen_64 ]
-              ++ [ rv64_d src1 dest rm | has_d && has_xlen_64 ]
-  let epilogue = inst $ csrrs dest (unsafe_csrs_indexFromName "fcsr") 0
+  let insts =    [ rv32_f src1 src2 src3 dst rm imm | use_f ]
+              ++ [ rv32_d src1 src2 src3 dst rm imm | use_d ]
+              ++ [ rv64_f src1 dst rm | use_f && use_xlen_64 ]
+              ++ [ rv64_d src1 dst rm | use_d && use_xlen_64 ]
+  let epilogue = inst $ csrrs dst (unsafe_csrs_indexFromName "fcsr") 0
   let arch = archDesc_null { has_xlen_32 = True
-                           , has_xlen_64 = has_xlen_64
-                           , has_f       = has_f
-                           , has_d       = has_d }
+                           , has_xlen_64 = use_xlen_64
+                           , has_f       = use_f
+                           , has_d       = use_d }
   return $ shrinkScope $    noShrink (fp_prologue arch)
                          <> repeatTillEnd (instUniform $ concat insts)
                          <> noShrink epilogue

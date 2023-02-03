@@ -43,21 +43,21 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
 gen_rv32_a :: Bool -> Template
-gen_rv32_a has_cap = genAtomics False has_cap
+gen_rv32_a use_cap = genAtomics False use_cap
 
 gen_rv64_a :: Bool -> Template
-gen_rv64_a has_cap = genAtomics True has_cap
+gen_rv64_a use_cap = genAtomics True use_cap
 
 genAtomics :: Bool -> Bool -> Template
-genAtomics has_xlen_64 has_cap = random $ do
+genAtomics use_xlen_64 use_cap = random $ do
   aq   <- bits 1
   rl   <- bits 1
   src1 <- src
   src2 <- src
-  dest <- dest
-  let insts = rv32_a src1 src2 dest aq rl
-              ++ if has_xlen_64 then rv64_a src1 src2 dest aq rl else []
-              ++ if has_cap then rv32_a_xcheri src1 src2 dest else []
+  dst  <- dest
+  let insts = rv32_a src1 src2 dst aq rl
+              ++ if use_xlen_64 then rv64_a src1 src2 dst aq rl else []
+              ++ if use_cap then rv32_a_xcheri src1 src2 dst else []
   return $ instUniform insts
 
 gen_cheri_a :: Template

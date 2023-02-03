@@ -59,37 +59,32 @@ import Data.Bits
 
 rv32_xcheri_misc_alt :: Integer -> Integer -> Integer -> Integer
                      -> [Instruction]
-rv32_xcheri_misc_alt src1 src2 imm dest =
-  [ cseal       dest src1 src2
-  , cunseal     dest src1 src2
-  , candperm    dest src1 src2
-  , cbuildcap   dest src1 src2
-  , csetflags   dest src1 src2
-  , ccopytype   dest src1 src2
-  , ccseal      dest src1 src2
-  , csealentry  dest src1
-  , ccleartag   dest src1 ]
+rv32_xcheri_misc_alt src1 src2 _imm dst =
+  [ cseal       dst src1 src2
+  , cunseal     dst src1 src2
+  , candperm    dst src1 src2
+  , cbuildcap   dst src1 src2
+  , csetflags   dst src1 src2
+  , ccopytype   dst src1 src2
+  , ccseal      dst src1 src2
+  , csealentry  dst src1
+  , ccleartag   dst src1 ]
 
 genCSCDataTorture :: Integer -> Integer -> Integer
                   -> Integer -> Integer -> Integer
                   -> Template
-genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random do
-  srcAddr  <- src
-  srcData  <- src
-  dest     <- dest
+genCSCDataTorture capReg tmpReg bitsReg sldReg _nopermReg _authReg = random do
+  dst      <- dest
   imm      <- bits 12
-  longImm  <- bits 20
-  fenceOp1 <- bits 3
-  fenceOp2 <- bits 3
-  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
-                        , (1, return (unsafe_csrs_indexFromName "mcause"))
-                        , (1, bits 12) ]
+  --csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+  --                      , (1, return (unsafe_csrs_indexFromName "mcause"))
+  --                      , (1, bits 12) ]
   src1     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   src2     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
 --  let rv32_xcheri_misc_alt = filter (/= (cspecialrw tmpReg csrAddr src1)) (rv32_xcheri_misc src1 src2 csrAddr imm tmpReg)
   return $  (uniform [ instUniform $ rv32_xcheri_arithmetic src1 src2 imm tmpReg
-                     , instUniform $ rv32_xcheri_misc_alt src1 src2 imm dest
-                     , instUniform $ rv32_xcheri_inspection src1 dest
+                     , instUniform $ rv32_xcheri_misc_alt src1 src2 imm dst
+                     , instUniform $ rv32_xcheri_inspection src1 dst
                      , inst $ cinvoke src2 src1
                      , inst $ cload tmpReg tmpReg 0x08
                      ])
@@ -109,15 +104,15 @@ genBSC_Cond_1_Torture arch = random do
   let src2 = 13
   let capsrc1 = 15
   let capsrc2 = 16
-  let dest = 17
+  let dst = 17
   -- immediate has to be divisible by 8
   let imm = (imm_rand `shiftR` 0x3) `shiftL` 0x3
   -- long immediate has to be divisible by 4
   let longImm = (longImm_rand `shiftR` 0x2) `shiftL` 0x2
   return $ uniform [ instUniform $ rv64_i_arith src1 src2 imm tmpReg
                    , instUniform $ rv32_i_arith src1 src2 imm longImm tmpReg
-                   , instUniform $ rv64_i_mem addrReg srcData dest imm
-                   , instUniform $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2
+                   , instUniform $ rv64_i_mem addrReg srcData dst imm
+                   , instUniform $ rv32_i_mem addrReg srcData dst imm fenceOp1 fenceOp2
                    , inst $ jal zeroReg longImm
                    , instUniform $ rv32_xcheri_mem arch capsrc1 capsrc2 imm 0xb tmpReg
                    ]
@@ -132,17 +127,17 @@ genBSC_Jumps_Torture = random do
   -- sbcRegs can return on of the following: 22,23,24,25,26,27,28,29
   src1 <- sbcRegs
   src2 <- sbcRegs
-  dest <- sbcRegs
+  dst  <- sbcRegs
   let zeroReg = 0
   let retReg = 1
   dest_jumps <- frequency [ (1, return zeroReg), (1, return retReg) ]
   let regJump = 10
-  return $ uniform [ instUniform $ rv64_i_arith src1 src2 dest imm
-                   , instUniform $ rv32_i_arith src1 src2 dest imm longImm
-                   , instUniform $ rv32_xcheri_inspection src1 dest
+  return $ uniform [ instUniform $ rv64_i_arith src1 src2 dst imm
+                   , instUniform $ rv32_i_arith src1 src2 dst imm longImm
+                   , instUniform $ rv32_xcheri_inspection src1 dst
                    , instUniform $ rv32_i_ctrl_jumps regJump dest_jumps imm_jumps longImm_jumps
                    , instUniform $ rv32_i_ctrl_branches src1 src2 imm_branches
-                   , instUniform $ rv32_xcheri_control src1 src2 dest
+                   , instUniform $ rv32_xcheri_control src1 src2 dst
                    ]
 
 genBSC_Excps_Torture :: ArchDesc -> Integer -> Template
@@ -151,40 +146,39 @@ genBSC_Excps_Torture arch tmpReg = random do
   longImm <- bits 20
   src1 <- sbcRegs
   src2 <- sbcRegs
-  src3 <- sbcRegs
+  --src3 <- sbcRegs
   srcSCr <- bits 5
-  dest <- sbcRegs
+  dst  <- sbcRegs
   --let rm = 0x7 -- dynamic rounding mode
   let fenceOp1 = 17
   let fenceOp2 = 18
-  return $ uniform [ instUniform $ rv64_i_arith src1 src2 dest imm
-                   , instUniform $ rv32_i_arith src1 src2 dest imm longImm
-                   , instUniform $ rv64_i_mem src1 src2 dest imm
-                   , instUniform $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2
+  return $ uniform [ instUniform $ rv64_i_arith src1 src2 dst imm
+                   , instUniform $ rv32_i_arith src1 src2 dst imm longImm
+                   , instUniform $ rv64_i_mem src1 src2 dst imm
+                   , instUniform $ rv32_i_mem src1 src2 dst imm fenceOp1 fenceOp2
                    , instUniform $ rv32_i_exc
-                   , instUniform $ rv32_i_ctrl src1 src2 dest imm longImm
+                   , instUniform $ rv32_i_ctrl src1 src2 dst imm longImm
                    , instUniform $ rv32_xcheri_mem arch src1 src2 imm 0xb tmpReg
-                   , instUniform $ rv32_xcheri_arithmetic src1 src2 imm dest
-                   , instUniform $ rv32_xcheri_inspection src1 dest
-                   , instUniform $ rv32_xcheri_misc src1 src2 srcSCr imm dest
-                   --, instUniform $ rv32_f_macc src1 src2 src3 dest rm
-                   --, instUniform $ rv32_f_arith src1 src2 dest rm
+                   , instUniform $ rv32_xcheri_arithmetic src1 src2 imm dst
+                   , instUniform $ rv32_xcheri_inspection src1 dst
+                   , instUniform $ rv32_xcheri_misc src1 src2 srcSCr imm dst
+                   --, instUniform $ rv32_f_macc src1 src2 src3 dst rm
+                   --, instUniform $ rv32_f_arith src1 src2 dst rm
                    ]
 
 
 genTSCTorture :: Template
 genTSCTorture = random do
   imm_bits <- bits 10
-  longImm <- bits 20
   src1 <- choose(16,18)
   src2 <- sbcRegs
-  dest <- sbcRegs
+  dst  <- sbcRegs
   let fenceOp1 = 19
   let fenceOp2 = 20
   let sstatus = unsafe_csrs_indexFromName "sstatus"
   let imm = (imm_bits `shiftR` 3) `shiftL` 3
-  let access_inst = uniform [ instUniform $ rv64_i_mem src1 src2 dest imm
-                            , instUniform $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2
+  let access_inst = uniform [ instUniform $ rv64_i_mem src1 src2 dst imm
+                            , instUniform $ rv32_i_mem src1 src2 dst imm fenceOp1 fenceOp2
                             ]
   return $ mconcat [ access_inst
                    , inst $ csrrs src2 sstatus 0
@@ -305,7 +299,7 @@ gen_csc_data_verify = random do
 
 
 genJump :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
-genJump memReg reg0 reg1 reg2 imm offset = random $ do
+genJump _memReg _reg0 reg1 _reg2 _imm _offset = random $ do
   let czero = 0
   let ra = 1
   return $ instSeq [ cjalr ra reg1
@@ -313,7 +307,7 @@ genJump memReg reg0 reg1 reg2 imm offset = random $ do
                    ]
 
 genCSCInst :: Integer -> Integer -> Integer -> Integer -> Template
-genCSCInst memReg reg0 reg1 reg2 = random do
+genCSCInst _memReg reg0 reg1 reg2 = random do
   let czero = 0
   return $ instDist [ (1, cjalr czero reg0)
                     , (2, add 29 29 29)

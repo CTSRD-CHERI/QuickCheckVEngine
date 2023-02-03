@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
@@ -79,7 +80,7 @@ tokenise = init []
 
     colon id high acc (':':cs) = low id high acc cs
     colon id high acc (']':cs) = init (Range id high high : acc) cs
-    colon id high acc other = error "Format error: expected ':'"
+    colon _ _ _ _ = error "Format error: expected ':'"
 
     low id high acc cs =
       case takeWhile isDigit cs of

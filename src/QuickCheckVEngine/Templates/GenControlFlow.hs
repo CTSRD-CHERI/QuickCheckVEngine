@@ -48,9 +48,9 @@ genControlFlow = random $ do
   imm     <- bits 12
   src1    <- src
   src2    <- src
-  dest    <- dest
+  dst     <- dest
   longImm <- bits 20
   offset  <- geomBits 11 2
-  return $ dist [ (8, inst $ addi  dest src1 offset)
-                , (8, inst $ ori   dest src1 offset)
-                , (40, instUniform $ rv32_i_ctrl src1 src2 dest imm longImm) ]
+  return $ dist [ (8, inst $ addi  dst src1 offset)
+                , (8, inst $ ori   dst src1 offset)
+                , (40, instUniform $ rv32_i_ctrl src1 src2 dst imm longImm) ]

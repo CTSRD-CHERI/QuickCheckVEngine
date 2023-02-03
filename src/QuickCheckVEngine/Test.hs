@@ -86,7 +86,7 @@ import Data.List
 instance Arbitrary (Test TestResult) where
   arbitrary = return TestEmpty
   shrink TestEmpty = []
-  shrink (TestSingle x) = []
+  shrink (TestSingle _) = []
   shrink (TestSequence x y) = let xs = shrink x
                                   ys = shrink y
                               in    [TestSequence x' y  | x' <- xs]
@@ -114,9 +114,9 @@ recurseShrink s@MkShrinkMethods{..} (TestSequence x y) =
   in methodSequence x y
      ++ inter [TestSequence x' y  | x' <- xs]
               [TestSequence x  y' | y' <- ys]
-  where inter (x:xs) (y:ys) = x:y:(inter xs ys)
-        inter []     ys     = ys
-        inter xs     []     = xs
+  where inter (a:as) (b:bs) = a:b:(inter as bs)
+        inter []     bs     = bs
+        inter as     []     = as
 recurseShrink                     _ (TestMeta (MetaNoShrink, _) _) = []
 recurseShrink s@MkShrinkMethods{..} (TestMeta m@(MetaShrinkScope, _) x) =
   methodShrinkScope x ++ (TestMeta m <$> recurseShrink s x)
@@ -196,7 +196,7 @@ sequenceShrink :: (Test TestResult -> ShrinkStrategy) -> ShrinkStrategy
 sequenceShrink g = recurseShrink defaultShrinkMethods { methodSequence = g }
 
 mapWithAssertLastVal :: ([(RVFI_Packet -> Bool, String, Integer, String)] -> a -> b) -> Test a -> Test b
-mapWithAssertLastVal f x = snd $ go [] f x
+mapWithAssertLastVal fun tst = snd $ go [] fun tst
   where go  _ _ TestEmpty = (False, TestEmpty)
         go vs f (TestSingle x) = (True, TestSingle (f vs x))
         go vs f (TestSequence x y) = let (by, y') = go vs f y
@@ -248,7 +248,7 @@ magicTok :: String
 magicTok = "#>"
 
 showTestWithComments :: Test t -> (t -> String) -> (t -> Maybe String) -> String
-showTestWithComments x s c = printf "%s%s%s" magicTok versionTok (go x)
+showTestWithComments t s c = printf "%s%s%s" magicTok versionTok (go t)
     where go TestEmpty = ""
           go (TestSingle x) = printf "\n%s%s" (s x) (case c x of Just c' -> printf "\n%s" (c')
                                                                  Nothing -> "")
@@ -262,14 +262,14 @@ showTestWithComments x s c = printf "%s%s%s" magicTok versionTok (go x)
             printf "\n%s%s%s%s\n%s%s%s" magicTok startTok noShrinkTok
                                         (go x)
                                         magicTok endTok noShrinkTok
-          go (TestMeta (MetaShrinkStrategy _, True) x) =
+          go (TestMeta (MetaShrinkStrategy _, True) _) =
             error "Cannot serialise shrink strategy"
           go (TestMeta (MetaAssertLastVal (_, field, v, desc), True) x) =
             printf "\n%s%s%s%s\n%s%s%s %s == 0x%x \"%s\""
                    magicTok startTok assertLastValTok
                    (go x)
                    magicTok endTok assertLastValTok field v desc
-          go (TestMeta (MetaAssertCompound _, True) x) =
+          go (TestMeta (MetaAssertCompound _, True) _) =
             error "Cannot serialise compound assertion"
           go (TestMeta (MetaReport r, True) x) =
             printf "\n# REPORT     '%s' {%s\n# } END REPORT '%s'"

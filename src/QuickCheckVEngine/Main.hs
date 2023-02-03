@@ -216,16 +216,16 @@ allTests = [
            , ("fpclear",    "FPClear Verification",                                   andPs [has_cheri, has_xlen_64, has_d],              gen_simple_fpclear)
            , ("mem",        "Memory Verification",                                    const True,                               const $ T.repeatTillEnd gen_rv32_i_memory)
            , ("control",    "Control Flow Verification",                              const True,                               const $ T.repeatTillEnd gen_rv32_i_controlflow)
-           , ("cache",      "Cache Verification",                                     const True,                               \arch -> T.repeatTillEnd (gen_rv32_i_cache $ has_ifencei arch))
+           , ("cache",      "Cache Verification",                                     const True,                               \a -> T.repeatTillEnd (gen_rv32_i_cache $ has_ifencei a))
            , ("arith64",    "RV64 Arithmetic Verification",                           has_xlen_64,                              const $ T.repeatTillEnd gen_rv64_i_arithmetic)
            , ("mem64",      "RV64 Memory Verification",                               has_xlen_64,                              const $ T.repeatTillEnd gen_rv64_i_memory)
-           , ("cache64",    "RV64 Cache Verification",                                has_xlen_64,                              \arch -> T.repeatTillEnd (gen_rv64_i_cache $ has_ifencei arch))
+           , ("cache64",    "RV64 Cache Verification",                                has_xlen_64,                              \a -> T.repeatTillEnd (gen_rv64_i_cache $ has_ifencei a))
            -- Note: no rv64 specific control flow instructions
            , ("muldiv",     "M Extension Verification",                               has_m,                                    const $ T.repeatTillEnd gen_rv32_m)
            , ("muldiv64",   "RV64 M Extension Verification",                          andPs [has_m, has_xlen_64],               const $ T.repeatTillEnd gen_rv64_m)
-           , ("atomic",     "A Extension Verification",                               has_a,                                    \arch -> T.repeatTillEnd (gen_rv32_a $ has_cheri arch))
+           , ("atomic",     "A Extension Verification",                               has_a,                                    \a -> T.repeatTillEnd (gen_rv32_a $ has_cheri a))
            , ("memAmo",     "AMO Memory Verification",                                has_a,                                    const $ T.repeatTillEnd gen_rv32_i_a_memory)
-           , ("atomic64",   "RV64 A Extension Verification",                          andPs [has_a, has_xlen_64],               \arch -> T.repeatTillEnd (gen_rv64_a $ has_cheri arch))
+           , ("atomic64",   "RV64 A Extension Verification",                          andPs [has_a, has_xlen_64],               \a -> T.repeatTillEnd (gen_rv64_a $ has_cheri a))
            , ("capatomic",  "Xcheri A Extension Verification",                        andPs [has_a, has_xlen_64],               const $ T.repeatTillEnd gen_cheri_a)
            , ("memAmo64",   "RV64 AMO Memory Verification",                           andPs [has_a, has_xlen_64],               const $ T.repeatTillEnd gen_rv64_i_a_memory)
            , ("compressed", "C Extension Verification",                               has_c,                                    const $ T.repeatTillEnd gen_rv_c)
@@ -242,7 +242,7 @@ allTests = [
            , ("caparith",   "Xcheri Extension Capability Arithmetic Verification",    has_cheri,                                const $ T.repeatTillEnd genCHERIarithmetic)
            , ("capmisc",    "Xcheri Extension Capability Miscellaneous Verification", has_cheri,                                const $ T.repeatTillEnd genCHERImisc)
            , ("capcontrol", "Xcheri Extension Capability Control Flow Verification",  has_cheri,                                const $ T.repeatTillEnd genCHERIcontrol)
-           , ("capcache",   "Xcheri Extension Cache Verification",                    has_cheri,                                \arch -> T.repeatTillEnd (gen_rv64_Xcheri_cache $ has_ifencei arch))
+           , ("capcache",   "Xcheri Extension Cache Verification",                    has_cheri,                                \a -> T.repeatTillEnd (gen_rv64_Xcheri_cache $ has_ifencei a))
            , ("capdecode",  "Xcheri Extension Capability Decode Template",            has_cheri,                                T.repeatTillEnd . capDecodeTest)
            , ("cloadtags",  "Xcheri Extension CLoadTags Template",                    andPs [has_cheri, not . has_nocloadtags], T.repeatTillEnd . cLoadTagsTest)
            , ("caprandom",  "Xcheri Extension Random Template",                       has_cheri,                                randomCHERITest)
@@ -294,11 +294,11 @@ main = withSocketsDo $ do
                   case saveDir flags of
                     Nothing -> do
                       putStrLn "Save this trace (give file name or leave empty to ignore)?"
-                      fileName <- getLine
-                      when (not $ null fileName) $ do
+                      fName <- getLine
+                      when (not $ null fName) $ do
                         putStrLn "One-line description?"
                         comment <- getLine
-                        writeFile (fileName ++ ".S")
+                        writeFile (fName ++ ".S")
                                   ("# " ++ comment ++ "\n" ++ showAnnotatedTrace (isNothing m_implB) archDesc trace)
                     Just dir -> do
                       t <- getCurrentTime
@@ -313,14 +313,14 @@ main = withSocketsDo $ do
         checkResult (Args Nothing remainingTests 1 (testLen flags) (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
                     (prop implA m_implB alive (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) (optVerbosity flags) (optIgnoreAsserts flags) gen)
   failuresRef <- newIORef 0
-  let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
-        | skipped == 0 = do putStrLn $ "Reading trace from " ++ fileName
-                            trace <- read <$> readFile fileName
-                            initTrace <- case memoryInitFile of
+  let checkFile (memInitFile :: Maybe FilePath) (skipped :: Int) (fName :: FilePath)
+        | skipped == 0 = do putStrLn $ "Reading trace from " ++ fName
+                            trace <- read <$> readFile fName
+                            initTrace <- case memInitFile of
                               Just memInit -> do putStrLn $ "Reading memory initialisation from file " ++ memInit
                                                  readDataFile memInit
                               Nothing -> return mempty
-                            res <- checkSingle (wrapTest $ initTrace <> trace) (optVerbosity flags) (optShrink flags) (testLen flags) (checkTrapAndSave (Just fileName))
+                            res <- checkSingle (wrapTest $ initTrace <> trace) (optVerbosity flags) (optShrink flags) (testLen flags) (checkTrapAndSave (Just fName))
                             case res of Failure {} -> do putStrLn "Failure."
                                                          modifyIORef failuresRef ((+) 1)
                                         _          -> putStrLn "No Failure."
@@ -333,27 +333,27 @@ main = withSocketsDo $ do
                                    _ -> return ()
                        return res
   case instTraceFile flags of
-    Just fileName -> do
-      void $ checkFile (memoryInitFile flags) 0 fileName
+    Just fName -> do
+      void $ checkFile (memoryInitFile flags) 0 fName
     Nothing -> do
       case instDirectory flags of
-        Just directory -> do
-          fileNames <- System.FilePath.Find.find always (extension ==? ".S") directory
+        Just dir -> do
+          fileNames <- System.FilePath.Find.find always (extension ==? ".S") dir
           skipped <- foldM (checkFile Nothing) 0 fileNames
           when (skipped > 1) $ putStrLn $ "Warning: skipped " ++ show (skipped - 1) ++ " tests due to dead implementations"
         Nothing -> do
           case instrSoc of
-            Nothing -> do let tests = [ template | template@(label,_,_,_) <- allTests
-                                      , label =~ (fromMaybe ".*" (testIncludeRegex flags))
-                                     , not(label =~ (fromMaybe "a^" (testExcludeRegex flags)))]
+            Nothing -> do let tests = [ template | template@(lbl,_,_,_) <- allTests
+                                      , lbl =~ (fromMaybe ".*" (testIncludeRegex flags))
+                                     , not(lbl =~ (fromMaybe "a^" (testExcludeRegex flags)))]
                           when (null tests) $ putStrLn "Warning: no tests selected"
                           mapM_ attemptTest tests
-              where attemptTest (label, description, archReqs, template) =
+              where attemptTest (lbl, description, archReqs, template) =
                       if archReqs archDesc then do
-                        putStrLn $ label ++ " -- " ++ description ++ ":"
+                        putStrLn $ lbl ++ " -- " ++ description ++ ":"
                         (if optContinueOnFail flags then repeatTillTarget else (\f t -> f t >> return ())) ((numTests <$>) . (doCheck (wrapTest <$> (T.genTest $ template archDesc)))) (nTests flags)
                       else
-                        putStrLn $ "Warning: skipping " ++ label ++ " since architecture requirements not met"
+                        putStrLn $ "Warning: skipping " ++ lbl ++ " since architecture requirements not met"
                     repeatTillTarget f t = if t <= 0 then return () else f t >>= (\x -> repeatTillTarget f (t - x))
             Just sock -> do
               _ <- doCheck (liftM (wrapTest . singleSeq . (MkInstruction <$>)) $ listOf (genInstrServer sock)) (nTests flags)
@@ -370,11 +370,11 @@ main = withSocketsDo $ do
       let hints = defaultHints { addrSocketType = Stream }
       addr:_ <- getAddrInfo (Just hints) (Just host) (Just port)
       return addr
-    open dest addr = do
-      putStrLn ("connecting to " ++ dest ++ " ...")
+    open dst addr = do
+      putStrLn ("connecting to " ++ dst ++ " ...")
       sock <- Network.Socket.socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
       connect sock (addrAddress addr)
-      putStrLn ("connected to " ++ dest ++ " ...")
+      putStrLn ("connected to " ++ dst ++ " ...")
       return sock
     rvfiDiiOpen ip port verb name = do
       addr <- resolve ip port

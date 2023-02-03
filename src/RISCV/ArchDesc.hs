@@ -90,7 +90,7 @@ instance Show ArchDesc where
                                               , ext has_cheri "Xcheri"
                                               , ext has_nocloadtags "Xnocloadtags" ]
                                        , not $ null x ]
-            where ext pred str = if pred a then str else ""
+            where ext predicate str = if predicate a then str else ""
 
 -- | 'archDesc_null' is an 'ArchDesc' with all its fields set to 'False'
 archDesc_null :: ArchDesc
