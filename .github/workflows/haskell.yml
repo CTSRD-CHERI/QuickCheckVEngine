@@ -1,0 +1,44 @@
+name: Haskell CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+jobs:
+  stack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: freckle/stack-cache-action@v2
+      - id: stack
+        uses: freckle/stack-action@v3
+        with:
+          pedantic: false
+          stack-arguments: --ghc-options -fwrite-ide-info
+      # Weeder requires running in the same Job (to access .hie artifacts)
+      - uses: freckle/weeder-action@v2
+        with:
+          ghc-version: ${{ steps.stack.outputs.compiler-version }}
+
+  stack-pedantic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: freckle/stack-cache-action@v2
+      - id: stack
+        uses: freckle/stack-action@v3
+        with:
+          pedantic: true
+          stack-arguments: --ghc-options -fno-warn-orphans
+
+  hlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: haskell/actions/hlint-setup@v1
+      - uses: haskell/actions/hlint-run@v2

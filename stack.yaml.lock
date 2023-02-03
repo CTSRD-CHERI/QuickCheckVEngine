@@ -7,13 +7,13 @@ packages:
 - completed:
     hackage: bitwise-1.0.0.1@sha256:04c0e0c65a9228d9e004b5c4b08633b2f0e915afe8f3affc9bd16f75f92ccf61,3110
     pantry-tree:
-      size: 760
       sha256: fe95409d2e77769965df68eade44e6eb5fcc63643a94e2645cd5db357670b20f
+      size: 760
   original:
     hackage: bitwise-1.0.0.1
 snapshots:
 - completed:
-    size: 648424
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/20/1.yaml
-    sha256: b73b2b116143aea728c70e65c3239188998bac5bc3be56465813dacd74215dc5
-  original: lts-20.1
+    sha256: c11fcbeb1aa12761044755b1109d16952ede2cb6147ebde777dd5cb38f784501
+    size: 649333
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/20/9.yaml
+  original: lts-20.9

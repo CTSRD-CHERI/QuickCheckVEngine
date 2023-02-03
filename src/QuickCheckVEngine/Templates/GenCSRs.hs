@@ -36,7 +36,6 @@ module QuickCheckVEngine.Templates.GenCSRs (
   gen_rv32_i_zicsr
 ) where
 
-import RISCV.RV32_I
 import RISCV.RV32_Zicsr
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
@@ -47,7 +46,7 @@ gen_rv32_i_zicsr = random $
      --valid_csr <- csr
      uimm      <- bits 5
      src1      <- src
-     dest      <- dest
+     dst       <- dest
      -- TODO mix csr instructions with some i instructions
-     let insts = rv32_zicsr src1 dest any_csr uimm
+     let insts = rv32_zicsr src1 dst any_csr uimm
      return $ instUniform insts

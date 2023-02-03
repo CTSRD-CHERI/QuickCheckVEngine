@@ -56,17 +56,29 @@ module RISCV.RV32_Zicsr (
 import RISCV.Helpers (prettyCSR, prettyCSR_imm)
 import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
+csrrw_raw :: String
 csrrw_raw          =                   "imm[11:0]  rs1[4:0] 001 rd[4:0] 1110011"
+csrrw :: Integer -> Integer -> Integer -> Instruction
 csrrw rd csr rs1   = encode csrrw_raw   csr        rs1          rd
+csrrs_raw :: String
 csrrs_raw          =                   "imm[11:0]  rs1[4:0] 010 rd[4:0] 1110011"
+csrrs :: Integer -> Integer -> Integer -> Instruction
 csrrs rd csr rs1   = encode csrrs_raw   csr        rs1          rd
+csrrc_raw :: String
 csrrc_raw          =                   "imm[11:0]  rs1[4:0] 011 rd[4:0] 1110011"
+csrrc :: Integer -> Integer -> Integer -> Instruction
 csrrc rd csr rs1   = encode csrrc_raw   csr        rs1          rd
+csrrwi_raw :: String
 csrrwi_raw         =                   "imm[11:0] uimm[4:0] 101 rd[4:0] 1110011"
+csrrwi :: Integer -> Integer -> Integer -> Instruction
 csrrwi rd csr uimm = encode csrrwi_raw  csr       uimm          rd
+csrrsi_raw :: String
 csrrsi_raw         =                   "imm[11:0] uimm[4:0] 110 rd[4:0] 1110011"
+csrrsi :: Integer -> Integer -> Integer -> Instruction
 csrrsi rd csr uimm = encode csrrsi_raw  csr       uimm          rd
+csrrci_raw :: String
 csrrci_raw         =                   "imm[11:0] uimm[4:0] 111 rd[4:0] 1110011"
+csrrci :: Integer -> Integer -> Integer -> Instruction
 csrrci rd csr uimm = encode csrrci_raw  csr       uimm          rd
 
 -- | Dissassembly of RISC-V control and status register instructions

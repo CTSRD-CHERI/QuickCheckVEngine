@@ -70,7 +70,6 @@ import Data.Word
 import Data.Binary
 import Data.Binary.Get
 import Data.Bits
-import Data.Semigroup -- Should no longer be required with modern ghc
 import qualified Data.Bits.Bitwise as BW
 import qualified Data.ByteString.Lazy as BS
 import Data.ByteString.Builder (lazyByteStringHex, toLazyByteString)
@@ -442,33 +441,48 @@ compareMemData is64 x y getMask getData = do
   let clampMask m = if compareV1BitsOnly then m .&. 0xff else m
   let xMask = clampMask (getOrZero getMask x)
   let yMask = clampMask (getOrZero getMask y)
-  (xMask == yMask) && ((xMask == 0) || (getMemAddr x == getMemAddr y))
+  (xMask == yMask) && ((xMask == 0) || (getAddr x == getAddr y))
     && (maskWith (getOrZero getData x) xMask == maskWith (getOrZero getData y) yMask)
   where
     clampAddr a = if is64 then a else a .&. 0x00000000FFFFFFFF
     getOrZero getter pkt = (maybe 0 getter $ rvfi_mem_data pkt)
-    getMemAddr pkt = clampAddr (getOrZero rvfi_mem_addr pkt)
+    getAddr pkt = clampAddr (getOrZero rvfi_mem_addr pkt)
     byteMask2bitMask mask = BW.fromListLE $ concatMap (replicate 8) (BW.toListLE mask)
     maskWith a b = a Data.Bits..&. byteMask2bitMask b
 
 -- Internal assert + rvfi helper functions
+maskUpper :: (Bits p, Num p) => Bool -> p -> p
 maskUpper _is64 _x = if _is64 then _x else _x Data.Bits..&. 0x00000000FFFFFFFF
+getRDAddr :: RVFI_Packet -> RV_RegIdx
 getRDAddr pkt = maybe 0 rvfi_rd_addr $ rvfi_int_data pkt
-getRDWData _is64 pkt = maskUpper _is64 (maybe 0 rvfi_rd_wdata $ rvfi_int_data pkt)
+getRDWData :: Bool -> RVFI_Packet -> RV_WordXLEN
+getRDWData _is64 pkt =
+  maskUpper _is64 (maybe 0 rvfi_rd_wdata $ rvfi_int_data pkt)
+getRS1Addr :: RVFI_Packet -> RV_RegIdx
 getRS1Addr pkt = maybe 0 rvfi_rs1_addr $ rvfi_int_data pkt
-getRS1RData _is64 pkt = maskUpper _is64 (maybe 0 rvfi_rs1_rdata $ rvfi_int_data pkt)
+getRS1RData :: Bool -> RVFI_Packet -> RV_WordXLEN
+getRS1RData _is64 pkt =
+  maskUpper _is64 (maybe 0 rvfi_rs1_rdata $ rvfi_int_data pkt)
+getRS2Addr :: RVFI_Packet -> RV_RegIdx
 getRS2Addr pkt = maybe 0 rvfi_rs2_addr $ rvfi_int_data pkt
-getRS2RData _is64 pkt = maskUpper _is64 (maybe 0 rvfi_rs2_rdata $ rvfi_int_data pkt)
-getMemAddr _is64 pkt = maskUpper _is64 (maybe 0 rvfi_mem_addr $ rvfi_mem_data pkt)
+getRS2RData :: Bool -> RVFI_Packet -> RV_WordXLEN
+getRS2RData _is64 pkt =
+  maskUpper _is64 (maybe 0 rvfi_rs2_rdata $ rvfi_int_data pkt)
+getMemAddr :: Bool -> RVFI_Packet -> RV_WordXLEN
+getMemAddr _is64 pkt =
+  maskUpper _is64 (maybe 0 rvfi_mem_addr $ rvfi_mem_data pkt)
 
 _checkField :: String -> Bool -> String -> Maybe String
-_checkField msg matches ctx = if matches then Nothing else Just ("mismatch in field " ++ msg ++ ": " ++ ctx)
+_checkField msg matches ctx =
+  if matches then Nothing else Just ("mismatch in field " ++ msg ++ ": " ++ ctx)
 
 checkField :: Show a => Eq a => String -> a -> a -> Maybe String
 checkField msg a b = _checkField msg (a == b) (show a ++ " != " ++ show b)
 
-checkOptionalField :: Show a => Eq a => String -> Maybe a -> Maybe a -> Maybe String
-checkOptionalField msg a b = _checkField msg (optionalFieldsSame a b) (show a ++ " != " ++ show b)
+checkOptionalField :: Show a => Eq a => String -> Maybe a -> Maybe a
+                   -> Maybe String
+checkOptionalField msg a b =
+  _checkField msg (optionalFieldsSame a b) (show a ++ " != " ++ show b)
 
 -- | Compare 'RVFI_Packet's
 rvfiCheck :: Bool -> RVFI_Packet -> RVFI_Packet -> Maybe String
@@ -495,10 +509,10 @@ rvfiCheck is64 x y
       ]
 
 assertCheck :: Bool -> RVFI_Packet -> [(RVFI_Packet -> Bool, String, Integer, String)] -> [String]
-assertCheck is64 x asserts
+assertCheck _ x asserts
   | rvfiIsHalt x = (\(_,b,_,_) -> printf "Failed assert \"%s\" due to halt packet" b) <$> asserts
   | otherwise = catMaybes (evalAssert <$> asserts)
-  where evalAssert (pred, field, val, desc) = if pred x then Nothing else Just (printf "Failed assert \"%s\" (%s == 0x%x)" desc field val)
+  where evalAssert (p, field, val, desc) = if p x then Nothing else Just (printf "Failed assert \"%s\" (%s == 0x%x)" desc field val)
 
 -- | Compare 2 'RVFI_Packet's and produce a 'String' output displaying the
 --   the content of the packet once only for equal inputs or the content of
@@ -509,9 +523,9 @@ rvfiCheckAndShow singleImp is64 x y asserts
   | Just x' <- x, Just y' <- y, isNothing (rvfiCheck is64 x' y'),  assertFails <- assertCheck is64 y' asserts = (null assertFails,  "     " ++ show x' ++ (suffix assertFails))
   | Just x' <- x, Just y' <- y, mismatch <- rvfiCheck is64 x' y' =
     (False, "     " ++ fromJust mismatch
-         ++ "\n A < " ++ show x' ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x)
-         ++ "\n B > " ++ show y' ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))
+         ++ "\n A < " ++ show x' ++ suffix (maybe [] (\x'' -> assertCheck is64 x'' asserts) x)
+         ++ "\n B > " ++ show y' ++ suffix (maybe [] (\y'' -> assertCheck is64 y'' asserts) y))
   | otherwise = (False,      " A < " ++ maybe "No report received" show x ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x)
                         ++ "\n B > " ++ maybe "No report received" show y ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))
     where suffix assertFails = foldr (\(_,f,v,_) acc -> printf "%s (assert %s == 0x%x)" acc f v) "" asserts
-                               ++ foldl (\x y -> x ++ "\n       " ++ y) "" assertFails
+                               ++ foldl (\a b -> a ++ "\n       " ++ b) "" assertFails

@@ -74,35 +74,65 @@ module RISCV.RV64_I (
 import RISCV.Helpers (prettyI, prettyI_sig, prettyR, prettyL, prettyS)
 import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
+lwu_raw :: String
 lwu_raw            =                   "imm[11:0] rs1[4:0] 110 rd[4:0] 0000011"
+lwu :: Integer -> Integer -> Integer -> Instruction
 lwu rd rs1 imm     = encode lwu_raw     imm       rs1          rd
+ld_raw :: String
 ld_raw             =                   "imm[11:0] rs1[4:0] 011 rd[4:0] 0000011"
+ld :: Integer -> Integer -> Integer -> Instruction
 ld rd rs1 imm      = encode ld_raw      imm       rs1          rd
+sd_raw :: String
 sd_raw             =                   "imm[11:5] rs2[4:0] rs1[4:0] 011 imm[4:0] 0100011"
+sd :: Integer -> Integer -> Integer -> Instruction
 sd rs1 rs2 imm     = encode sd_raw      imm       rs2      rs1          imm
+addiw_raw :: String
 addiw_raw          =                   "imm[11:0] rs1[4:0] 000 rd[4:0] 0011011"
+addiw :: Integer -> Integer -> Integer -> Instruction
 addiw rd rs1 imm   = encode addiw_raw   imm       rs1          rd
+slli64_raw :: String
 slli64_raw         =                   "000000 imm[5:0] rs1[4:0] 001 rd[4:0] 0010011"
+slli64 :: Integer -> Integer -> Integer -> Instruction
 slli64 rd rs1 imm  = encode slli64_raw         imm      rs1          rd
+srli64_raw :: String
 srli64_raw         =                   "000000 imm[5:0] rs1[4:0] 101 rd[4:0] 0010011"
+srli64 :: Integer -> Integer -> Integer -> Instruction
 srli64 rd rs1 imm  = encode srli64_raw         imm      rs1          rd
+srai64_raw :: String
 srai64_raw         =                   "010000 imm[5:0] rs1[4:0] 101 rd[4:0] 0010011"
+srai64 :: Integer -> Integer -> Integer -> Instruction
 srai64 rd rs1 imm  = encode srai64_raw         imm      rs1          rd
+slliw_raw :: String
 slliw_raw          =                   "0000000 shamt[4:0] rs1[4:0] 001 rd[4:0] 0011011"
+slliw :: Integer -> Integer -> Integer -> Instruction
 slliw rd rs1 shamt = encode slliw_raw           shamt      rs1          rd
+srliw_raw :: String
 srliw_raw          =                   "0000000 shamt[4:0] rs1[4:0] 101 rd[4:0] 0011011"
+srliw :: Integer -> Integer -> Integer -> Instruction
 srliw rd rs1 shamt = encode srliw_raw           shamt      rs1          rd
+sraiw_raw :: String
 sraiw_raw          =                   "0100000 shamt[4:0] rs1[4:0] 101 rd[4:0] 0011011"
+sraiw :: Integer -> Integer -> Integer -> Instruction
 sraiw rd rs1 shamt = encode sraiw_raw           shamt      rs1          rd
+addw_raw :: String
 addw_raw           =                   "0000000 rs2[4:0] rs1[4:0] 000 rd[4:0] 0111011"
+addw :: Integer -> Integer -> Integer -> Instruction
 addw rd rs1 rs2    = encode addw_raw            rs2      rs1          rd
+subw_raw :: String
 subw_raw           =                   "0100000 rs2[4:0] rs1[4:0] 000 rd[4:0] 0111011"
+subw :: Integer -> Integer -> Integer -> Instruction
 subw rd rs1 rs2    = encode subw_raw            rs2      rs1          rd
+sllw_raw :: String
 sllw_raw           =                   "0000000 rs2[4:0] rs1[4:0] 001 rd[4:0] 0111011"
+sllw :: Integer -> Integer -> Integer -> Instruction
 sllw rd rs1 rs2    = encode sllw_raw            rs2      rs1          rd
+srlw_raw :: String
 srlw_raw           =                   "0000000 rs2[4:0] rs1[4:0] 101 rd[4:0] 0111011"
+srlw :: Integer -> Integer -> Integer -> Instruction
 srlw rd rs1 rs2    = encode srlw_raw            rs2      rs1          rd
+sraw_raw :: String
 sraw_raw           =                   "0100000 rs2[4:0] rs1[4:0] 101 rd[4:0] 0111011"
+sraw :: Integer -> Integer -> Integer -> Instruction
 sraw rd rs1 rs2    = encode sraw_raw            rs2      rs1          rd
 
 -- | Dissassembly of RV64 base integer instructions

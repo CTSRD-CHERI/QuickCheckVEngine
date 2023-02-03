@@ -55,15 +55,25 @@ module RISCV.RV64_M (
 import RISCV.Helpers (prettyR)
 import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
+mulw_raw :: String
 mulw_raw         =                  "0000001 rs2[4:0] rs1[4:0] 000 rd[4:0] 0111011"
+mulw :: Integer -> Integer -> Integer -> Instruction
 mulw rd rs1 rs2  = encode mulw_raw           rs2      rs1          rd
+divw_raw :: String
 divw_raw         =                  "0000001 rs2[4:0] rs1[4:0] 100 rd[4:0] 0111011"
+divw :: Integer -> Integer -> Integer -> Instruction
 divw rd rs1 rs2  = encode divw_raw           rs2      rs1          rd
+divuw_raw :: String
 divuw_raw        =                  "0000001 rs2[4:0] rs1[4:0] 101 rd[4:0] 0111011"
+divuw :: Integer -> Integer -> Integer -> Instruction
 divuw rd rs1 rs2 = encode divuw_raw          rs2      rs1          rd
+remw_raw :: String
 remw_raw         =                  "0000001 rs2[4:0] rs1[4:0] 110 rd[4:0] 0111011"
+remw :: Integer -> Integer -> Integer -> Instruction
 remw rd rs1 rs2  = encode remw_raw           rs2      rs1          rd
+remuw_raw :: String
 remuw_raw        =                  "0000001 rs2[4:0] rs1[4:0] 111 rd[4:0] 0111011"
+remuw :: Integer -> Integer -> Integer -> Instruction
 remuw rd rs1 rs2 = encode remuw_raw          rs2      rs1          rd
 
 -- | Dissassembly of RV64 multiply/divide instructions
