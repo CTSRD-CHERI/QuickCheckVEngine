@@ -61,5 +61,6 @@ executable QCVEngine
                        binary >=0.8, bitwise >=1.0, network >=2.8, parsec,
                        bytestring >=0.10, filemanip >=0.3, splitmix >= 0.1.0.2,
                        basement >= 0.0.10, QuickCheck >= 2.12 && < 2.15,
-                       regex-tdfa >= 1.3
+                       regex-tdfa >= 1.3, pretty-diff >= 0.4,
+                       data-default >= 0.7, text >= 1.2
   default-language:    Haskell2010

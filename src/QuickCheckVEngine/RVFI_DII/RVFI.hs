@@ -80,6 +80,9 @@ import Data.Maybe
 import RISCV hiding (and)
 import RISCV.Helpers (privString, xlenString)
 import Text.Printf
+import qualified Pretty.Diff as Diff
+import Data.Default (def)
+import Data.Text (pack, unpack)
 
 -- | Type synonym for a RISCV register index
 type RV_RegIdx = Word8
@@ -508,9 +511,9 @@ rvfiCheckAndShow singleImp is64 x y asserts
   | singleImp, Just x' <- x, assertFails <- assertCheck is64 x' asserts = (null assertFails,  "     " ++ show x' ++ (suffix assertFails))
   | Just x' <- x, Just y' <- y, isNothing (rvfiCheck is64 x' y'),  assertFails <- assertCheck is64 y' asserts = (null assertFails,  "     " ++ show x' ++ (suffix assertFails))
   | Just x' <- x, Just y' <- y, mismatch <- rvfiCheck is64 x' y' =
-    (False, "     " ++ fromJust mismatch
-         ++ "\n A < " ++ show x' ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x)
-         ++ "\n B > " ++ show y' ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))
+    (False, "     " ++ fromJust mismatch ++ "\n" ++ unpack (Diff.pretty (def {Diff.separatorText = Just $ pack "^ A, B v"})
+         (pack $ show x' ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x))
+         (pack $ show y' ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))))
   | otherwise = (False,      " A < " ++ maybe "No report received" show x ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x)
                         ++ "\n B > " ++ maybe "No report received" show y ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))
     where suffix assertFails = foldr (\(_,f,v,_) acc -> printf "%s (assert %s == 0x%x)" acc f v) "" asserts
