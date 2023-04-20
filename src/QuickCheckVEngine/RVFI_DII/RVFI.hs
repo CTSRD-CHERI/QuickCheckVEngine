@@ -84,6 +84,7 @@ import qualified Pretty.Diff as Diff
 import Data.Default (def)
 import Data.Text (pack, unpack)
 import Numeric (showHex)
+import Data.List
 
 -- | Type synonym for a RISCV register index
 type RV_RegIdx = Word8
@@ -466,7 +467,7 @@ getRS2RData _is64 pkt = maskUpper _is64 (maybe 0 rvfi_rs2_rdata $ rvfi_int_data 
 getMemAddr _is64 pkt = maskUpper _is64 (maybe 0 rvfi_mem_addr $ rvfi_mem_data pkt)
 
 _checkField :: String -> Bool -> String -> Maybe String
-_checkField msg matches ctx = if matches then Nothing else Just ("  mismatch in field " ++ msg ++ ": " ++ ctx)
+_checkField msg matches ctx = if matches then Nothing else Just ("mismatch in field " ++ msg ++ ": " ++ ctx)
 
 checkField :: Eq a => String -> (a -> String) -> a -> a -> Maybe String
 checkField msg showF a b = _checkField msg (a == b) (showF a ++ " != " ++ showF b)
@@ -478,25 +479,26 @@ checkOptionalField msg showF a b = _checkField msg (optionalFieldsSame a b) (sho
 rvfiCheck :: Bool -> RVFI_Packet -> RVFI_Packet -> Maybe String
 rvfiCheck is64 x y
   | rvfiIsHalt x = if rvfi_halt x == rvfi_halt y then Nothing else Just "expected halt package"
-  | otherwise =
-    mconcat
-      [ checkField "insn" printHex (maskUpper False (rvfi_insn x)) (maskUpper False (rvfi_insn y)),
-        checkField "trap" show (rvfi_trap x) (rvfi_trap y),
-        checkField "halt" show (rvfi_halt x) (rvfi_halt y),
-        checkOptionalField "mode" show (rvfi_mode x) (rvfi_mode y),
-        checkOptionalField "XLEN" show (rvfi_ixl x) (rvfi_ixl y),
-        checkField "rd_addr" show (getRDAddr x) (getRDAddr y),
-        checkField "rd_wdata" printHex (getRDWData is64 x) (getRDWData is64 y),
-        checkField "rs1_addr" show (getRS1Addr x) (getRS1Addr y),
-        checkField "rs1_rdata" printHex (getRS1RData is64 x) (getRS1RData is64 y),
-        checkField "rs2_addr" show (getRS2Addr x) (getRS2Addr y),
-        checkField "rs2_rdata" printHex (getRS2RData is64 x) (getRS2RData is64 y),
-        checkField "pc_wdata" printHex (maskUpper is64 (rvfi_pc_wdata x)) (maskUpper is64 (rvfi_pc_wdata y)),
-        checkField "mem_addr" printHex (getMemAddr is64 x) (getMemAddr is64 y),
-        _checkField "mem_wdata" (compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata) "", -- TODO: context
-        _checkField "mem_rdata" (compareMemData is64 x y rvfi_mem_rmask rvfi_mem_rdata) "" -- TODO: context
-      ]
-    where printHex x = "0x" ++ showHex x ""
+  | otherwise = case errors of [] -> Nothing
+                               xs -> Just $ intercalate ", " xs
+  where errors = catMaybes
+          [ checkField "insn" printHex (maskUpper False (rvfi_insn x)) (maskUpper False (rvfi_insn y)),
+            checkField "trap" show (rvfi_trap x) (rvfi_trap y),
+            checkField "halt" show (rvfi_halt x) (rvfi_halt y),
+            checkOptionalField "mode" show (rvfi_mode x) (rvfi_mode y),
+            checkOptionalField "XLEN" show (rvfi_ixl x) (rvfi_ixl y),
+            checkField "rd_addr" show (getRDAddr x) (getRDAddr y),
+            checkField "rd_wdata" printHex (getRDWData is64 x) (getRDWData is64 y),
+            checkField "rs1_addr" show (getRS1Addr x) (getRS1Addr y),
+            checkField "rs1_rdata" printHex (getRS1RData is64 x) (getRS1RData is64 y),
+            checkField "rs2_addr" show (getRS2Addr x) (getRS2Addr y),
+            checkField "rs2_rdata" printHex (getRS2RData is64 x) (getRS2RData is64 y),
+            checkField "pc_wdata" printHex (maskUpper is64 (rvfi_pc_wdata x)) (maskUpper is64 (rvfi_pc_wdata y)),
+            checkField "mem_addr" printHex (getMemAddr is64 x) (getMemAddr is64 y),
+            _checkField "mem_wdata" (compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata) "", -- TODO: context
+            _checkField "mem_rdata" (compareMemData is64 x y rvfi_mem_rmask rvfi_mem_rdata) "" -- TODO: context
+          ]
+        printHex x = "0x" ++ showHex x ""
 
 assertCheck :: Bool -> RVFI_Packet -> [(RVFI_Packet -> Bool, String, Integer, String)] -> [String]
 assertCheck is64 x asserts
