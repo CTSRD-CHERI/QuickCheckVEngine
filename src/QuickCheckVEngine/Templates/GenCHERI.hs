@@ -77,6 +77,7 @@ capDecodeTest _ = random $ do
                     inst $ cgetoffset 6 2,
                     inst $ cgetbase 6 2,
                     inst $ cgetaddr 6 2,
+                    inst $ cgethigh 6 2,
                     inst $ cgettype 6 2,
                     inst $ cgetflags 6 2,
                     inst $ cgetperm 6 2,
