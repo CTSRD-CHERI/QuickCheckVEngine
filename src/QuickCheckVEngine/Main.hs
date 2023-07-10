@@ -321,7 +321,7 @@ main = withSocketsDo $ do
                                                  readDataFile memInit
                               Nothing -> return mempty
                             res <- checkSingle (wrapTest $ initTrace <> trace) (optVerbosity flags) (optShrink flags) (testLen flags) (checkTrapAndSave (Just fileName))
-                            case res of Failure {} -> do putStrLn "Failure."
+                            case res of Failure {} -> do if optContinueOnFail flags then putStrLn "Failure." else error "Failure. Exiting..."
                                                          modifyIORef failuresRef ((+) 1)
                                         _          -> putStrLn "No Failure."
                             isAlive <- readIORef alive
