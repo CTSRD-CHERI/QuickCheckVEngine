@@ -323,6 +323,7 @@ main = withSocketsDo $ do
                             res <- checkSingle (wrapTest $ initTrace <> trace) (optVerbosity flags) (optShrink flags) (testLen flags) (checkTrapAndSave (Just fileName))
                             case res of Failure {} -> do putStrLn "Failure."
                                                          modifyIORef failuresRef ((+) 1)
+                                                         when (not (optContinueOnFail flags)) $ writeIORef alive False
                                         _          -> putStrLn "No Failure."
                             isAlive <- readIORef alive
                             return $ if isAlive then 0 else 1
@@ -340,7 +341,7 @@ main = withSocketsDo $ do
         Just directory -> do
           fileNames <- System.FilePath.Find.find always (extension ==? ".S") directory
           skipped <- foldM (checkFile Nothing) 0 fileNames
-          when (skipped > 1) $ putStrLn $ "Warning: skipped " ++ show (skipped - 1) ++ " tests due to dead implementations"
+          when (skipped > 1) $ putStrLn $ "Warning: skipped " ++ show (skipped - 1) ++ " tests"
         Nothing -> do
           case instrSoc of
             Nothing -> do let tests = [ template | template@(label,_,_,_) <- allTests
