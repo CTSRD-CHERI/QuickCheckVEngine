@@ -151,7 +151,7 @@ wrapTest = (<> single (diiEnd, Nothing, Nothing))
   where f (MkInstruction i) = (diiInstruction i, Nothing, Nothing)
 
 runImpls :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> Int -> Int -> Test TestResult
-         -> (Test TestResult -> IO a) -> IO a -> IO a
+         -> (Test TestResult -> IO a) -> (Test DII_Packet -> IO a) -> (Test DII_Packet -> IO a)
          -> IO a
 runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequentDeaths = do
   let instTrace = (\(x, _, _) -> x) <$> test
@@ -161,8 +161,8 @@ runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequ
     m_trace <- doRVFIDII connA m_connB alive delay verbosity insts
     case m_trace of
       Just trace -> onTrace trace
-      _ -> onFirstDeath
-  else onSubsequentDeaths
+      _ -> onFirstDeath instTrace
+  else onSubsequentDeaths instTrace
 
 -- | The core QuickCheck property sending the 'Test' to the tested RISC-V
 --   implementations as 'DII_Packet's and checking the returned 'RVFI_Packet's
@@ -190,10 +190,10 @@ prop connA m_connB alive onFail arch delay verbosity ignoreAsserts gen =
           when (verbosity > 1) $ mapM_ (putStrLn . snd) diff
           assertsFailed <- forM (gatherReports $ runAssertCompounds trace) handleAsserts
           return $ property $ and (fst <$> diff) && (ignoreAsserts || not(or assertsFailed))
-        onFirstDeath = return $ property False
+        onFirstDeath _ = return $ property False
         -- We don't want to shrink once one of the implementations has died,
         -- so always return that the property is true
-        onSubsequentDeaths = do
+        onSubsequentDeaths _ = do
           putStrLn "Warning: reporting success since implementations not running"
           return $ property True
 

@@ -39,6 +39,7 @@
 --
 
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE BlockArguments #-}
 
 module Main (main) where
 
@@ -280,33 +281,35 @@ main = withSocketsDo $ do
                                                 , csrrs 1 (unsafe_csrs_indexFromName "mccsr" ) 0 ]
               p (DII_End _, _, _) = False
               p _ = True
-
+  let askAndSave sourceFile contents m_trace testTrans = do
+        writeFile "last_failure.S" ("# last failing test case:\n" ++ contents)
+        case m_trace of Just trace | optVerbosity flags > 0 -> do
+                          putStrLn "Replaying shrunk failed test case:"
+                          checkSingle (testTrans trace) 2 False (testLen flags) (const $ return ())
+                          return ()
+                        _ -> return ()
+        when (optSave flags) $ do
+          case saveDir flags of
+            Nothing -> do
+              putStrLn "Save this trace (give file name or leave empty to ignore)?"
+              fileName <- getLine
+              when (not $ null fileName) $ do
+                putStrLn "One-line description?"
+                comment <- getLine
+                writeFile (fileName ++ ".S")
+                          ("# " ++ comment ++ "\n" ++ contents)
+            Just dir -> do
+              t <- getCurrentTime
+              let tstamp = [if x == ' ' then '_' else if x == ':' then '-' else x | x <- show t]
+              let prelude = case sourceFile of
+                              Just name -> "# Generated from input file: " ++ show name ++ "\n"
+                              Nothing   -> "# Automatically generated failing test case\n"
+              writeFile (dir ++ "/failure-" ++ tstamp ++ ".S") (prelude ++ contents)
   let saveOnFail :: Maybe FilePath -> Test TestResult -> (Test TestResult -> Test TestResult) -> IO ()
       saveOnFail sourceFile test testTrans = runImpls implA m_implB alive (timeoutDelay flags) 0 test onTrace onDeath onDeath
-        where onDeath = putStrLn "Failure rerunning test"
-              onTrace trace = do
-                writeFile "last_failure.S" ("# last failing test case:\n" ++ showTraceInput trace)
-                when (optVerbosity flags > 0) $ do
-                  putStrLn "Replaying shrunk failed test case:"
-                  checkSingle (testTrans trace) 2 False (testLen flags) (const $ return ())
-                  return ()
-                when (optSave flags) $ do
-                  case saveDir flags of
-                    Nothing -> do
-                      putStrLn "Save this trace (give file name or leave empty to ignore)?"
-                      fileName <- getLine
-                      when (not $ null fileName) $ do
-                        putStrLn "One-line description?"
-                        comment <- getLine
-                        writeFile (fileName ++ ".S")
-                                  ("# " ++ comment ++ "\n" ++ showAnnotatedTrace (isNothing m_implB) archDesc trace)
-                    Just dir -> do
-                      t <- getCurrentTime
-                      let tstamp = [if x == ' ' then '_' else if x == ':' then '-' else x | x <- show t]
-                      let prelude = case sourceFile of
-                                      Just name -> "# Generated from input file: " ++ show name ++ "\n"
-                                      Nothing   -> "# Automatically generated failing test case\n"
-                      writeFile (dir ++ "/failure-" ++ tstamp ++ ".S") (prelude ++ showAnnotatedTrace (isNothing m_implB) archDesc trace)
+        where onDeath test = do putStrLn "Failure rerunning test"
+                                askAndSave sourceFile (show test) Nothing testTrans
+              onTrace trace = askAndSave sourceFile (showAnnotatedTrace (isNothing m_implB) archDesc trace) (Just trace) testTrans
   let checkTrapAndSave sourceFile test = saveOnFail sourceFile test (check_mcause_on_trap :: Test TestResult -> Test TestResult)
   let checkResult = if optVerbosity flags > 1 then verboseCheckWithResult else quickCheckWithResult
   let checkGen gen remainingTests =
