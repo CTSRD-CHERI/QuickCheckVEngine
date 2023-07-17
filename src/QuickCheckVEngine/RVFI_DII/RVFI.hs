@@ -515,8 +515,8 @@ rvfiCheckAndShow singleImp is64 x y asserts
   | Just x' <- x, Just y' <- y, isNothing (rvfiCheck is64 x' y'),  assertFails <- assertCheck is64 y' asserts = (null assertFails,  "     " ++ show x' ++ (suffix assertFails))
   | Just x' <- x, Just y' <- y, mismatch <- rvfiCheck is64 x' y' =
     (False, unpack (Diff.pretty (def {Diff.separatorText = Just . pack $ "^ A, B v: " ++ fromJust mismatch})
-         (pack $ show x' ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x))
-         (pack $ show y' ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))))
+         (pack $ "     " ++ show x' ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x))
+         (pack $ "     " ++ show y' ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))))
   | otherwise = (False,      " A < " ++ maybe "No report received" show x ++ suffix (maybe [] (\x' -> assertCheck is64 x' asserts) x)
                         ++ "\n B > " ++ maybe "No report received" show y ++ suffix (maybe [] (\y' -> assertCheck is64 y' asserts) y))
     where suffix assertFails = foldr (\(_,f,v,_) acc -> printf "%s (assert %s == 0x%x)" acc f v) "" asserts
