@@ -97,6 +97,7 @@ data Options = Options
     , testLen          :: Int
     , optSingleImp     :: Bool
     , optShrink        :: Bool
+    , optPedantic      :: Bool
     , optSave          :: Bool
     , optContinueOnFail:: Bool
     , optIgnoreAsserts :: Bool
@@ -121,6 +122,7 @@ defaultOptions = Options
     , timeoutDelay     = 6000000000 -- 60 seconds
     , testLen          = 2048
     , optShrink        = True
+    , optPedantic      = True
     , optSave          = True
     , optContinueOnFail= False
     , optIgnoreAsserts = False
@@ -177,6 +179,9 @@ options =
   , Option ['L']     ["test-length"]
       (ReqArg (\ f opts -> opts { testLen = read f }) "TEST-LENGTH")
         "Generate tests up to TEST-LENGTH instructions long"
+  , Option ['R']     ["relaxed-comparison"]
+      (NoArg (\ opts -> opts { optPedantic = False }))
+        "Only compare key RVFI fields"
   , Option ['S']     ["disable-shrink"]
       (NoArg (\ opts -> opts { optShrink = False }))
         "Disable shrinking of failed tests"
@@ -272,7 +277,7 @@ main = withSocketsDo $ do
   let checkSingle :: Test TestResult -> Int -> Bool -> Int -> (Test TestResult -> IO ()) -> IO Result
       checkSingle test verbosity doShrink len onFail = do
         quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 1000 else 0))
-                             (prop implA m_implB alive onFail archDesc (timeoutDelay flags) verbosity (optIgnoreAsserts flags) (return test))
+                             (prop implA m_implB alive onFail archDesc (timeoutDelay flags) verbosity (optIgnoreAsserts flags) (optPedantic flags) (return test))
   let check_mcause_on_trap :: Test TestResult -> Test TestResult
       check_mcause_on_trap (trace :: Test TestResult) = if or (hasTrap <$> trace) then (filterTest p trace) <> wrapTest testSuffix else trace
         where hasTrap (_, a, b) = maybe False rvfiIsTrap a || maybe False rvfiIsTrap b
@@ -314,7 +319,7 @@ main = withSocketsDo $ do
   let checkResult = if optVerbosity flags > 1 then verboseCheckWithResult else quickCheckWithResult
   let checkGen gen remainingTests =
         checkResult (Args Nothing remainingTests 1 (testLen flags) (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
-                    (prop implA m_implB alive (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) (optVerbosity flags) (optIgnoreAsserts flags) gen)
+                    (prop implA m_implB alive (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) (optVerbosity flags) (optIgnoreAsserts flags) (optPedantic flags) gen)
   failuresRef <- newIORef 0
   let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
         | skipped == 0 = do putStrLn $ "Reading trace from " ++ fileName

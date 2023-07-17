@@ -85,7 +85,7 @@ instance {-# OVERLAPPING #-} Show (Test TestResult) where
 
 showTraceInput t = show ((\(x, _, _) -> x) <$> t)
 
-showAnnotatedTrace singleImp arch t = showTestWithComments t (\(x, _, _) -> show x) (\(_, a, b) -> Just . unlines . (("# " ++) <$>) . lines . (\(a, b) -> b) $ rvfiCheckAndShow singleImp (has_xlen_64 arch) a b [])
+showAnnotatedTrace singleImp arch t = showTestWithComments t (\(x, _, _) -> show x) (\(_, a, b) -> Just . unlines . (("# " ++) <$>) . lines . (\(a, b) -> b) $ rvfiCheckAndShow True singleImp (has_xlen_64 arch) a b [])
 
 bypassShrink :: ShrinkStrategy
 bypassShrink = sequenceShrink f'
@@ -170,8 +170,8 @@ runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequ
 --   'Test -> IO ()' to be performed on failure that takes in the reduced
 --   'Test' which caused the failure
 prop :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> (Test TestResult -> IO ())
-     -> ArchDesc -> Int -> Int -> Bool -> Gen (Test TestResult) -> Property
-prop connA m_connB alive onFail arch delay verbosity ignoreAsserts gen =
+     -> ArchDesc -> Int -> Int -> Bool -> Bool -> Gen (Test TestResult) -> Property
+prop connA m_connB alive onFail arch delay verbosity ignoreAsserts pedantic gen =
   forAllShrink gen shrink mkProp
   where mkProp test = whenFail (onFail test) (doProp test)
         doProp test = monadicIO $ run $ runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequentDeaths
@@ -179,7 +179,7 @@ prop connA m_connB alive onFail arch delay verbosity ignoreAsserts gen =
         colourRed = "\ESC[31m"
         colourEnd = "\ESC[0m"
         colourise (b, s) = (b, (if b then colourGreen else colourRed) ++ s ++ colourEnd)
-        diffFunc asserts (DII_Instruction _ _, a, b) = colourise $ rvfiCheckAndShow (isNothing m_connB) (has_xlen_64 arch) a b asserts
+        diffFunc asserts (DII_Instruction _ _, a, b) = colourise $ rvfiCheckAndShow pedantic (isNothing m_connB) (has_xlen_64 arch) a b asserts
         diffFunc _ (DII_End _, _, _) = (True, "Test end")
         diffFunc _ _ = (True, "")
         handleAsserts (ReportAssert False s, _) = do putStrLn $ "Failed assert: " ++ s
