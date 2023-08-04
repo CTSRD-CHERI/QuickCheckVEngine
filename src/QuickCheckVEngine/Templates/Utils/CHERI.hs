@@ -34,6 +34,7 @@
 
 module QuickCheckVEngine.Templates.Utils.CHERI (
   randomCInvoke
+, boundPCC
 , clearASR
 , makeCap
 , makeCap_core
@@ -78,6 +79,15 @@ randomCInvoke cs1 cs2 typeReg tmpReg =
           , (1, mempty) ]
   <> instSeq [ cinvoke cs2 cs1
              , cmove 31 1 ]
+
+boundPCC :: Integer -> Integer -> Integer -> Integer -> Template
+boundPCC tmp1 tmp2 offset size =
+  mconcat [ inst $ cspecialrw tmp1 0 0, -- Get PCC
+            li64 tmp2 offset,
+            inst $ cincoffset tmp1 tmp1 tmp2, -- increment PCC
+            li64 tmp2 size,
+            inst $ csetbounds tmp1 tmp1 tmp2, -- reduce bounds
+            inst $ jalr_cap tmp1 tmp1 ] -- jump to new PCC
 
 clearASR :: Integer -> Integer -> Template
 clearASR tmp1 tmp2 = instSeq [ cspecialrw tmp1 0 0, -- Get PCC
