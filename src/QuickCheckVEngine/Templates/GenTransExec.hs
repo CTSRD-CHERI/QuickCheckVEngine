@@ -309,14 +309,14 @@ genJump :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Tem
 genJump memReg reg0 reg1 reg2 imm offset = random $ do
   let czero = 0
   let ra = 1
-  return $ instSeq [ cjalr ra reg1
-                   , cjalr czero ra
+  return $ instSeq [ jalr_cap ra reg1
+                   , jalr_cap czero ra
                    ]
 
 genCSCInst :: Integer -> Integer -> Integer -> Integer -> Template
 genCSCInst memReg reg0 reg1 reg2 = random $ do
   let czero = 0
-  return $ instDist [ (1, cjalr czero reg0)
+  return $ instDist [ (1, jalr_cap czero reg0)
                     , (2, add 29 29 29)
                     , (1, cload reg1 reg2 0x8)
                     , (1, auipc reg2 0)
@@ -344,7 +344,7 @@ gen_csc_inst_verify = random $ do
   let reg1 = 24
   let reg2 = 25
   let mtcc = 28
-  let startSeq = inst $ cjalr zeroReg startReg
+  let startSeq = inst $ jalr_cap zeroReg startReg
   let trainSeq = repeatN (18) (genJump memReg tmpReg pccReg loadReg 0x20 0x0)
   let leakSeq = repeatN (1) (genJump memReg2 tmpReg pccReg loadReg 0x20 0x100)
   let tortSeq = startSeq <> leakSeq
