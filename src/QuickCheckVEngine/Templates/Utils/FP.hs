@@ -41,12 +41,13 @@ import RISCV
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils.General
 
-fp_prologue :: Template
-fp_prologue = mconcat [ inst $ lui 1 2
-                      , csrs (unsafe_csrs_indexFromName "mstatus") 1
-                      , csrs (unsafe_csrs_indexFromName "fcsr") 0
-                      , readParams $ \p -> if has_f (archDesc p) || has_d (archDesc p)
-                                           then mconcat $ [inst $ fmv_w_x i 0 | i <- [0..4]]
-                                                       ++ [inst $ (if has_d (archDesc p) then fmv_d_x else fmv_w_x) i 0 | i <- [16..20]]
-                                           else mempty
-                      ]
+fp_prologue :: Template -> Template
+fp_prologue t = readParams $ \p ->
+    if has_f (archDesc p) || has_d (archDesc p)
+    then shrinkScope ((noShrink . mconcat) [ inst $ lui 1 2
+                                           , csrs (unsafe_csrs_indexFromName "mstatus") 1
+                                           , csrs (unsafe_csrs_indexFromName "fcsr") 0
+                                           , mconcat $ [inst $ fmv_w_x i 0 | i <- [0..4]]
+                                                    ++ [inst $ (if has_d (archDesc p) then fmv_d_x else fmv_w_x) i 0 | i <- [16..20]]
+                                           ] <> t)
+    else t

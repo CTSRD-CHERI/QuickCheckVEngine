@@ -162,8 +162,4 @@ gen_simple_fpclear = random $ do
                 ]
 
 randomCHERITest :: Template
-randomCHERITest = readParams $ \param ->
-                    let temp = repeatTillEnd $ genRandomCHERITest
-                        arch = archDesc param
-                    in if has_f arch || has_d arch then noShrink fp_prologue <> temp
-                                                   else temp
+randomCHERITest = fp_prologue $ repeatTillEnd genRandomCHERITest

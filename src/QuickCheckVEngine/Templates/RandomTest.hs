@@ -43,11 +43,8 @@ import QuickCheckVEngine.Templates.Utils
 
 -- | 'randomTest' provides a 'Template' for a random test
 randomTest :: Template
-randomTest = wrap go
-  where wrap t = readParams $ \param -> if has_f (archDesc param) || has_d (archDesc param)
-                                        then shrinkScope $ noShrink fp_prologue <> t
-                                        else t
-        go = random $ do
+randomTest = fp_prologue go
+  where go = random $ do
           remaining <- getSize
           srcAddr   <- src
           srcData   <- src
