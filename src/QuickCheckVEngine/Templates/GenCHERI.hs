@@ -52,11 +52,11 @@ import QuickCheckVEngine.Templates.GenFP
 import QuickCheckVEngine.Templates.GenCompressed
 import Data.Bits
 
-cLoadTagsTest :: ArchDesc -> Template
-cLoadTagsTest _ = loadTags 1 2
+cLoadTagsTest :: Template
+cLoadTagsTest = loadTags 1 2
 
-capDecodeTest :: ArchDesc -> Template
-capDecodeTest _ = random $ do
+capDecodeTest :: Template
+capDecodeTest = random $ do
   let bitAppend x (a,b) = (shift x b +) <$> a b
   cap <- oneof [bits 128, -- completely random cap
                 foldM bitAppend 0 [(bits,16),(bits,3),(const $ elements [0x00000,0x00001,0x00002,0x00003],18),(bits,27),(bits,64)], -- reserved otypes
@@ -86,8 +86,9 @@ capDecodeTest _ = random $ do
                     inst $ cgettag 5 2]
 
 
-genRandomCHERITest :: ArchDesc -> Template
-genRandomCHERITest arch = random $ do
+genRandomCHERITest :: Template
+genRandomCHERITest = readParams $ \param -> random $ do
+  let arch = archDesc param
   srcAddr   <- src
   srcData   <- src
   tmpReg    <- src
@@ -108,8 +109,8 @@ genRandomCHERITest arch = random $ do
                         , unsafe_csrs_indexFromName "mepc" ]
   srcCsrRO  <- elements [ unsafe_csrs_indexFromName "scause"
                         , unsafe_csrs_indexFromName "mcause" ]
-  return $ dist [ (5, legalLoad arch)
-                , (5, legalStore arch)
+  return $ dist [ (5, legalLoad)
+                , (5, legalStore)
                 , (5, legalCapLoad srcAddr dest)
                 , (5, legalCapStore srcAddr)
                 , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2)
@@ -127,17 +128,17 @@ genRandomCHERITest arch = random $ do
                 , (if has_nocloadtags arch then 0 else 10, loadTags srcAddr srcData)
                 ]
 
-randomCHERIRVCTest :: ArchDesc -> Template
-randomCHERIRVCTest arch = random $ do
+randomCHERIRVCTest :: Template
+randomCHERIRVCTest = random $ do
   rvcInst <- bits 16
   return $ mconcat [ switchEncodingMode
-                   , genRandomCHERITest arch
+                   , genRandomCHERITest
                    , uniform [inst $ MkInstruction rvcInst, gen_rv_c]
                    , repeatN 5 genCHERIinspection
                    ]
 
-gen_simple_cclear :: ArchDesc -> Template
-gen_simple_cclear _ = random $ do
+gen_simple_cclear :: Template
+gen_simple_cclear = random $ do
   mask <- bits 8
   quarter <- bits 2
   imm  <- bits 12
@@ -150,15 +151,17 @@ gen_simple_cclear _ = random $ do
                 , (2, inst $ cclear quarter mask)
                 ]
 
-gen_simple_fpclear :: ArchDesc -> Template
-gen_simple_fpclear _ = random $ do
+gen_simple_fpclear :: Template
+gen_simple_fpclear = random $ do
   mask <- bits 8
   quarter <- bits 2
   return $ dist [ (8, gen_rv64_fd)
                 , (2, inst $ fpclear quarter mask)
                 ]
 
-randomCHERITest :: ArchDesc -> Template
-randomCHERITest arch = let temp = repeatTillEnd $ genRandomCHERITest arch
-                       in if has_f arch || has_d arch then noShrink (fp_prologue arch) <> temp
-                                                      else temp
+randomCHERITest :: Template
+randomCHERITest = readParams $ \param ->
+                    let temp = repeatTillEnd $ genRandomCHERITest
+                        arch = archDesc param
+                    in if has_f arch || has_d arch then noShrink fp_prologue <> temp
+                                                   else temp

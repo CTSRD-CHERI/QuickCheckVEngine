@@ -41,8 +41,8 @@ import RISCV.ArchDesc
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
-genAll :: ArchDesc -> Template
-genAll desc = random $ do
+genAll :: Template
+genAll = readParams $ \params -> random $ do
   imm     <- bits 12
   src1    <- src
   src2    <- src
@@ -61,6 +61,7 @@ genAll desc = random $ do
   uimm    <- bits 5
   offset  <- memOffset
   srcScr  <- elements [28, 29, 30, 31]
+  let desc = archDesc params
   let insts = [[ (8, instUniform (rv32_i_arith src1 src2 dest imm longImm))
                , (8, instUniform (rv32_i_ctrl src1 src2 dest imm longImm))
                , (8, instUniform (rv32_i_mem src1 src2 dest offset fOp1 fOp2))
@@ -91,6 +92,6 @@ genAll desc = random $ do
                ] | has_icsr desc]
            ++ [[ (8, instUniform (rv32_xcheri desc src1 src2 srcScr imm mop dest))
                ] | has_cheri desc]
-  return $ shrinkScope $ (if has_f desc || has_d desc then noShrink (fp_prologue desc)
+  return $ shrinkScope $ (if has_f desc || has_d desc then noShrink fp_prologue
                                                       else mempty)
                          <> repeatTillEnd (dist $ concat insts)

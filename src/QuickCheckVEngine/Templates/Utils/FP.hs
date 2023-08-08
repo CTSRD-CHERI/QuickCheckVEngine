@@ -83,8 +83,8 @@ prologue_list arch = [ lui 1 2
                      ] else [])
   where op = if has_d arch then fmv_d_x else fmv_w_x
 
-fp_prologue :: ArchDesc -> Template
-fp_prologue = instSeq . prologue_list
+fp_prologue :: Template
+fp_prologue = readParams $ \param -> instSeq $ prologue_list $ archDesc param
 
 fp_prologue_length :: ArchDesc -> Int
 fp_prologue_length = length . prologue_list

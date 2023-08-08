@@ -63,6 +63,7 @@ import RISCV.RV_CSRs
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 import Data.Bits
+import qualified RISCV.ArchDesc as Arch
 
 data GenConf = GenConf { has_a        :: Bool
                        , has_zifencei :: Bool
@@ -81,8 +82,8 @@ gen_rv32_i_zifencei_memory = gen_memory False True False False
 gen_rv32_i_a_zifencei_memory :: Template
 gen_rv32_i_a_zifencei_memory = gen_memory True True False False
 
-gen_rv32_i_cache :: Bool -> Template
-gen_rv32_i_cache has_zifencei = gen_cache (GenConf False has_zifencei False) False
+gen_rv32_i_cache :: Template
+gen_rv32_i_cache = readParams $ \param -> gen_cache (GenConf False (Arch.has_ifencei $ archDesc param) False) False
 
 gen_rv64_i_memory :: Template
 gen_rv64_i_memory = gen_memory False False True False
@@ -96,14 +97,14 @@ gen_rv64_i_zifencei_memory = gen_memory False True True False
 gen_rv64_i_a_zifencei_memory :: Template
 gen_rv64_i_a_zifencei_memory = gen_memory True True True False
 
-gen_rv64_i_cache :: Bool -> Template
-gen_rv64_i_cache has_zifencei = gen_cache (GenConf False has_zifencei True) False
+gen_rv64_i_cache :: Template
+gen_rv64_i_cache = readParams $ \p -> gen_cache (GenConf False (Arch.has_ifencei (archDesc p)) True) False
 
-gen_rv32_Xcheri_cache :: Bool -> Template
-gen_rv32_Xcheri_cache has_zifencei = gen_cache (GenConf False has_zifencei False) True
+gen_rv32_Xcheri_cache :: Template
+gen_rv32_Xcheri_cache = readParams $ \p -> gen_cache (GenConf False (Arch.has_ifencei (archDesc p)) False) True
 
-gen_rv64_Xcheri_cache :: Bool -> Template
-gen_rv64_Xcheri_cache has_zifencei = gen_cache (GenConf False has_zifencei True) True
+gen_rv64_Xcheri_cache :: Template
+gen_rv64_Xcheri_cache = readParams $ \p -> gen_cache (GenConf False (Arch.has_ifencei (archDesc p)) True) True
 
 gen_memory :: Bool -> Bool -> Bool -> Bool -> Template
 gen_memory has_a has_zifencei has_xlen_64 has_caplen = random $
