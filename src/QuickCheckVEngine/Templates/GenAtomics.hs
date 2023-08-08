@@ -45,11 +45,11 @@ import RISCV.RV32_Xcheri
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
-gen_rv32_a :: Bool -> Template
-gen_rv32_a has_cap = genAtomics False has_cap
+gen_rv32_a :: Template
+gen_rv32_a = readParams $ \p -> genAtomics False (has_cheri (archDesc p))
 
-gen_rv64_a :: Bool -> Template
-gen_rv64_a has_cap = genAtomics True has_cap
+gen_rv64_a :: Template
+gen_rv64_a = readParams $ \p -> genAtomics True (has_cheri (archDesc p))
 
 genAtomics :: Bool -> Bool -> Template
 genAtomics has_xlen_64 has_cap = random $ do

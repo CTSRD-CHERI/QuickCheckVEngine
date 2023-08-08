@@ -48,6 +48,7 @@ module QuickCheckVEngine.Template (
 -- * Template API
 , module Data.Semigroup -- XXX Remove once everyone has a newer compiler
 , random
+, readParams
 , dist
 , uniform
 , repeatN
@@ -67,11 +68,14 @@ module QuickCheckVEngine.Template (
 , instAssert
 -- ** Generate Test from Template
 , genTest
+-- ** Test parameters
+, TestParams(..)
 ) where
 
 import Test.QuickCheck
 import Data.Semigroup (Semigroup(..))
 import RISCV (Instruction(..))
+import RISCV.ArchDesc
 --import Data.Kind
 --import Control.Applicative (liftA2)
 --import Text.Printf
@@ -83,11 +87,17 @@ import RISCV (Instruction(..))
 import QuickCheckVEngine.TestTypes
 import QuickCheckVEngine.RVFI_DII
 
+-- | Micellaneous data indicating global parameters to
+--   influence test generation, which should be passed
+--   recursively to sub-templates.
+data TestParams = TestParams { archDesc        :: ArchDesc }
+
 data Template = TemplateEmpty
               | TemplateSingle Instruction
               | TemplateSequence Template Template
               | TemplateMeta MetaInfo Template
               | TemplateRandom (Gen Template)
+              | TemplateReadParams (TestParams -> Template)
 
 instance Semigroup Template where
   x <> y = TemplateSequence x y
@@ -99,6 +109,9 @@ instance Monoid Template where
 
 random :: Gen Template -> Template
 random = TemplateRandom
+
+readParams :: (TestParams -> Template) -> Template
+readParams = TemplateReadParams
 
 dist :: [(Int, Template)] -> Template
 dist xs = TemplateRandom $ frequency $ map (\(a, b) -> (a, return b)) xs
@@ -150,8 +163,8 @@ instAssert i v = assertLastVal (TemplateSingle i) v
 -- Generate a Test from a Template, aiming to achieve the size
 -- specified by quickcheck, splitting the size equally among
 -- recursive Random template constructors
-genTest :: Template -> Gen (Test Instruction)
-genTest x = (\(a,_,_) -> a) <$> (go x (countTemplate x)) where
+genTest :: TestParams -> Template -> Gen (Test Instruction)
+genTest param x = (\(a,_,_) -> a) <$> (go x (countTemplate x)) where
   -- Determine the number of (static instructions, recursive random templates)
   -- there are in a template
   countTemplate TemplateEmpty = (0, 0)
@@ -162,6 +175,7 @@ genTest x = (\(a,_,_) -> a) <$> (go x (countTemplate x)) where
           (iy, ry) = countTemplate y
   countTemplate (TemplateMeta _ x) = countTemplate x
   countTemplate (TemplateRandom g) = (0, 1)
+  countTemplate (TemplateReadParams f) = countTemplate (f param)
   -- Generate a test from a template, given the global number of static
   -- instructions and recursive calls. Also return the number of recursive
   -- calls resolved and the new instructions that resulted
@@ -198,3 +212,4 @@ genTest x = (\(a,_,_) -> a) <$> (go x (countTemplate x)) where
     -- evaluated one recursive call as far as the parent template is
     -- concerned.
     return (g'', i'' + i', 1)
+  go (TemplateReadParams f) c = go (f param) c

@@ -117,14 +117,14 @@ instShrink = singleShrink f'
 --   Example:
 --   80000000 13050000 ef008014 13051000 ef000014
 --   80000010 13052000 ef008013 13053000 ef000013
-readDataFile :: FilePath -> IO (Test Instruction)
-readDataFile inFile = do
+readDataFile :: T.TestParams -> FilePath -> IO (Test Instruction)
+readDataFile params inFile = do
   handle <- openFile inFile ReadMode
   contents <- hGetContents handle
   test <- generate $ readData (lines contents)
   putStrLn $ show (length test)
   return test
-  where readData ss = T.genTest $
+  where readData ss = T.genTest params $
           mconcat (map (\(addr:ws) -> writeData addr ws) write_args)
           <> (li64 1 0x80000000)
           <> (T.inst $ jalr 0 1 0)

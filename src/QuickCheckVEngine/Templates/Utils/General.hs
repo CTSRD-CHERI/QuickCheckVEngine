@@ -91,9 +91,9 @@ import Data.List.Split
 --------------------------------------------------------------------------------
 
 -- | 'li' returns a 'Template' that loads an immediate into a register
-li :: ArchDesc -> Integer -> Integer -> Template
-li arch reg imm =
-  if has_xlen_64 arch
+li :: Integer -> Integer -> Template
+li reg imm = readParams $ \param ->
+  if has_xlen_64 (archDesc param)
      then random $ oneof (map return [li32 reg imm, li64 reg imm])
      else li32 reg imm
 
@@ -217,34 +217,24 @@ memOffset :: Gen Integer
 memOffset = oneof $ map return [0, 1, 64, 65]
 
 -- | 'loadOp' provides a 'Template' for a memory load operation
---   The 'ArchDesc' argument determines which load instructions can be selected
---   The 'RISV.ArchDesc' module provides a 'archDesc_null' value with all its
---   fields set to 'False' which can be used to easily select a subset ignoring
---   the current architecture description
---   For example, to select only 'flw' instruction
---
---   > loadOp archDesc_null{ has_f = True, has_xlen_32 = True }
-loadOp :: ArchDesc -> Integer -> Integer -> Template
-loadOp arch rs1 rd = random $ oneof $ map (return . instUniform) $
-     [ rv32_i_load rs1 rd 0 | has_xlen_32 arch ]
-  ++ [ rv64_i_load rs1 rd 0 | has_xlen_64 arch ]
-  ++ [ rv32_f_load rs1 rd 0 | has_f arch && has_xlen_32 arch ]
-  ++ [ rv32_d_load rs1 rd 0 | has_d arch && has_xlen_32 arch ]
+loadOp :: Integer -> Integer -> Template
+loadOp rs1 rd = readParams f
+    where f param = random $ oneof $ map (return . instUniform) $
+                       [ rv32_i_load rs1 rd 0 | has_xlen_32 arch ]
+                    ++ [ rv64_i_load rs1 rd 0 | has_xlen_64 arch ]
+                    ++ [ rv32_f_load rs1 rd 0 | has_f arch && has_xlen_32 arch ]
+                    ++ [ rv32_d_load rs1 rd 0 | has_d arch && has_xlen_32 arch ]
+                    where arch = archDesc param
 
 -- | 'storeOp' provides a 'Template' for a memory store operation
---   The 'ArchDesc' argument determines which store instructions can be selected
---   The 'RISV.ArchDesc' module provides a 'archDesc_null' value with all its
---   fields set to 'False' which can be used to easily select a subset ignoring
---   the current architecture description
---   For example, to select only 'fsw' instruction
---
---   > loadOp archDesc_null{ has_f = True, has_xlen_32 = True }
-storeOp :: ArchDesc -> Integer -> Integer -> Template
-storeOp arch rs1 rs2 = random $ oneof $ map (return . instUniform) $
-     [ rv32_i_store rs1 rs2 0 | has_xlen_32 arch ]
-  ++ [ rv64_i_store rs1 rs2 0 | has_xlen_64 arch ]
-  ++ [ rv32_f_store rs1 rs2 0 | has_f arch && has_xlen_32 arch ]
-  ++ [ rv32_d_store rs1 rs2 0 | has_d arch && has_xlen_32 arch ]
+storeOp :: Integer -> Integer -> Template
+storeOp rs1 rs2 = readParams f
+    where f param = random $ oneof $ map (return . instUniform) $
+                       [ rv32_i_store rs1 rs2 0 | has_xlen_32 arch ]
+                    ++ [ rv64_i_store rs1 rs2 0 | has_xlen_64 arch ]
+                    ++ [ rv32_f_store rs1 rs2 0 | has_f arch && has_xlen_32 arch ]
+                    ++ [ rv32_d_store rs1 rs2 0 | has_d arch && has_xlen_32 arch ]
+                    where arch = archDesc param
 
 -- | Write provided list of 32-bit 'Integer's in memory starting at the provided
 --   address by deriving a sequence initializing register 1 with that address,
@@ -262,8 +252,8 @@ writeData addr ws = li64 1 addr <> mconcat (map writeWord ws)
 
 -- | 'legalLoad' provides a 'Template' for a load operation from an arbitrary
 --   "RVFI-DII legal" address into an arbitrary register
-legalLoad :: ArchDesc -> Template
-legalLoad arch = random $ do
+legalLoad :: Template
+legalLoad = random $ do
   tmpReg    <- src
   addrReg   <- src
   targetReg <- dest
@@ -271,12 +261,12 @@ legalLoad arch = random $ do
                    , lui tmpReg 0x40004
                    , slli tmpReg tmpReg 1
                    , add addrReg tmpReg addrReg ]
-           <> loadOp arch addrReg targetReg
+           <> loadOp addrReg targetReg
 
 -- | 'legalStore' provides a 'Template' for a store operation from an arbitrary
 --   register to an arbitrary "RVFI-DII legal" address
-legalStore :: ArchDesc -> Template
-legalStore arch = random $ do
+legalStore :: Template
+legalStore = random $ do
   tmpReg  <- src
   addrReg <- src
   dataReg <- dest
@@ -284,13 +274,13 @@ legalStore arch = random $ do
                    , lui tmpReg 0x40004
                    , slli tmpReg tmpReg 1
                    , add addrReg tmpReg addrReg ]
-           <> storeOp arch dataReg addrReg
+           <> storeOp dataReg addrReg
 
 -- | 'surroundWithMemAccess' wraps a 'Template' by performing a store operation
 --   before it, and following it by a load operation to the same
 --   "RVFI-DII legal" address
-surroundWithMemAccess :: ArchDesc -> Template -> Template
-surroundWithMemAccess arch x = random $ do
+surroundWithMemAccess :: Template -> Template
+surroundWithMemAccess x = random $ do
   regAddr <- dest
   regData <- dest
   offset  <- bits 8
@@ -303,14 +293,14 @@ surroundWithMemAccess arch x = random $ do
           instSeq [ lui reg 0x40004
                   , slli reg reg 1
                   , addi reg reg offset ]
-          <> loadOp arch reg dest
+          <> loadOp reg dest
         storeToAddress regAddr regData offset value shift =
           instSeq [ addi regData 0 value
                   , slli regData regData shift
                   , lui regAddr 0x40004
                   , slli regAddr regAddr 1
                   , addi regAddr regAddr offset ]
-          <> storeOp arch regAddr regData
+          <> storeOp regAddr regData
 
 -- * Other helpers
 --------------------------------------------------------------------------------
@@ -336,9 +326,9 @@ loadImm32 dst imm =
 
 -- | 'prepReg' provides a 'Template' to initialize a given register to an
 --   arbitrary value
-prepReg :: ArchDesc -> Integer -> Template
-prepReg arch dst =
-  if has_xlen_64 arch
+prepReg :: Integer -> Template
+prepReg dst = readParams $ \param ->
+  if has_xlen_64 (archDesc param)
      then random $ oneof (map return [prepReg32 dst, prepReg64 dst])
      else prepReg32 dst
 
