@@ -44,6 +44,7 @@ import QuickCheckVEngine.Templates.Utils
 genAll :: Template
 genAll = readParams $ \params -> random $ do
   imm     <- bits 12
+  csrIdx  <- csr (csrFilter params)
   src1    <- src
   src2    <- src
   src3    <- src
@@ -88,7 +89,7 @@ genAll = readParams $ \params -> random $ do
                ] | has_d desc && has_xlen_64 desc]
            ++ [[ (8, instUniform rv32_zifencei)
                ] | has_ifencei desc]
-           ++ [[ (8, instUniform (rv32_zicsr src1 dest imm uimm))
+           ++ [[ (8, maybe mempty (\idx -> instUniform (rv32_zicsr src1 dest idx uimm)) csrIdx)
                ] | has_icsr desc]
            ++ [[ (8, instUniform (rv32_xcheri desc src1 src2 srcScr imm mop dest))
                ] | has_cheri desc]

@@ -48,7 +48,6 @@ import Test.QuickCheck
 import RISCV.RV32_I
 import RISCV.RV64_I
 import RISCV.RV32_Xcheri
-import RISCV.RV32_Zicsr
 import RISCV.RV32_F
 import RISCV.RV32_D
 import RISCV.RV_CSRs
@@ -187,7 +186,7 @@ genTSCTorture = random $ do
                             , instUniform $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2
                             ]
   return $ mconcat [ access_inst
-                   , inst $ csrrs src2 sstatus 0
+                   , csrr src2 sstatus
                    , inst $ sret
                    ]
 
@@ -196,10 +195,10 @@ prepareBSCExcpsGen = random $ do
   let fcsr = unsafe_csrs_indexFromName "fcsr"
   let mstatus = unsafe_csrs_indexFromName "mstatus"
   let a0 = 10
-  return $ instSeq [ (lui a0 2)
-                   , (csrrs 0 mstatus a0)
-                   , (addi a0 0 192)
-                   , (csrrs 0 fcsr a0)
+  return $ mconcat [ inst $ lui a0 2
+                   ,        csrs mstatus a0
+                   , inst $ addi a0 0 192
+                   ,        csrs fcsr a0
                    ]
 
 
@@ -239,46 +238,37 @@ prepareTSCGen = random $ do
   let medeleg = unsafe_csrs_indexFromName "medeleg"
   let sedeleg = unsafe_csrs_indexFromName "sedeleg"
   let stval = unsafe_csrs_indexFromName "stval"
-  return $ instSeq [ (lui s1 0x100)
-                   , (csrrc 0 mstatus s1)
-                   , (lui s1 0x1)
-                   , (csrrc 0 mstatus s1)
-                   , (lui s1 0x1)
-                   , (addi s1 s1 0x800)
-                   , (csrrs 0 mstatus s1)
-                   , (auipc s2 0)
-                   , (addi s2 s2 16)
-                   , (csrrw 0 mepc s2)
-                   , (lui s2 0xa)
-                   , (csrrw 0 medeleg s2)
-                   ]
-                   <>
-                     setUpPageTable
-                   <>
-                     (setupHPMEventSel counterReg hpmCntIdx evt)
-                   <>
-                     (enableHPMCounterM counterReg hpmCntIdx)
-                   <>
-           instSeq [ (mret)
-                   , (lui s0 0xfffe0)
-                   , (addi s0 s0 1)
-                   , (slli s0 s0 0x1b)
-                   , (addi s0 s0 1)
-                   , (slli s0 s0 0x13)
-                   , (addi s0 s0 2)
-                   , (csrrw 0 satp s0)
-                   , (addi s1 s1 256)
-                   , (csrrc 0 sstatus s1)
-                   , (lui s2 2)
-                   ]
-                   <>
-                     (enableHPMCounterS counterReg hpmCntIdx)
-                   <>
-                     (li64 s2 0x80004000)
-                   <>
-            instSeq[ (csrrw 0 sepc s2)
-                   , (csrrw 0 stval s2)
-                   , (sret)
+  return $ mconcat [ inst $ lui s1 0x100
+                   ,        csrc mstatus s1
+                   , inst $ lui s1 0x1
+                   ,        csrc mstatus s1
+                   , inst $ lui s1 0x1
+                   , inst $ addi s1 s1 0x800
+                   ,        csrs mstatus s1
+                   , inst $ auipc s2 0
+                   , inst $ addi s2 s2 16
+                   ,        csrw mepc s2
+                   , inst $ lui s2 0xa
+                   ,        csrw medeleg s2
+                   ,        setUpPageTable
+                   ,        setupHPMEventSel counterReg hpmCntIdx evt
+                   ,        enableHPMCounterM counterReg hpmCntIdx
+                   , inst $ mret
+                   , inst $ lui s0 0xfffe0
+                   , inst $ addi s0 s0 1
+                   , inst $ slli s0 s0 0x1b
+                   , inst $ addi s0 s0 1
+                   , inst $ slli s0 s0 0x13
+                   , inst $ addi s0 s0 2
+                   ,        csrw satp s0
+                   , inst $ addi s1 s1 256
+                   ,        csrc sstatus s1
+                   , inst $ lui s2 2
+                   ,        enableHPMCounterS counterReg hpmCntIdx
+                   ,        li64 s2 0x80004000
+                   ,        csrw sepc s2
+                   ,        csrw stval s2
+                   , inst $ sret
                    ]
 
 -- | Verify Data Capability Speculation Constraint (CSC)
@@ -297,7 +287,8 @@ gen_csc_data_verify = random $ do
                        , inst $ csealentry sldReg bitsReg
                        , inst $ candperm nopermReg bitsReg 0
                        , inst $ ccleartag bitsReg bitsReg
-                       , inst $ lw tmpReg1 capReg 0 ]
+                       , inst $ lw tmpReg1 capReg 0
+                       ]
   let body = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (repeatTillEnd (genCSCDataTorture capReg tmpReg1 bitsReg sldReg nopermReg authReg)) tmpReg0 hpmCntIdx Nothing
   let epilog = instAssert (addi tmpReg0 tmpReg0 0) 0
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
@@ -466,8 +457,8 @@ gen_tsc_verify = random $ do
                        , li64 addrReg1 0x80001800
                        , li64 addrReg2 0x80012000
                        , li64 addrReg3 0x80008000
-                       , inst $ csrrs tmpReg cntrIdx 0 ]
+                       , csrr tmpReg cntrIdx ]
   let body = repeatN (20) (genTSCTorture)
-  let epilog = mconcat [ inst $ csrrs counterReg cntrIdx 0
+  let epilog = mconcat [ csrr counterReg cntrIdx
                        , instAssert (sub counterReg counterReg tmpReg) 0 ]
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog

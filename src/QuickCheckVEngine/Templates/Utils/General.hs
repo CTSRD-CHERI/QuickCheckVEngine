@@ -86,6 +86,7 @@ import RISCV
 import Data.Bits
 import Data.Word
 import Data.List.Split
+import Data.List ((\\))
 
 -- * RISCV pseudo-instructions
 --------------------------------------------------------------------------------
@@ -123,37 +124,41 @@ li64 reg imm = instSeq [ addi reg   0 (shiftAndMask imm 52 0xfff)
                        , addi reg reg (shiftAndMask imm  0 0x0ff) ]
   where shiftAndMask i shamt msk = toInteger $ ((fromInteger i :: Word64) `shiftR` shamt) .&. msk
 
+-- | Guard csr instruction based on the CSR it accesses
+guardCSR :: CSRIdx -> Template -> Template
+guardCSR idx t = readParams $ \p -> if csrFilter p idx then t else mempty
+
 -- | 'csrr' pseudo-instruction to read a CSR
 csrr :: Integer -> Integer -> Template
-csrr rd csr_idx = inst $ csrrs rd csr_idx 0
+csrr rd csr_idx = guardCSR csr_idx $ inst $ csrrs rd csr_idx 0
 
 -- | 'csrw' pseudo-instruction to write a general purpose register's value to a CSR
 csrw :: Integer -> Integer -> Template
-csrw csr_idx rs1 = inst $ csrrw 0 csr_idx rs1
+csrw csr_idx rs1 = guardCSR csr_idx $ inst $ csrrw 0 csr_idx rs1
 
 -- | 'csrwi' pseudo-instruction to write an immediate value to a CSR
 csrwi :: Integer -> Integer -> Template
-csrwi csr_idx uimm = inst $ csrrwi csr_idx 0 uimm
+csrwi csr_idx uimm = guardCSR csr_idx $ inst $ csrrwi csr_idx 0 uimm
 
 -- | 'csrs' pseudo-instruction to set the bits in a CSR corresponding to the
 --   set bits of a mask value in a general purpose register
 csrs :: Integer -> Integer -> Template
-csrs csr_idx rs1 = inst $ csrrs 0 csr_idx rs1
+csrs csr_idx rs1 = guardCSR csr_idx $ inst $ csrrs 0 csr_idx rs1
 
 -- | 'csrc' pseudo-instruction to clear the bits in a CSR corresponding to the
 --   set bits of a mask value in a general purpose register
 csrc :: Integer -> Integer -> Template
-csrc csr_idx rs1 = inst $ csrrc 0 csr_idx rs1
+csrc csr_idx rs1 = guardCSR csr_idx $ inst $ csrrc 0 csr_idx rs1
 
 -- | 'csrsi' pseudo-instruction to set the bits in a CSR corresponding to the
 --   set bits of a mask value obtained by zero extending the 5-bit uimm
 csrsi :: Integer -> Integer -> Template
-csrsi csr_idx uimm = inst $ csrrsi 0 csr_idx uimm
+csrsi csr_idx uimm = guardCSR csr_idx $ inst $ csrrsi 0 csr_idx uimm
 
 -- | 'csrci' pseudo-instruction to clear the bits in a CSR corresponding to the
 --   set bits of a mask value obtained by zero extending the 5-bit uimm
 csrci :: Integer -> Integer -> Template
-csrci csr_idx uimm = inst $ csrrci 0 csr_idx uimm
+csrci csr_idx uimm = guardCSR csr_idx $ inst $ csrrci 0 csr_idx uimm
 
 -- * Arbitrary value generators
 --------------------------------------------------------------------------------
@@ -185,8 +190,13 @@ sbcRegs :: Gen Integer
 sbcRegs = choose(22, 29)
 
 -- | 'csr' generates an arbitrary csr register index
-csr :: Gen Integer
-csr = elements $ map fst csrs_map
+csr :: (CSRIdx -> Bool) -> Gen (Maybe CSRIdx)
+csr filt = do let allowed = filter filt $ map fst csrs_map
+              allowed_choice <- if null allowed then return [] else (\x -> [x]) <$> elements allowed
+              let reserved = filter filt $ [0..4095] \\ (map fst csrs_map)
+              reserved_choice <- if null reserved then return [] else (\x -> [x]) <$> elements reserved
+              let options = allowed_choice ++ reserved_choice
+              if null options then return Nothing else oneof $ (return . Just) <$> options
 
 -- | 'roundingMode' generates a random floating point rounding mode
 -- Modes 5 and 6 are reserved for future use in the RISV ISA.
