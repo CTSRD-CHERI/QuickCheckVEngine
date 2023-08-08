@@ -78,6 +78,4 @@ genFP has_f has_d has_xlen_64 = random $ do
               ++ [ rv64_f src1 dest rm | has_f && has_xlen_64 ]
               ++ [ rv64_d src1 dest rm | has_d && has_xlen_64 ]
   let epilogue = csrr dest (unsafe_csrs_indexFromName "fcsr")
-  return $ shrinkScope $    noShrink fp_prologue
-                         <> repeatTillEnd (instUniform $ concat insts)
-                         <> noShrink epilogue
+  return $ fp_prologue (repeatTillEnd (instUniform $ concat insts) <> noShrink epilogue)
