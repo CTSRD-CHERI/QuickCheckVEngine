@@ -56,7 +56,6 @@ import Test.QuickCheck
 import RISCV.RV32_I
 import RISCV.RV32_A
 import RISCV.RV32_Zifencei
-import RISCV.RV32_Zicsr
 import RISCV.RV64_I
 import RISCV.RV32_Xcheri
 import RISCV.RV_CSRs
@@ -202,9 +201,11 @@ gen_pte_perms = random $
                                      add 5 5 6,
                                      lui 7 0x40000,
                                      slli 7 7 1,
-                                     sd 7 1 0,
-                                     csrrw 0 (unsafe_csrs_indexFromName "satp") 5,
-                                     csrrwi 0 (unsafe_csrs_indexFromName "sccsr") (clg0 * 4)]
+                                     sd 7 1 0]
+                                     <>
+                                     csrw (unsafe_csrs_indexFromName "satp") 5
+                                     <>
+                                     csrwi (unsafe_csrs_indexFromName "sccsr") (clg0 * 4)
                                      <>
                                      (noShrink $ inst $ sfence 0 0)
                                      <> mconcat [
@@ -212,7 +213,7 @@ gen_pte_perms = random $
                                      instUniform [ccleartag 3 3, cmove 3 3],
                                      instUniform [sw 0 3 16, sq 0 3 16],
                                      instUniform [lw 4 0 16, lq 4 0 16],
-                                     inst $ csrrwi 0 (unsafe_csrs_indexFromName "sccsr") (clg1 * 4),
+                                     csrwi (unsafe_csrs_indexFromName "sccsr") (clg1 * 4),
                                      instUniform [lw 4 0 16, lq 4 0 16],
                                      inst $ cgettag 5 4,
                                      inst ecall]
@@ -242,7 +243,7 @@ gen_pte39_trans_core lxReg addrReg pteReg = random $
                                      li64 lxReg  l1pa,
                                      inst $ sd lxReg pteReg 0,
                                      li64 pteReg satp,
-                                     inst $ csrrw 0 (unsafe_csrs_indexFromName "satp") pteReg,
+                                     csrw (unsafe_csrs_indexFromName "satp") pteReg,
                                      li64 addrReg addrInitial]
                                      <>
                                      (noShrink $ inst $ sfence 0 0)
@@ -280,7 +281,7 @@ gen_pte48_trans_core lxReg addrReg pteReg = random $
                                      li64 lxReg  l1pa,
                                      inst $ sd lxReg pteReg 0,
                                      li64 pteReg satp,
-                                     inst $ csrrw 0 (unsafe_csrs_indexFromName "satp") pteReg,
+                                     csrw (unsafe_csrs_indexFromName "satp") pteReg,
                                      li64 addrReg addrInitial]
                                      <>
                                      (noShrink $ inst $ sfence 0 0)

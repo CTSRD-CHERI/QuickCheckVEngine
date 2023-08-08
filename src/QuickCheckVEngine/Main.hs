@@ -40,6 +40,7 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Main (main) where
 
@@ -101,6 +102,8 @@ data Options = Options
     , optSave          :: Bool
     , optContinueOnFail:: Bool
     , optIgnoreAsserts :: Bool
+    , csrIncludeRegex  :: Maybe String
+    , csrExcludeRegex  :: Maybe String
     } deriving Show
 
 defaultOptions :: Options
@@ -127,6 +130,8 @@ defaultOptions = Options
     , optContinueOnFail= False
     , optIgnoreAsserts = False
     , optSingleImp     = False
+    , csrIncludeRegex = Nothing
+    , csrExcludeRegex = Nothing
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -197,6 +202,12 @@ options =
   , Option []        ["single-implementation"]
       (NoArg (\ opts -> opts { optSingleImp = True }))
         "Run with only implementation A, testing asserts only (if enabled)"
+  , Option []     ["csr-include-regex"]
+      (ReqArg (\ f opts -> opts { csrIncludeRegex = Just f }) "REGEX")
+        "Specify REGEX to test only a subset of CSRs"
+  , Option []     ["csr-exclude-regex"]
+      (ReqArg (\ f opts -> opts { csrExcludeRegex = Just f }) "REGEX")
+        "Specify REGEX to exclude a subset of CSRs from tests"
   ]
 
 commandOpts :: [String] -> IO (Options, [String])
@@ -265,8 +276,11 @@ main = withSocketsDo $ do
   rawArgs <- getArgs
   (flags, _) <- commandOpts rawArgs
   when (optVerbosity flags > 1) $ print flags
+  let checkRegex incReg excReg str = (str =~ (fromMaybe ".*" incReg)) && (not $ str =~ (fromMaybe "a^" excReg))
   let archDesc = arch flags
-  let testParams = T.TestParams { T.archDesc = archDesc }
+  let csrFilter idx = checkRegex (csrIncludeRegex flags) (csrExcludeRegex flags) (fromMaybe "reserved" $ csrs_nameFromIndex idx)
+  let testParams = T.TestParams { T.archDesc  = archDesc
+                                , T.csrFilter = csrFilter }
   -- initialize model and implementation sockets
   implA <- rvfiDiiOpen (impAIP flags) (impAPort flags) (optVerbosity flags) "implementation-A"
   m_implB <- if optSingleImp flags then return Nothing else Just <$> rvfiDiiOpen (impBIP flags) (impBPort flags) (optVerbosity flags) "implementation-B"
@@ -354,8 +368,7 @@ main = withSocketsDo $ do
         Nothing -> do
           case instrSoc of
             Nothing -> do let tests = [ template | template@(label,_,_,_) <- allTests
-                                      , label =~ (fromMaybe ".*" (testIncludeRegex flags))
-                                     , not(label =~ (fromMaybe "a^" (testExcludeRegex flags)))]
+                                      , checkRegex (testIncludeRegex flags) (testExcludeRegex flags) label ]
                           when (null tests) $ putStrLn "Warning: no tests selected"
                           mapM_ attemptTest tests
               where attemptTest (label, description, archReqs, template) =

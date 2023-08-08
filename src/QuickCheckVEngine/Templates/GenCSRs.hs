@@ -42,12 +42,12 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
 gen_rv32_i_zicsr :: Template
-gen_rv32_i_zicsr = random $
-  do any_csr   <- bits 12
+gen_rv32_i_zicsr = readParams $ \param -> random $
+  do any_csr   <- csr $ csrFilter param
      --valid_csr <- csr
      uimm      <- bits 5
      src1      <- src
      dest      <- dest
      -- TODO mix csr instructions with some i instructions
-     let insts = rv32_zicsr src1 dest any_csr uimm
+     let insts = maybe mempty (\idx -> rv32_zicsr src1 dest idx uimm) any_csr
      return $ instUniform insts

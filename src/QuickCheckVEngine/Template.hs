@@ -74,7 +74,7 @@ module QuickCheckVEngine.Template (
 
 import Test.QuickCheck
 import Data.Semigroup (Semigroup(..))
-import RISCV (Instruction(..))
+import RISCV (Instruction(..), CSRIdx)
 import RISCV.ArchDesc
 --import Data.Kind
 --import Control.Applicative (liftA2)
@@ -90,7 +90,8 @@ import QuickCheckVEngine.RVFI_DII
 -- | Micellaneous data indicating global parameters to
 --   influence test generation, which should be passed
 --   recursively to sub-templates.
-data TestParams = TestParams { archDesc        :: ArchDesc }
+data TestParams = TestParams { archDesc  :: ArchDesc
+                             , csrFilter :: CSRIdx -> Bool }
 
 data Template = TemplateEmpty
               | TemplateSingle Instruction
