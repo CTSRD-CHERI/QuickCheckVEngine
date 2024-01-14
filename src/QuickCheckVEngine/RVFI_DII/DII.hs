@@ -111,13 +111,6 @@ instance Binary DII_Packet where
            return $ DII_Packet { dii_cmd  = cmd
                                , dii_time = time
                                , dii_insn = insn }
-instance Num DII_Packet where
-  fromInteger i = DII_Instruction 1 (fromInteger i)
-  (+)    = error "(+) is not defined on DII_Packet"
-  (*)    = error "(*) is not defined on DII_Packet"
-  abs    = error "abs is not defined on DII_Packet"
-  signum = error "signum is not defined on DII_Packet"
-  negate = error "negate is not defined on DII_Packet"
 
 -- | Construct a instruction 'DII_Packet'
 diiInstruction :: Integer -> DII_Packet
