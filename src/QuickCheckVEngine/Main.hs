@@ -76,6 +76,7 @@ import QuickCheckVEngine.Templates.GenFP
 import QuickCheckVEngine.Templates.GenCHERI
 import QuickCheckVEngine.Templates.GenHPM
 import QuickCheckVEngine.Templates.GenTransExec
+import QuickCheckVEngine.Templates.GenRope
 
 -- command line arguments
 --------------------------------------------------------------------------------
@@ -219,7 +220,8 @@ commandOpts argv =
 
 allTests :: [(String, String, ArchDesc -> Bool, T.Template)]
 allTests = [
-             ("arith",      "Arithmetic Verification",                                const True,                               T.repeatTillEnd gen_rv32_i_arithmetic)
+             ("rope",       "Minimal verifaction of features supported by Rope",      const True,                               T.repeatTillEnd gen_rv64_rope)
+           , ("arith",      "Arithmetic Verification",                                const True,                               T.repeatTillEnd gen_rv32_i_arithmetic)
            -- CSC: Capability Speculation Constraint
            -- BSC: Branching Speculation Constraint
            -- TSC: Translation Speculation Constraint
