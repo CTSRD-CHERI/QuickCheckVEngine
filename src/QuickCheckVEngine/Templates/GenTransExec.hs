@@ -51,6 +51,7 @@ import RISCV.RV32_Xcheri
 import RISCV.RV32_F
 import RISCV.RV32_D
 import RISCV.RV_CSRs
+import RISCV.ArchDesc
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.GenMemory
 import QuickCheckVEngine.Templates.Utils
@@ -172,7 +173,7 @@ genBSC_Excps_Torture tmpReg = random $ do
 
 
 genMOSC_Torture :: ArchDesc -> Integer -> Template
-genBSC_Excps_Torture arch tmpReg = random $ do
+genMOSC_Torture arch tmpReg = random $ do
   imm <- bits 12
   longImm <- bits 20
   src1 <- sbcRegs
