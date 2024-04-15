@@ -10,37 +10,29 @@ permissions:
   contents: read
 
 jobs:
-  stack:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: freckle/stack-cache-action@v2
-      - id: stack
-        uses: freckle/stack-action@v3
-        with:
-          # TODO: there are lots of name shadowing warnings that would be nice to fix
-          pedantic: false
-          stack-arguments: --ghc-options -fwrite-ide-info
-      # Weeder requires running in the same Job (to access .hie artifacts)
-      - uses: freckle/weeder-action@v2
-        with:
-          ghc-version: ${{ steps.stack.outputs.compiler-version }}
-
-  stack-pedantic:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: freckle/stack-cache-action@v2
-      - id: stack
-        uses: freckle/stack-action@v3
-        with:
-          pedantic: true
-          # TODO: would be nice if we could remove those -fno-warn flags
-          stack-arguments: --ghc-options -fno-warn-unused-matches --ghc-options -fno-warn-name-shadowing
 
   hlint:
+    name: Run HLint on the QuickCheck Verification Engine codebase
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: haskell/actions/hlint-setup@v1
-      - uses: haskell/actions/hlint-run@v2
+      - uses: actions/checkout@v4
+      - name: 'Set up HLint'
+        uses: haskell-actions/hlint-setup@v2
+      - name: 'Run HLint'
+        uses: haskell-actions/hlint-run@v2
+
+  build:
+    name: Build the QuickCheck Verification Engine
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.8'
+          cabal-version: '3.8'
+      - name: Install dependencies
+        run: |
+          cabal update
+          cabal build --only-dependencies
+      - name: Build
+        run: cabal build all
