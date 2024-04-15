@@ -171,23 +171,6 @@ genBSC_Excps_Torture tmpReg = random $ do
                    ]
 
 
-genMOSC_Torture :: ArchDesc -> Integer -> Template
-genBSC_Excps_Torture arch tmpReg = random $ do
-  imm <- bits 12
-  longImm <- bits 20
-  src1 <- sbcRegs
-  src2 <- sbcRegs
-  src3 <- sbcRegs
-  srcSCr <- bits 5
-  dest <- sbcRegs
-  let rm = 0x7 -- dynamic rounding mode
-  let fenceOp1 = 17
-  let fenceOp2 = 18
-  return $ uniform [ instUniform $ rv64_i_mem src1 src2 dest imm
-                   , instUniform $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2
-                   ]
-
-
 genTSCTorture :: Template
 genTSCTorture = random $ do
   imm_bits <- bits 10
@@ -218,14 +201,6 @@ prepareBSCExcpsGen = random $ do
                    ,        csrs fcsr a0
                    ]
 
-
-prepareMOSCGen :: Template
-prepareMOSCGen = random $ do
-  let reg0 = 10
-  let reg1 = 11
-  return $ mconcat [ li64 reg0 0x80002000
-                   , li64 reg1 0x80004000
-                   ]
 
 setUpPageTable :: Template
 setUpPageTable = random $ do
