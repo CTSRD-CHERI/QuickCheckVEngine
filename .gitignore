@@ -3,3 +3,5 @@
 /.stack-work/
 /QCVEngine.iml
 /out/
+cabal.project.local*
+/bin/
