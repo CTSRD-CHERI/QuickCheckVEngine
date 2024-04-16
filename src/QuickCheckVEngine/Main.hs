@@ -267,7 +267,7 @@ allTests = [
            , ("all",        "All Verification",                                       const True,                               genAll)
            , ("random",     "Random Template",                                        const True,                               randomTest)
            ]
-  where andPs = foldl (\k p -> (\x -> p x && k x)) (const True)
+  where andPs = foldl (\k p x -> p x && k x) (const True)
 
 --------------------------------------------------------------------------------
 main :: IO ()
@@ -276,7 +276,7 @@ main = withSocketsDo $ do
   rawArgs <- getArgs
   (flags, _) <- commandOpts rawArgs
   when (optVerbosity flags > 1) $ print flags
-  let checkRegex incReg excReg str = (str =~ (fromMaybe ".*" incReg)) && (not $ str =~ (fromMaybe "a^" excReg))
+  let checkRegex incReg excReg str = (str =~ (fromMaybe ".*" incReg)) && (not $ str =~ fromMaybe "a^" excReg)
   let archDesc = arch flags
   let csrFilter idx = checkRegex (csrIncludeRegex flags) (csrExcludeRegex flags) (fromMaybe "reserved" $ csrs_nameFromIndex idx)
   let testParams = T.TestParams { T.archDesc  = archDesc
@@ -294,7 +294,7 @@ main = withSocketsDo $ do
         quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 1000 else 0))
                              (prop implA m_implB alive onFail archDesc (timeoutDelay flags) verbosity (optIgnoreAsserts flags) (optPedantic flags) (return test))
   let check_mcause_on_trap :: Test TestResult -> Test TestResult
-      check_mcause_on_trap (trace :: Test TestResult) = if or (hasTrap <$> trace) then (filterTest p trace) <> wrapTest testSuffix else trace
+      check_mcause_on_trap (trace :: Test TestResult) = if or (hasTrap <$> trace) then filterTest p trace <> wrapTest testSuffix else trace
         where hasTrap (_, a, b) = maybe False rvfiIsTrap a || maybe False rvfiIsTrap b
               testSuffix = noShrink $ singleSeq [ csrrs 1 (unsafe_csrs_indexFromName "mcause") 0
                                                 , csrrs 1 (unsafe_csrs_indexFromName "mtval" ) 0
@@ -313,7 +313,7 @@ main = withSocketsDo $ do
             Nothing -> do
               putStrLn "Save this trace (give file name or leave empty to ignore)?"
               fileName <- getLine
-              when (not $ null fileName) $ do
+              unless (null fileName) $ do
                 putStrLn "One-line description?"
                 comment <- getLine
                 writeFile (fileName ++ ".S")
@@ -345,15 +345,15 @@ main = withSocketsDo $ do
                               Nothing -> return mempty
                             res <- checkSingle (wrapTest $ initTrace <> trace) (optVerbosity flags) (optShrink flags) (testLen flags) (checkTrapAndSave (Just fileName))
                             case res of Failure {} -> do putStrLn "Failure."
-                                                         modifyIORef failuresRef ((+) 1)
-                                                         when (not (optContinueOnFail flags)) $ writeIORef alive False
+                                                         modifyIORef failuresRef (1 +)
+                                                         unless (optContinueOnFail flags) $ writeIORef alive False
                                         _          -> putStrLn "No Failure."
                             isAlive <- readIORef alive
                             return $ if isAlive then 0 else 1
         | otherwise = return $ skipped + 1
   --
   let doCheck a b = do res <- checkGen a b
-                       case res of Failure {} -> modifyIORef failuresRef ((+) 1)
+                       case res of Failure {} -> modifyIORef failuresRef (1 +)
                                    _ -> return ()
                        return res
   case instTraceFile flags of
