@@ -34,57 +34,20 @@
 
 module QuickCheckVEngine.Templates.Utils.FP (
   fp_prologue
-, fp_prologue_length
 ) where
 
 import InstrCodec
 import RISCV
 import QuickCheckVEngine.Template
+import QuickCheckVEngine.Templates.Utils.General
 
-prologue_list :: ArchDesc -> [Instruction]
-prologue_list arch = [ lui 1 2
-                     , csrrs 0 (unsafe_csrs_indexFromName "mstatus") 1
-                     , csrrs 0 (unsafe_csrs_indexFromName "fcsr") 0
-                     ]
-                  ++ (if has_f arch || has_d arch then
-                     [ fmv_w_x 0 0
-                     , fmv_w_x 1 0
-                     , fmv_w_x 2 0
-                     , fmv_w_x 3 0
-                     , fmv_w_x 4 0
-                     --, fmv_w_x 5  0
-                     --, fmv_w_x 6  0
-                     --, fmv_w_x 7  0
-                     --, fmv_w_x 8  0
-                     --, fmv_w_x 9  0
-                     --, fmv_w_x 10 0
-                     --, fmv_w_x 11 0
-                     --, fmv_w_x 12 0
-                     --, fmv_w_x 13 0
-                     --, fmv_w_x 14 0
-                     --, fmv_w_x 15 0
-                     , op 16 0
-                     , op 17 0
-                     , op 18 0
-                     , op 19 0
-                     , op 20 0
-                     --, op 21 0
-                     --, op 22 0
-                     --, op 23 0
-                     --, op 24 0
-                     --, op 25 0
-                     --, op 26 0
-                     --, op 27 0
-                     --, op 28 0
-                     --, op 29 0
-                     --, op 30 0
-                     --, op 31 0
-                     --, op 32 0
-                     ] else [])
-  where op = if has_d arch then fmv_d_x else fmv_w_x
-
-fp_prologue :: ArchDesc -> Template
-fp_prologue = instSeq . prologue_list
-
-fp_prologue_length :: ArchDesc -> Int
-fp_prologue_length = length . prologue_list
+fp_prologue :: Template -> Template
+fp_prologue t = readParams $ \p ->
+    if has_f (archDesc p) || has_d (archDesc p)
+    then shrinkScope ((noShrink . mconcat) [ inst $ lui 1 2
+                                           , csrs (unsafe_csrs_indexFromName "mstatus") 1
+                                           , csrs (unsafe_csrs_indexFromName "fcsr") 0
+                                           , mconcat $ [inst $ fmv_w_x i 0 | i <- [0..4]]
+                                                    ++ [inst $ (if has_d (archDesc p) then fmv_d_x else fmv_w_x) i 0 | i <- [16..20]]
+                                           ] <> t)
+    else t

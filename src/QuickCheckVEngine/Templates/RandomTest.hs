@@ -42,25 +42,22 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 
 -- | 'randomTest' provides a 'Template' for a random test
-randomTest :: ArchDesc -> Template
-randomTest arch =
-  wrap go
-  where
-  wrap = if has_f arch || has_d arch then (shrinkScope . (noShrink (fp_prologue arch) <>)) else id
-  go = random $ do
-    remaining <- getSize
-    srcAddr   <- src
-    srcData   <- src
-    dest      <- dest
-    imm       <- (bits 12)
-    longImm   <- (bits 20)
-    fenceOp1  <- (bits 4)
-    fenceOp2  <- (bits 4)
-    csrAddr   <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
-                           , (1, return (unsafe_csrs_indexFromName "mcause"))
-                           , (1, bits 12) ]
-    let test = dist [ (if remaining > 10 then 1 else 0, legalLoad arch)
-                    , (if remaining > 10 then 1 else 0, legalStore arch )
-                    , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) --TODO re-add csrs
-                    , (if remaining > 10 then 1 else 0, surroundWithMemAccess arch go) ]
-    return $ if remaining <= 0 then mempty else if remaining > 10 then test <> go else test
+randomTest :: Template
+randomTest = fp_prologue go
+  where go = random $ do
+          remaining <- getSize
+          srcAddr   <- src
+          srcData   <- src
+          dest      <- dest
+          imm       <- (bits 12)
+          longImm   <- (bits 20)
+          fenceOp1  <- (bits 4)
+          fenceOp2  <- (bits 4)
+          csrAddr   <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+                                 , (1, return (unsafe_csrs_indexFromName "mcause"))
+                                 , (1, bits 12) ]
+          let test = dist [ (if remaining > 10 then 1 else 0, legalLoad)
+                          , (if remaining > 10 then 1 else 0, legalStore)
+                          , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) --TODO re-add csrs
+                          , (if remaining > 10 then 1 else 0, surroundWithMemAccess go) ]
+          return $ if remaining <= 0 then mempty else if remaining > 10 then test <> go else test

@@ -39,6 +39,8 @@
 --
 
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Main (main) where
 
@@ -96,9 +98,12 @@ data Options = Options
     , testLen          :: Int
     , optSingleImp     :: Bool
     , optShrink        :: Bool
+    , optPedantic      :: Bool
     , optSave          :: Bool
     , optContinueOnFail:: Bool
     , optIgnoreAsserts :: Bool
+    , csrIncludeRegex  :: Maybe String
+    , csrExcludeRegex  :: Maybe String
     } deriving Show
 
 defaultOptions :: Options
@@ -120,10 +125,13 @@ defaultOptions = Options
     , timeoutDelay     = 6000000000 -- 60 seconds
     , testLen          = 2048
     , optShrink        = True
+    , optPedantic      = True
     , optSave          = True
     , optContinueOnFail= False
     , optIgnoreAsserts = False
     , optSingleImp     = False
+    , csrIncludeRegex = Nothing
+    , csrExcludeRegex = Nothing
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -176,6 +184,9 @@ options =
   , Option ['L']     ["test-length"]
       (ReqArg (\ f opts -> opts { testLen = read f }) "TEST-LENGTH")
         "Generate tests up to TEST-LENGTH instructions long"
+  , Option ['R']     ["relaxed-comparison"]
+      (NoArg (\ opts -> opts { optPedantic = False }))
+        "Only compare key RVFI fields"
   , Option ['S']     ["disable-shrink"]
       (NoArg (\ opts -> opts { optShrink = False }))
         "Disable shrinking of failed tests"
@@ -191,6 +202,12 @@ options =
   , Option []        ["single-implementation"]
       (NoArg (\ opts -> opts { optSingleImp = True }))
         "Run with only implementation A, testing asserts only (if enabled)"
+  , Option []     ["csr-include-regex"]
+      (ReqArg (\ f opts -> opts { csrIncludeRegex = Just f }) "REGEX")
+        "Specify REGEX to test only a subset of CSRs"
+  , Option []     ["csr-exclude-regex"]
+      (ReqArg (\ f opts -> opts { csrExcludeRegex = Just f }) "REGEX")
+        "Specify REGEX to exclude a subset of CSRs from tests"
   ]
 
 commandOpts :: [String] -> IO (Options, [String])
@@ -200,53 +217,53 @@ commandOpts argv =
       (_,_,errs) -> ioError (userError (concat errs ++ usageInfo header options))
   where header = "Usage: QCVEngine [OPTION...] files..."
 
-allTests :: [(String, String, ArchDesc -> Bool, ArchDesc -> T.Template)]
+allTests :: [(String, String, ArchDesc -> Bool, T.Template)]
 allTests = [
-             ("arith",      "Arithmetic Verification",                                const True,                               const $ T.repeatTillEnd gen_rv32_i_arithmetic)
+             ("arith",      "Arithmetic Verification",                                const True,                               T.repeatTillEnd gen_rv32_i_arithmetic)
            -- CSC: Capability Speculation Constraint
            -- BSC: Branching Speculation Constraint
            -- TSC: Translation Speculation Constraint
-           , ("csc_data",   "Data CSC Verification",                                  andPs [has_cheri, has_icsr, has_ihpm],              const gen_csc_data_verify)
+           , ("csc_data",   "Data CSC Verification",                                  andPs [has_cheri, has_icsr, has_ihpm],              gen_csc_data_verify)
            , ("bsc_cond_1", "BSC Condition 1 Verification",                           andPs [has_cheri, has_icsr, has_ihpm, has_xlen_64], gen_bsc_cond_1_verify)
-           , ("bsc_jumps",  "BSC Jumps Verification",                                 andPs [has_cheri, has_icsr, has_ihpm, has_xlen_64], const gen_bsc_jumps_verify)
+           , ("bsc_jumps",  "BSC Jumps Verification",                                 andPs [has_cheri, has_icsr, has_ihpm, has_xlen_64], gen_bsc_jumps_verify)
            , ("bsc_excps",  "BSC Exceptions Verification",                            andPs [has_cheri, has_icsr, has_ihpm, has_xlen_64], gen_bsc_exceptions_verify)
-           , ("tsc",        "TSC Verification",                                       andPs [has_s, has_icsr, has_ihpm, has_xlen_64],     const gen_tsc_verify)
-           , ("csc_inst",   "Instruction CSC Verification",                           andPs [has_cheri, has_icsr, has_ihpm, has_xlen_64], const gen_csc_inst_verify)
+           , ("tsc",        "TSC Verification",                                       andPs [has_s, has_icsr, has_ihpm, has_xlen_64],     gen_tsc_verify)
+           , ("csc_inst",   "Instruction CSC Verification",                           andPs [has_cheri, has_icsr, has_ihpm, has_xlen_64], gen_csc_inst_verify)
            , ("cclear",     "CClear Verification",                                    andPs [has_cheri, has_xlen_64],                     gen_simple_cclear)
            , ("fpclear",    "FPClear Verification",                                   andPs [has_cheri, has_xlen_64, has_d],              gen_simple_fpclear)
-           , ("mem",        "Memory Verification",                                    const True,                               const $ T.repeatTillEnd gen_rv32_i_memory)
-           , ("control",    "Control Flow Verification",                              const True,                               const $ T.repeatTillEnd gen_rv32_i_controlflow)
-           , ("cache",      "Cache Verification",                                     const True,                               \arch -> T.repeatTillEnd (gen_rv32_i_cache $ has_ifencei arch))
-           , ("arith64",    "RV64 Arithmetic Verification",                           has_xlen_64,                              const $ T.repeatTillEnd gen_rv64_i_arithmetic)
-           , ("mem64",      "RV64 Memory Verification",                               has_xlen_64,                              const $ T.repeatTillEnd gen_rv64_i_memory)
-           , ("cache64",    "RV64 Cache Verification",                                has_xlen_64,                              \arch -> T.repeatTillEnd (gen_rv64_i_cache $ has_ifencei arch))
+           , ("mem",        "Memory Verification",                                    const True,                               T.repeatTillEnd gen_rv32_i_memory)
+           , ("control",    "Control Flow Verification",                              const True,                               T.repeatTillEnd gen_rv32_i_controlflow)
+           , ("cache",      "Cache Verification",                                     const True,                               T.repeatTillEnd gen_rv32_i_cache)
+           , ("arith64",    "RV64 Arithmetic Verification",                           has_xlen_64,                              T.repeatTillEnd gen_rv64_i_arithmetic)
+           , ("mem64",      "RV64 Memory Verification",                               has_xlen_64,                              T.repeatTillEnd gen_rv64_i_memory)
+           , ("cache64",    "RV64 Cache Verification",                                has_xlen_64,                              T.repeatTillEnd gen_rv64_i_cache)
            -- Note: no rv64 specific control flow instructions
-           , ("muldiv",     "M Extension Verification",                               has_m,                                    const $ T.repeatTillEnd gen_rv32_m)
-           , ("muldiv64",   "RV64 M Extension Verification",                          andPs [has_m, has_xlen_64],               const $ T.repeatTillEnd gen_rv64_m)
-           , ("atomic",     "A Extension Verification",                               has_a,                                    \arch -> T.repeatTillEnd (gen_rv32_a $ has_cheri arch))
-           , ("memAmo",     "AMO Memory Verification",                                has_a,                                    const $ T.repeatTillEnd gen_rv32_i_a_memory)
-           , ("atomic64",   "RV64 A Extension Verification",                          andPs [has_a, has_xlen_64],               \arch -> T.repeatTillEnd (gen_rv64_a $ has_cheri arch))
-           , ("capatomic",  "Xcheri A Extension Verification",                        andPs [has_a, has_xlen_64],               const $ T.repeatTillEnd gen_cheri_a)
-           , ("memAmo64",   "RV64 AMO Memory Verification",                           andPs [has_a, has_xlen_64],               const $ T.repeatTillEnd gen_rv64_i_a_memory)
-           , ("compressed", "C Extension Verification",                               has_c,                                    const $ T.repeatTillEnd gen_rv_c)
-           , ("float",      "F Extension Verification",                               has_f,                                    const $ T.repeatTillEnd gen_rv32_f)
-           , ("float64",    "RV64 F Extension Verification",                          andPs [has_f, has_xlen_64],               const $ T.repeatTillEnd gen_rv64_f)
-           , ("double",     "D Extension Verification",                               has_d,                                    const $ T.repeatTillEnd gen_rv32_d)
-           , ("double64",   "RV64 D Extension Verification",                          andPs [has_d, has_xlen_64],               const $ T.repeatTillEnd gen_rv64_d)
-           , ("csr",        "Zicsr Extension Verification",                           has_icsr,                                 const $ T.repeatTillEnd gen_rv32_i_zicsr)
-           , ("fencei",     "Zifencei Extension Verification",                        has_ifencei,                              const $ T.repeatTillEnd gen_rv32_i_zifencei_memory)
-           , ("fencei64",   "RV64 Zifencei Extension Verification",                   andPs [has_ifencei, has_xlen_64],         const $ T.repeatTillEnd gen_rv64_i_zifencei_memory)
-           , ("pte",        "PTE Verification",                                       has_s,                                    const $ T.repeatN 2 $ T.uniform [gen_pte_perms, gen_pte_trans])
-           , ("hpm",        "HPM Verification",                                       andPs [has_icsr, has_ihpm],               T.repeatTillEnd . genHPM)
-           , ("capinspect", "Xcheri Extension Capability Inspection Verification",    has_cheri,                                const $ T.repeatTillEnd genCHERIinspection)
-           , ("caparith",   "Xcheri Extension Capability Arithmetic Verification",    has_cheri,                                const $ T.repeatTillEnd genCHERIarithmetic)
-           , ("capmisc",    "Xcheri Extension Capability Miscellaneous Verification", has_cheri,                                const $ T.repeatTillEnd genCHERImisc)
-           , ("capcontrol", "Xcheri Extension Capability Control Flow Verification",  has_cheri,                                const $ T.repeatTillEnd genCHERIcontrol)
-           , ("capcache",   "Xcheri Extension Cache Verification",                    has_cheri,                                \arch -> T.repeatTillEnd (gen_rv64_Xcheri_cache $ has_ifencei arch))
-           , ("capdecode",  "Xcheri Extension Capability Decode Template",            has_cheri,                                T.repeatTillEnd . capDecodeTest)
-           , ("cloadtags",  "Xcheri Extension CLoadTags Template",                    andPs [has_cheri, not . has_nocloadtags], T.repeatTillEnd . cLoadTagsTest)
+           , ("muldiv",     "M Extension Verification",                               has_m,                                    T.repeatTillEnd gen_rv32_m)
+           , ("muldiv64",   "RV64 M Extension Verification",                          andPs [has_m, has_xlen_64],               T.repeatTillEnd gen_rv64_m)
+           , ("atomic",     "A Extension Verification",                               has_a,                                    T.repeatTillEnd gen_rv32_a)
+           , ("memAmo",     "AMO Memory Verification",                                has_a,                                    T.repeatTillEnd gen_rv32_i_a_memory)
+           , ("atomic64",   "RV64 A Extension Verification",                          andPs [has_a, has_xlen_64],               T.repeatTillEnd gen_rv64_a)
+           , ("capatomic",  "Xcheri A Extension Verification",                        andPs [has_a, has_xlen_64],               T.repeatTillEnd gen_cheri_a)
+           , ("memAmo64",   "RV64 AMO Memory Verification",                           andPs [has_a, has_xlen_64],               T.repeatTillEnd gen_rv64_i_a_memory)
+           , ("compressed", "C Extension Verification",                               has_c,                                    T.repeatTillEnd gen_rv_c)
+           , ("float",      "F Extension Verification",                               has_f,                                    T.repeatTillEnd gen_rv32_f)
+           , ("float64",    "RV64 F Extension Verification",                          andPs [has_f, has_xlen_64],               T.repeatTillEnd gen_rv64_f)
+           , ("double",     "D Extension Verification",                               has_d,                                    T.repeatTillEnd gen_rv32_d)
+           , ("double64",   "RV64 D Extension Verification",                          andPs [has_d, has_xlen_64],               T.repeatTillEnd gen_rv64_d)
+           , ("csr",        "Zicsr Extension Verification",                           has_icsr,                                 T.repeatTillEnd gen_rv32_i_zicsr)
+           , ("fencei",     "Zifencei Extension Verification",                        has_ifencei,                              T.repeatTillEnd gen_rv32_i_zifencei_memory)
+           , ("fencei64",   "RV64 Zifencei Extension Verification",                   andPs [has_ifencei, has_xlen_64],         T.repeatTillEnd gen_rv64_i_zifencei_memory)
+           , ("pte",        "PTE Verification",                                       has_s,                                    T.repeatN 2 $ T.uniform [gen_pte_perms, gen_pte_trans])
+           , ("hpm",        "HPM Verification",                                       andPs [has_icsr, has_ihpm],               T.repeatTillEnd genHPM)
+           , ("capinspect", "Xcheri Extension Capability Inspection Verification",    has_cheri,                                T.repeatTillEnd genCHERIinspection)
+           , ("caparith",   "Xcheri Extension Capability Arithmetic Verification",    has_cheri,                                T.repeatTillEnd genCHERIarithmetic)
+           , ("capmisc",    "Xcheri Extension Capability Miscellaneous Verification", has_cheri,                                T.repeatTillEnd genCHERImisc)
+           , ("capcontrol", "Xcheri Extension Capability Control Flow Verification",  has_cheri,                                T.repeatTillEnd genCHERIcontrol)
+           , ("capcache",   "Xcheri Extension Cache Verification",                    has_cheri,                                T.repeatTillEnd gen_rv64_Xcheri_cache)
+           , ("capdecode",  "Xcheri Extension Capability Decode Template",            has_cheri,                                T.repeatTillEnd capDecodeTest)
+           , ("cloadtags",  "Xcheri Extension CLoadTags Template",                    andPs [has_cheri, not . has_nocloadtags], T.repeatTillEnd cLoadTagsTest)
            , ("caprandom",  "Xcheri Extension Random Template",                       has_cheri,                                randomCHERITest)
-           , ("caprvcrandom", "Xcheri RVC Extension Random Template",                 andPs [has_cheri, has_c]                , randomCHERIRVCTest)
+           , ("caprvcrandom", "Xcheri RVC Extension Random Template",                 andPs [has_cheri, has_c],                 randomCHERIRVCTest)
            , ("all",        "All Verification",                                       const True,                               genAll)
            , ("random",     "Random Template",                                        const True,                               randomTest)
            ]
@@ -259,7 +276,11 @@ main = withSocketsDo $ do
   rawArgs <- getArgs
   (flags, _) <- commandOpts rawArgs
   when (optVerbosity flags > 1) $ print flags
+  let checkRegex incReg excReg str = (str =~ (fromMaybe ".*" incReg)) && (not $ str =~ (fromMaybe "a^" excReg))
   let archDesc = arch flags
+  let csrFilter idx = checkRegex (csrIncludeRegex flags) (csrExcludeRegex flags) (fromMaybe "reserved" $ csrs_nameFromIndex idx)
+  let testParams = T.TestParams { T.archDesc  = archDesc
+                                , T.csrFilter = csrFilter }
   -- initialize model and implementation sockets
   implA <- rvfiDiiOpen (impAIP flags) (impAPort flags) (optVerbosity flags) "implementation-A"
   m_implB <- if optSingleImp flags then return Nothing else Just <$> rvfiDiiOpen (impBIP flags) (impBPort flags) (optVerbosity flags) "implementation-B"
@@ -271,7 +292,7 @@ main = withSocketsDo $ do
   let checkSingle :: Test TestResult -> Int -> Bool -> Int -> (Test TestResult -> IO ()) -> IO Result
       checkSingle test verbosity doShrink len onFail = do
         quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 1000 else 0))
-                             (prop implA m_implB alive onFail archDesc (timeoutDelay flags) verbosity (optIgnoreAsserts flags) (return test))
+                             (prop implA m_implB alive onFail archDesc (timeoutDelay flags) verbosity (optIgnoreAsserts flags) (optPedantic flags) (return test))
   let check_mcause_on_trap :: Test TestResult -> Test TestResult
       check_mcause_on_trap (trace :: Test TestResult) = if or (hasTrap <$> trace) then (filterTest p trace) <> wrapTest testSuffix else trace
         where hasTrap (_, a, b) = maybe False rvfiIsTrap a || maybe False rvfiIsTrap b
@@ -280,49 +301,52 @@ main = withSocketsDo $ do
                                                 , csrrs 1 (unsafe_csrs_indexFromName "mccsr" ) 0 ]
               p (DII_End _, _, _) = False
               p _ = True
-
+  let askAndSave sourceFile contents m_trace testTrans = do
+        writeFile "last_failure.S" ("# last failing test case:\n" ++ contents)
+        case m_trace of Just trace | optVerbosity flags > 0 -> do
+                          putStrLn "Replaying shrunk failed test case:"
+                          checkSingle (testTrans trace) 2 False (testLen flags) (const $ return ())
+                          return ()
+                        _ -> return ()
+        when (optSave flags) $ do
+          case saveDir flags of
+            Nothing -> do
+              putStrLn "Save this trace (give file name or leave empty to ignore)?"
+              fileName <- getLine
+              when (not $ null fileName) $ do
+                putStrLn "One-line description?"
+                comment <- getLine
+                writeFile (fileName ++ ".S")
+                          ("# " ++ comment ++ "\n" ++ contents)
+            Just dir -> do
+              t <- getCurrentTime
+              let tstamp = [if x == ' ' then '_' else if x == ':' then '-' else x | x <- show t]
+              let prelude = case sourceFile of
+                              Just name -> "# Generated from input file: " ++ show name ++ "\n"
+                              Nothing   -> "# Automatically generated failing test case\n"
+              writeFile (dir ++ "/failure-" ++ tstamp ++ ".S") (prelude ++ contents)
   let saveOnFail :: Maybe FilePath -> Test TestResult -> (Test TestResult -> Test TestResult) -> IO ()
       saveOnFail sourceFile test testTrans = runImpls implA m_implB alive (timeoutDelay flags) 0 test onTrace onDeath onDeath
-        where onDeath = putStrLn "Failure rerunning test"
-              onTrace trace = do
-                writeFile "last_failure.S" ("# last failing test case:\n" ++ showTraceInput trace)
-                when (optVerbosity flags > 0) $ do
-                  putStrLn "Replaying shrunk failed test case:"
-                  checkSingle (testTrans trace) 2 False (testLen flags) (const $ return ())
-                  return ()
-                when (optSave flags) $ do
-                  case saveDir flags of
-                    Nothing -> do
-                      putStrLn "Save this trace (give file name or leave empty to ignore)?"
-                      fileName <- getLine
-                      when (not $ null fileName) $ do
-                        putStrLn "One-line description?"
-                        comment <- getLine
-                        writeFile (fileName ++ ".S")
-                                  ("# " ++ comment ++ "\n" ++ showAnnotatedTrace (isNothing m_implB) archDesc trace)
-                    Just dir -> do
-                      t <- getCurrentTime
-                      let tstamp = [if x == ' ' then '_' else if x == ':' then '-' else x | x <- show t]
-                      let prelude = case sourceFile of
-                                      Just name -> "# Generated from input file: " ++ show name ++ "\n"
-                                      Nothing   -> "# Automatically generated failing test case\n"
-                      writeFile (dir ++ "/failure-" ++ tstamp ++ ".S") (prelude ++ showAnnotatedTrace (isNothing m_implB) archDesc trace)
+        where onDeath test = do putStrLn "Failure rerunning test"
+                                askAndSave sourceFile (show test) Nothing testTrans
+              onTrace trace = askAndSave sourceFile (showAnnotatedTrace (isNothing m_implB) archDesc trace) (Just trace) testTrans
   let checkTrapAndSave sourceFile test = saveOnFail sourceFile test (check_mcause_on_trap :: Test TestResult -> Test TestResult)
   let checkResult = if optVerbosity flags > 1 then verboseCheckWithResult else quickCheckWithResult
   let checkGen gen remainingTests =
         checkResult (Args Nothing remainingTests 1 (testLen flags) (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
-                    (prop implA m_implB alive (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) (optVerbosity flags) (optIgnoreAsserts flags) gen)
+                    (prop implA m_implB alive (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) (optVerbosity flags) (optIgnoreAsserts flags) (optPedantic flags) gen)
   failuresRef <- newIORef 0
   let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
         | skipped == 0 = do putStrLn $ "Reading trace from " ++ fileName
                             trace <- read <$> readFile fileName
                             initTrace <- case memoryInitFile of
                               Just memInit -> do putStrLn $ "Reading memory initialisation from file " ++ memInit
-                                                 readDataFile memInit
+                                                 readDataFile testParams memInit
                               Nothing -> return mempty
                             res <- checkSingle (wrapTest $ initTrace <> trace) (optVerbosity flags) (optShrink flags) (testLen flags) (checkTrapAndSave (Just fileName))
                             case res of Failure {} -> do putStrLn "Failure."
                                                          modifyIORef failuresRef ((+) 1)
+                                                         when (not (optContinueOnFail flags)) $ writeIORef alive False
                                         _          -> putStrLn "No Failure."
                             isAlive <- readIORef alive
                             return $ if isAlive then 0 else 1
@@ -340,18 +364,17 @@ main = withSocketsDo $ do
         Just directory -> do
           fileNames <- System.FilePath.Find.find always (extension ==? ".S") directory
           skipped <- foldM (checkFile Nothing) 0 fileNames
-          when (skipped > 1) $ putStrLn $ "Warning: skipped " ++ show (skipped - 1) ++ " tests due to dead implementations"
+          when (skipped > 1) $ putStrLn $ "Warning: skipped " ++ show (skipped - 1) ++ " tests"
         Nothing -> do
           case instrSoc of
             Nothing -> do let tests = [ template | template@(label,_,_,_) <- allTests
-                                      , label =~ (fromMaybe ".*" (testIncludeRegex flags))
-                                     , not(label =~ (fromMaybe "a^" (testExcludeRegex flags)))]
+                                      , checkRegex (testIncludeRegex flags) (testExcludeRegex flags) label ]
                           when (null tests) $ putStrLn "Warning: no tests selected"
                           mapM_ attemptTest tests
               where attemptTest (label, description, archReqs, template) =
                       if archReqs archDesc then do
                         putStrLn $ label ++ " -- " ++ description ++ ":"
-                        (if optContinueOnFail flags then repeatTillTarget else (\f t -> f t >> return ())) ((numTests <$>) . (doCheck (wrapTest <$> (T.genTest $ template archDesc)))) (nTests flags)
+                        (if optContinueOnFail flags then repeatTillTarget else (\f t -> f t >> return ())) ((numTests <$>) . (doCheck (wrapTest <$> (T.genTest testParams template)))) (nTests flags)
                       else
                         putStrLn $ "Warning: skipping " ++ label ++ " since architecture requirements not met"
                     repeatTillTarget f t = if t <= 0 then return () else f t >>= (\x -> repeatTillTarget f (t - x))

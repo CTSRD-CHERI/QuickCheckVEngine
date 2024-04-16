@@ -64,12 +64,14 @@ module RISCV.RV32_Xcheri (
 , cgetoffset
 , cgetflags
 , cgetaddr
+, cgethigh
 , cseal
 , cunseal
 , candperm
 , csetflags
 , csetoffset
 , csetaddr
+, csethigh
 , cincoffset
 , cincoffsetimmediate
 , csetbounds
@@ -85,7 +87,7 @@ module RISCV.RV32_Xcheri (
 , cfromptr
 , csub
 , cmove
-, cjalr
+, jalr_cap
 , cinvoke
 , ctestsubset
 , cspecialrw
@@ -138,6 +140,8 @@ cgetflags_raw                      =                                        "111
 cgetflags rd cs1                   = encode cgetflags_raw                                  cs1          rd
 cgetaddr_raw                       =                                        "1111111 01111 cs1[4:0] 000 rd[4:0] 1011011"
 cgetaddr rd cs1                    = encode cgetaddr_raw                                   cs1          rd
+cgethigh_raw                       =                                        "1111111 10111 cs1[4:0] 000 rd[4:0] 1011011"
+cgethigh rd cs1                    = encode cgethigh_raw                                   cs1          rd
 
 -- Capability Modification
 cseal_raw                          =                                        "0001011 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
@@ -152,6 +156,8 @@ csetoffset_raw                     =                                        "000
 csetoffset cd cs1 rs2              = encode csetoffset_raw                           rs2      cs1          cd
 csetaddr_raw                       =                                        "0010000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 csetaddr cd cs1 rs2                = encode csetaddr_raw                             rs2      cs1          cd
+csethigh_raw                       =                                        "0010110 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+csethigh cd cs1 rs2                = encode csethigh_raw                             rs2      cs1          cd
 cincoffset_raw                     =                                        "0010001 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 cincoffset cd cs1 rs2              = encode cincoffset_raw                           rs2      cs1          cd
 cincoffsetimmediate_raw            =                                        "imm[11:0] cs1[4:0] 001 cd[4:0] 1011011"
@@ -190,8 +196,8 @@ cspecialrw cd cSP cs1              = encode cspecialrw_raw                      
 
 
 -- Control Flow
-cjalr_raw                          =                                        "1111111 01100 cs1[4:0] 000 cd[4:0] 1011011"
-cjalr cd cs1                       = encode cjalr_raw                                      cs1          cd
+jalr_cap_raw                       =                                        "1111111 01100 cs1[4:0] 000 cd[4:0] 1011011"
+jalr_cap cd cs1                    = encode jalr_cap_raw                                      cs1          cd
 cinvoke_raw                        =                                        "1111110 cs2[4:0] cs1[4:0] 000 00001 1011011"
 cinvoke cs2 cs1                    = encode cinvoke_raw                              cs2      cs1
 
@@ -328,11 +334,13 @@ rv32_xcheri_disass = [ cgetperm_raw                    --> prettyR_2op "cgetperm
                      , cgetsealed_raw                  --> prettyR_2op "cgetsealed"
                      , cgetoffset_raw                  --> prettyR_2op "cgetoffset"
                      , cgetaddr_raw                    --> prettyR_2op "cgetaddr"
+                     , cgethigh_raw                    --> prettyR_2op "cgethigh"
                      , cseal_raw                       --> prettyR "cseal"
                      , cunseal_raw                     --> prettyR "cunseal"
                      , candperm_raw                    --> prettyR "candperm"
                      , csetoffset_raw                  --> prettyR "csetoffset"
                      , csetaddr_raw                    --> prettyR "csetaddr"
+                     , csethigh_raw                    --> prettyR "csethigh"
                      , cincoffset_raw                  --> prettyR "cincoffset"
                      , csetbounds_raw                  --> prettyR "csetbounds"
                      , csetboundsexact_raw             --> prettyR "csetboundsexact"
@@ -349,7 +357,7 @@ rv32_xcheri_disass = [ cgetperm_raw                    --> prettyR_2op "cgetperm
                      , csub_raw                        --> prettyR "csub"
                      , cspecialrw_raw                  --> pretty_cspecialrw "cspecialrw"
                      , cmove_raw                       --> prettyR_2op "cmove"
-                     , cjalr_raw                       --> prettyR_2op "cjalr"
+                     , jalr_cap_raw                       --> prettyR_2op "jalr_cap"
                      , cinvoke_raw                     --> pretty_2src "cinvoke"
                      , ctestsubset_raw                 --> prettyR "ctestsubset"
                      , clear_raw                       --> pretty_reg_clear "clear"
@@ -388,11 +396,13 @@ rv32_xcheri_extract = [ cgetperm_raw                    --> extract_1op cgetperm
                       , cgetoffset_raw                  --> extract_1op cgetoffset_raw
                       , cgetflags_raw                   --> extract_1op cgetflags_raw
                       , cgetaddr_raw                    --> extract_1op cgetaddr_raw
+                      , cgethigh_raw                    --> extract_1op cgethigh_raw
                       , cseal_raw                       --> extract_2op cseal_raw
                       , cunseal_raw                     --> extract_2op cunseal_raw
                       , candperm_raw                    --> extract_2op candperm_raw
                       , csetoffset_raw                  --> extract_2op csetoffset_raw
                       , csetaddr_raw                    --> extract_2op csetaddr_raw
+                      , csethigh_raw                    --> extract_2op csethigh_raw
                       , cincoffset_raw                  --> extract_2op cincoffset_raw
                       , csetbounds_raw                  --> extract_2op csetbounds_raw
                       , csetboundsexact_raw             --> extract_2op csetboundsexact_raw
@@ -409,7 +419,7 @@ rv32_xcheri_extract = [ cgetperm_raw                    --> extract_1op cgetperm
                       , csub_raw                        --> extract_2op csub_raw
                       , cspecialrw_raw                  --> extract_cspecialrw
                       , cmove_raw                       --> extract_cmove
-                      , cjalr_raw                       --> extract_1op cjalr_raw
+                      , jalr_cap_raw                       --> extract_1op jalr_cap_raw
                       , cinvoke_raw                     --> extract_cinvoke
                       , ctestsubset_raw                 --> extract_2op ctestsubset_raw
 --                    , clear_raw                       --> noextract -- TODO
@@ -451,10 +461,14 @@ shrink_cgetflags cs rd = [addi rd 0 0, addi rd 0 1]
 shrink_cgetaddr :: Integer -> Integer -> [Instruction]
 shrink_cgetaddr cs rd = [addi rd cs 0]
 
+shrink_cgethigh :: Integer -> Integer -> [Instruction]
+shrink_cgethigh cs rd = [addi rd cs 0, addi rd cs 0xfff]
+
 shrink_cap :: Integer -> Integer -> [Instruction]
 shrink_cap cs cd = [ecall,
                     cmove cd cs,
                     cgetaddr cd cs,
+                    cgethigh cd cs,
                     cgetperm cd cs,
                     cgettype cd cs,
                     cgetbase cd cs,
@@ -499,11 +513,13 @@ rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
                      , cgetoffset_raw                  --> shrink_cgetoffset
                      , cgetflags_raw                   --> shrink_cgetflags
                      , cgetaddr_raw                    --> shrink_cgetaddr
+                     , cgethigh_raw                    --> shrink_cgethigh
                      , cseal_raw                       --> shrink_capcap
                      , cunseal_raw                     --> shrink_capcap
                      , candperm_raw                    --> shrink_capint
                      , csetoffset_raw                  --> shrink_capint
                      , csetaddr_raw                    --> shrink_capint
+                     , csethigh_raw                    --> shrink_capint
                      , cincoffset_raw                  --> shrink_capint
                      , csetbounds_raw                  --> shrink_capint
                      , csetboundsexact_raw             --> shrink_capint
@@ -519,7 +535,7 @@ rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
                      , csub_raw                        --> shrink_capcap
 --                   , cspecialrw_raw                  --> noshrink
                      , cmove_raw                       --> shrink_cmove
---                   , cjalr_raw                       --> noshrink
+--                   , jalr_cap_raw                       --> noshrink
                      , cinvoke_raw                     --> shrink_cinvoke
                      , ctestsubset_raw                 --> shrink_ctestsubset
 --                   , clear_raw                       --> noshrink
@@ -544,6 +560,7 @@ rv32_xcheri_inspection src dest = [ cgetperm                    dest src
                                   , cgetsealed                  dest src
                                   , cgetoffset                  dest src
                                   , cgetaddr                    dest src
+                                  , cgethigh                    dest src
                                   , cgetflags                   dest src
                                   , croundrepresentablelength   dest src
                                   , crepresentablealignmentmask dest src]
@@ -553,6 +570,7 @@ rv32_xcheri_arithmetic :: Integer -> Integer -> Integer -> Integer -> [Instructi
 rv32_xcheri_arithmetic src1 src2 imm dest =
   [ csetoffset          dest src1 src2
   , csetaddr            dest src1 src2
+  , csethigh            dest src1 src2
   , cincoffset          dest src1 src2
   , csetbounds          dest src1 src2
   , csetboundsexact     dest src1 src2
@@ -579,7 +597,7 @@ rv32_xcheri_misc src1 src2 srcScr imm dest =
 
 -- | List of cheri control instructions
 rv32_xcheri_control :: Integer -> Integer -> Integer -> [Instruction]
-rv32_xcheri_control src1 src2 dest = [ cjalr    dest src1
+rv32_xcheri_control src1 src2 dest = [ jalr_cap dest src1
                                      , cinvoke  src2 src1 ]
 
 -- | List of cheri memory instructions

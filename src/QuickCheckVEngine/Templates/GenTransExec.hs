@@ -48,7 +48,6 @@ import Test.QuickCheck
 import RISCV.RV32_I
 import RISCV.RV64_I
 import RISCV.RV32_Xcheri
-import RISCV.RV32_Zicsr
 import RISCV.RV32_F
 import RISCV.RV32_D
 import RISCV.RV_CSRs
@@ -95,8 +94,8 @@ genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
                      ])
 
 
-genBSC_Cond_1_Torture :: ArchDesc -> Template
-genBSC_Cond_1_Torture arch = random $ do
+genBSC_Cond_1_Torture :: Template
+genBSC_Cond_1_Torture = random $ do
   imm_rand      <- bits 12
   longImm_rand  <- bits 20
   fenceOp1      <- bits 3
@@ -120,7 +119,7 @@ genBSC_Cond_1_Torture arch = random $ do
                    , instUniform $ rv64_i_mem addrReg srcData dest imm
                    , instUniform $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2
                    , inst $ jal zeroReg longImm
-                   , instUniform $ rv32_xcheri_mem arch capsrc1 capsrc2 imm 0xb tmpReg
+                   , readParams $ \p -> instUniform $ rv32_xcheri_mem (archDesc p) capsrc1 capsrc2 imm 0xb tmpReg
                    ]
 
 genBSC_Jumps_Torture :: Template
@@ -146,8 +145,8 @@ genBSC_Jumps_Torture = random $ do
                    , instUniform $ rv32_xcheri_control src1 src2 dest
                    ]
 
-genBSC_Excps_Torture :: ArchDesc -> Integer -> Template
-genBSC_Excps_Torture arch tmpReg = random $ do
+genBSC_Excps_Torture :: Integer -> Template
+genBSC_Excps_Torture tmpReg = random $ do
   imm <- bits 12
   longImm <- bits 20
   src1 <- sbcRegs
@@ -164,12 +163,29 @@ genBSC_Excps_Torture arch tmpReg = random $ do
                    , instUniform $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2
                    , instUniform $ rv32_i_exc
                    , instUniform $ rv32_i_ctrl src1 src2 dest imm longImm
-                   , instUniform $ rv32_xcheri_mem arch src1 src2 imm 0xb tmpReg
+                   , readParams $ \p -> instUniform $ rv32_xcheri_mem (archDesc p) src1 src2 imm 0xb tmpReg
                    , instUniform $ rv32_xcheri_arithmetic src1 src2 imm dest
                    , instUniform $ rv32_xcheri_inspection src1 dest
                    , instUniform $ rv32_xcheri_misc src1 src2 srcSCr imm dest
                    --, instUniform $ rv32_f_macc src1 src2 src3 dest rm
                    --, instUniform $ rv32_f_arith src1 src2 dest rm
+                   ]
+
+
+genMOSC_Torture :: ArchDesc -> Integer -> Template
+genMOSC_Torture arch tmpReg = random $ do
+  imm <- bits 12
+  longImm <- bits 20
+  src1 <- sbcRegs
+  src2 <- sbcRegs
+  src3 <- sbcRegs
+  srcSCr <- bits 5
+  dest <- sbcRegs
+  let rm = 0x7 -- dynamic rounding mode
+  let fenceOp1 = 17
+  let fenceOp2 = 18
+  return $ uniform [ instUniform $ rv64_i_mem src1 src2 dest imm
+                   , instUniform $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2
                    ]
 
 
@@ -188,7 +204,7 @@ genTSCTorture = random $ do
                             , instUniform $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2
                             ]
   return $ mconcat [ access_inst
-                   , inst $ csrrs src2 sstatus 0
+                   , csrr src2 sstatus
                    , inst $ sret
                    ]
 
@@ -197,12 +213,20 @@ prepareBSCExcpsGen = random $ do
   let fcsr = unsafe_csrs_indexFromName "fcsr"
   let mstatus = unsafe_csrs_indexFromName "mstatus"
   let a0 = 10
-  return $ instSeq [ (lui a0 2)
-                   , (csrrs 0 mstatus a0)
-                   , (addi a0 0 192)
-                   , (csrrs 0 fcsr a0)
+  return $ mconcat [ inst $ lui a0 2
+                   ,        csrs mstatus a0
+                   , inst $ addi a0 0 192
+                   ,        csrs fcsr a0
                    ]
 
+
+prepareMOSCGen :: Template
+prepareMOSCGen = random $ do
+  let reg0 = 10
+  let reg1 = 11
+  return $ mconcat [ li64 reg0 0x80002000
+                   , li64 reg1 0x80004000
+                   ]
 
 setUpPageTable :: Template
 setUpPageTable = random $ do
@@ -240,46 +264,37 @@ prepareTSCGen = random $ do
   let medeleg = unsafe_csrs_indexFromName "medeleg"
   let sedeleg = unsafe_csrs_indexFromName "sedeleg"
   let stval = unsafe_csrs_indexFromName "stval"
-  return $ instSeq [ (lui s1 0x100)
-                   , (csrrc 0 mstatus s1)
-                   , (lui s1 0x1)
-                   , (csrrc 0 mstatus s1)
-                   , (lui s1 0x1)
-                   , (addi s1 s1 0x800)
-                   , (csrrs 0 mstatus s1)
-                   , (auipc s2 0)
-                   , (addi s2 s2 16)
-                   , (csrrw 0 mepc s2)
-                   , (lui s2 0xa)
-                   , (csrrw 0 medeleg s2)
-                   ]
-                   <>
-                     setUpPageTable
-                   <>
-                     (setupHPMEventSel counterReg hpmCntIdx evt)
-                   <>
-                     (enableHPMCounterM counterReg hpmCntIdx)
-                   <>
-           instSeq [ (mret)
-                   , (lui s0 0xfffe0)
-                   , (addi s0 s0 1)
-                   , (slli s0 s0 0x1b)
-                   , (addi s0 s0 1)
-                   , (slli s0 s0 0x13)
-                   , (addi s0 s0 2)
-                   , (csrrw 0 satp s0)
-                   , (addi s1 s1 256)
-                   , (csrrc 0 sstatus s1)
-                   , (lui s2 2)
-                   ]
-                   <>
-                     (enableHPMCounterS counterReg hpmCntIdx)
-                   <>
-                     (li64 s2 0x80004000)
-                   <>
-            instSeq[ (csrrw 0 sepc s2)
-                   , (csrrw 0 stval s2)
-                   , (sret)
+  return $ mconcat [ inst $ lui s1 0x100
+                   ,        csrc mstatus s1
+                   , inst $ lui s1 0x1
+                   ,        csrc mstatus s1
+                   , inst $ lui s1 0x1
+                   , inst $ addi s1 s1 0x800
+                   ,        csrs mstatus s1
+                   , inst $ auipc s2 0
+                   , inst $ addi s2 s2 16
+                   ,        csrw mepc s2
+                   , inst $ lui s2 0xa
+                   ,        csrw medeleg s2
+                   ,        setUpPageTable
+                   ,        setupHPMEventSel counterReg hpmCntIdx evt
+                   ,        enableHPMCounterM counterReg hpmCntIdx
+                   , inst $ mret
+                   , inst $ lui s0 0xfffe0
+                   , inst $ addi s0 s0 1
+                   , inst $ slli s0 s0 0x1b
+                   , inst $ addi s0 s0 1
+                   , inst $ slli s0 s0 0x13
+                   , inst $ addi s0 s0 2
+                   ,        csrw satp s0
+                   , inst $ addi s1 s1 256
+                   ,        csrc sstatus s1
+                   , inst $ lui s2 2
+                   ,        enableHPMCounterS counterReg hpmCntIdx
+                   ,        li64 s2 0x80004000
+                   ,        csrw sepc s2
+                   ,        csrw stval s2
+                   , inst $ sret
                    ]
 
 -- | Verify Data Capability Speculation Constraint (CSC)
@@ -298,7 +313,8 @@ gen_csc_data_verify = random $ do
                        , inst $ csealentry sldReg bitsReg
                        , inst $ candperm nopermReg bitsReg 0
                        , inst $ ccleartag bitsReg bitsReg
-                       , inst $ lw tmpReg1 capReg 0 ]
+                       , inst $ lw tmpReg1 capReg 0
+                       ]
   let body = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (repeatTillEnd (genCSCDataTorture capReg tmpReg1 bitsReg sldReg nopermReg authReg)) tmpReg0 hpmCntIdx Nothing
   let epilog = instAssert (addi tmpReg0 tmpReg0 0) 0
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
@@ -309,14 +325,14 @@ genJump :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Tem
 genJump memReg reg0 reg1 reg2 imm offset = random $ do
   let czero = 0
   let ra = 1
-  return $ instSeq [ cjalr ra reg1
-                   , cjalr czero ra
+  return $ instSeq [ jalr_cap ra reg1
+                   , jalr_cap czero ra
                    ]
 
 genCSCInst :: Integer -> Integer -> Integer -> Integer -> Template
 genCSCInst memReg reg0 reg1 reg2 = random $ do
   let czero = 0
-  return $ instDist [ (1, cjalr czero reg0)
+  return $ instDist [ (1, jalr_cap czero reg0)
                     , (2, add 29 29 29)
                     , (1, cload reg1 reg2 0x8)
                     , (1, auipc reg2 0)
@@ -344,7 +360,7 @@ gen_csc_inst_verify = random $ do
   let reg1 = 24
   let reg2 = 25
   let mtcc = 28
-  let startSeq = inst $ cjalr zeroReg startReg
+  let startSeq = inst $ jalr_cap zeroReg startReg
   let trainSeq = repeatN (18) (genJump memReg tmpReg pccReg loadReg 0x20 0x0)
   let leakSeq = repeatN (1) (genJump memReg2 tmpReg pccReg loadReg 0x20 0x100)
   let tortSeq = startSeq <> leakSeq
@@ -393,7 +409,7 @@ gen_csc_inst_verify = random $ do
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
 -- | Verify condition 1 of Branching Speculation Constraint (BSC)
-gen_bsc_cond_1_verify arch = random $ do
+gen_bsc_cond_1_verify = random $ do
   let tmpReg1 = 1
   let tmpReg2 = 2
   let tmpReg3 = 3
@@ -407,7 +423,7 @@ gen_bsc_cond_1_verify arch = random $ do
   let hpmCntIdx_renamed_insts = 3
   let hpmEventIdx_traps = 0x2
   let hpmCntIdx_traps = 4
-  let inner_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (repeatTillEnd ( (genBSC_Cond_1_Torture arch))) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))
+  let inner_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_renamed_insts (repeatTillEnd genBSC_Cond_1_Torture) tmpReg1 hpmCntIdx_renamed_insts (Just (tmpReg2, tmpReg3))
   let outer_hpm_access = surroundWithHPMAccess_core False hpmEventIdx_traps inner_hpm_access tmpReg4 hpmCntIdx_traps Nothing
   let prolog = mconcat [ li64 addrReg addrVal
                        , makeCap capReg authReg tmpReg5 addrVal 0x10000 0 ]
@@ -431,7 +447,7 @@ gen_bsc_jumps_verify = random $ do
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
 -- | Verify the exception conditions of Branching Speculation Constraint (BSC)
-gen_bsc_exceptions_verify arch = random $ do
+gen_bsc_exceptions_verify = random $ do
   let zeroReg = 0
   let capReg = 12
   let authReg = 13
@@ -445,7 +461,7 @@ gen_bsc_exceptions_verify arch = random $ do
                        , makeCap capReg authReg tmpReg addr 0x100 0
                        , makeCap_core excReg authReg tmpReg 0x80000000
                        , inst $ cspecialrw 0 28 excReg ]
-  let body = surroundWithHPMAccess_core False hpmEventIdx_wild_excps (repeatTillEnd (genBSC_Excps_Torture arch tmpReg)) counterReg hpmCntIdx_wild_excps Nothing
+  let body = surroundWithHPMAccess_core False hpmEventIdx_wild_excps (repeatTillEnd (genBSC_Excps_Torture tmpReg)) counterReg hpmCntIdx_wild_excps Nothing
   let epilog = instAssert (add counterReg counterReg zeroReg) 0
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
 
@@ -467,8 +483,8 @@ gen_tsc_verify = random $ do
                        , li64 addrReg1 0x80001800
                        , li64 addrReg2 0x80012000
                        , li64 addrReg3 0x80008000
-                       , inst $ csrrs tmpReg cntrIdx 0 ]
+                       , csrr tmpReg cntrIdx ]
   let body = repeatN (20) (genTSCTorture)
-  let epilog = mconcat [ inst $ csrrs counterReg cntrIdx 0
+  let epilog = mconcat [ csrr counterReg cntrIdx
                        , instAssert (sub counterReg counterReg tmpReg) 0 ]
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog

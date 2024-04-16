@@ -34,6 +34,7 @@
 
 module QuickCheckVEngine.Templates.Utils.CHERI (
   randomCInvoke
+, boundPCC
 , clearASR
 , makeCap
 , makeCap_core
@@ -79,12 +80,21 @@ randomCInvoke cs1 cs2 typeReg tmpReg =
   <> instSeq [ cinvoke cs2 cs1
              , cmove 31 1 ]
 
+boundPCC :: Integer -> Integer -> Integer -> Integer -> Template
+boundPCC tmp1 tmp2 offset size =
+  mconcat [ inst $ cspecialrw tmp1 0 0, -- Get PCC
+            li64 tmp2 offset,
+            inst $ cincoffset tmp1 tmp1 tmp2, -- increment PCC
+            li64 tmp2 size,
+            inst $ csetbounds tmp1 tmp1 tmp2, -- reduce bounds
+            inst $ jalr_cap tmp1 tmp1 ] -- jump to new PCC
+
 clearASR :: Integer -> Integer -> Template
 clearASR tmp1 tmp2 = instSeq [ cspecialrw tmp1 0 0, -- Get PCC
                                addi tmp2 0 0xbff, -- Load immediate without ASR set
                                candperm tmp1 tmp1 tmp2, -- Mask out ASR
                                cspecialrw 0 28 tmp1, -- Clear ASR in trap vector
-                               cjalr tmp1 0 ]
+                               jalr_cap tmp1 0 ]
 
 makeCap :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
 makeCap dst source tmp base len offset =
@@ -170,7 +180,7 @@ switchEncodingMode = random $ do
                    , addi tmpReg2 0 mode
                    , csetflags tmpReg1 tmpReg1 tmpReg2
                    , cspecialrw 0 28 tmpReg1 --Also write trap vector so we stay in cap mode
-                   , cjalr 0 tmpReg1 ]
+                   , jalr_cap 0 tmpReg1 ]
 
 cspecialRWChain :: Template
 cspecialRWChain = random $ do
@@ -181,7 +191,7 @@ cspecialRWChain = random $ do
   tmpReg5 <- src
   tmpReg6 <- src
   return $ instSeq [ cspecialrw tmpReg2 30 tmpReg1
-                   , cjalr      tmpReg2 0
+                   , jalr_cap      tmpReg2 0
                    , cspecialrw tmpReg4 30 tmpReg3
                    , cspecialrw tmpReg6 30 tmpReg5 ]
 

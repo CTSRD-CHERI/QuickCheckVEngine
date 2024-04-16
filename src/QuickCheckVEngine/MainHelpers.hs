@@ -85,7 +85,7 @@ instance {-# OVERLAPPING #-} Show (Test TestResult) where
 
 showTraceInput t = show ((\(x, _, _) -> x) <$> t)
 
-showAnnotatedTrace singleImp arch t = showTestWithComments t (\(x, _, _) -> show x) (\(_, a, b) -> Just . unlines . (("# " ++) <$>) . lines . (\(a, b) -> b) $ rvfiCheckAndShow singleImp (has_xlen_64 arch) a b [])
+showAnnotatedTrace singleImp arch t = showTestWithComments t (\(x, _, _) -> show x) (\(_, a, b) -> Just . unlines . (("# " ++) <$>) . lines . (\(a, b) -> b) $ rvfiCheckAndShow True singleImp (has_xlen_64 arch) a b [])
 
 bypassShrink :: ShrinkStrategy
 bypassShrink = sequenceShrink f'
@@ -117,14 +117,14 @@ instShrink = singleShrink f'
 --   Example:
 --   80000000 13050000 ef008014 13051000 ef000014
 --   80000010 13052000 ef008013 13053000 ef000013
-readDataFile :: FilePath -> IO (Test Instruction)
-readDataFile inFile = do
+readDataFile :: T.TestParams -> FilePath -> IO (Test Instruction)
+readDataFile params inFile = do
   handle <- openFile inFile ReadMode
   contents <- hGetContents handle
   test <- generate $ readData (lines contents)
   putStrLn $ show (length test)
   return test
-  where readData ss = T.genTest $
+  where readData ss = T.genTest params $
           mconcat (map (\(addr:ws) -> writeData addr ws) write_args)
           <> (li64 1 0x80000000)
           <> (T.inst $ jalr 0 1 0)
@@ -151,7 +151,7 @@ wrapTest = (<> single (diiEnd, Nothing, Nothing))
   where f (MkInstruction i) = (diiInstruction i, Nothing, Nothing)
 
 runImpls :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> Int -> Int -> Test TestResult
-         -> (Test TestResult -> IO a) -> IO a -> IO a
+         -> (Test TestResult -> IO a) -> (Test DII_Packet -> IO a) -> (Test DII_Packet -> IO a)
          -> IO a
 runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequentDeaths = do
   let instTrace = (\(x, _, _) -> x) <$> test
@@ -161,8 +161,8 @@ runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequ
     m_trace <- doRVFIDII connA m_connB alive delay verbosity insts
     case m_trace of
       Just trace -> onTrace trace
-      _ -> onFirstDeath
-  else onSubsequentDeaths
+      _ -> onFirstDeath instTrace
+  else onSubsequentDeaths instTrace
 
 -- | The core QuickCheck property sending the 'Test' to the tested RISC-V
 --   implementations as 'DII_Packet's and checking the returned 'RVFI_Packet's
@@ -170,8 +170,8 @@ runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequ
 --   'Test -> IO ()' to be performed on failure that takes in the reduced
 --   'Test' which caused the failure
 prop :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> (Test TestResult -> IO ())
-     -> ArchDesc -> Int -> Int -> Bool -> Gen (Test TestResult) -> Property
-prop connA m_connB alive onFail arch delay verbosity ignoreAsserts gen =
+     -> ArchDesc -> Int -> Int -> Bool -> Bool -> Gen (Test TestResult) -> Property
+prop connA m_connB alive onFail arch delay verbosity ignoreAsserts pedantic gen =
   forAllShrink gen shrink mkProp
   where mkProp test = whenFail (onFail test) (doProp test)
         doProp test = monadicIO $ run $ runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequentDeaths
@@ -179,7 +179,7 @@ prop connA m_connB alive onFail arch delay verbosity ignoreAsserts gen =
         colourRed = "\ESC[31m"
         colourEnd = "\ESC[0m"
         colourise (b, s) = (b, (if b then colourGreen else colourRed) ++ s ++ colourEnd)
-        diffFunc asserts (DII_Instruction _ _, a, b) = colourise $ rvfiCheckAndShow (isNothing m_connB) (has_xlen_64 arch) a b asserts
+        diffFunc asserts (DII_Instruction _ _, a, b) = colourise $ rvfiCheckAndShow pedantic (isNothing m_connB) (has_xlen_64 arch) a b asserts
         diffFunc _ (DII_End _, _, _) = (True, "Test end")
         diffFunc _ _ = (True, "")
         handleAsserts (ReportAssert False s, _) = do putStrLn $ "Failed assert: " ++ s
@@ -190,10 +190,10 @@ prop connA m_connB alive onFail arch delay verbosity ignoreAsserts gen =
           when (verbosity > 1) $ mapM_ (putStrLn . snd) diff
           assertsFailed <- forM (gatherReports $ runAssertCompounds trace) handleAsserts
           return $ property $ and (fst <$> diff) && (ignoreAsserts || not(or assertsFailed))
-        onFirstDeath = return $ property False
+        onFirstDeath _ = return $ property False
         -- We don't want to shrink once one of the implementations has died,
         -- so always return that the property is true
-        onSubsequentDeaths = do
+        onSubsequentDeaths _ = do
           putStrLn "Warning: reporting success since implementations not running"
           return $ property True
 

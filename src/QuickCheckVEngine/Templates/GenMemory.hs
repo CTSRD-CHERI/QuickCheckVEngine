@@ -56,13 +56,13 @@ import Test.QuickCheck
 import RISCV.RV32_I
 import RISCV.RV32_A
 import RISCV.RV32_Zifencei
-import RISCV.RV32_Zicsr
 import RISCV.RV64_I
 import RISCV.RV32_Xcheri
 import RISCV.RV_CSRs
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 import Data.Bits
+import qualified RISCV.ArchDesc as Arch
 
 data GenConf = GenConf { has_a        :: Bool
                        , has_zifencei :: Bool
@@ -81,8 +81,8 @@ gen_rv32_i_zifencei_memory = gen_memory False True False False
 gen_rv32_i_a_zifencei_memory :: Template
 gen_rv32_i_a_zifencei_memory = gen_memory True True False False
 
-gen_rv32_i_cache :: Bool -> Template
-gen_rv32_i_cache has_zifencei = gen_cache (GenConf False has_zifencei False) False
+gen_rv32_i_cache :: Template
+gen_rv32_i_cache = readParams $ \param -> gen_cache (GenConf False (Arch.has_ifencei $ archDesc param) False) False
 
 gen_rv64_i_memory :: Template
 gen_rv64_i_memory = gen_memory False False True False
@@ -96,14 +96,14 @@ gen_rv64_i_zifencei_memory = gen_memory False True True False
 gen_rv64_i_a_zifencei_memory :: Template
 gen_rv64_i_a_zifencei_memory = gen_memory True True True False
 
-gen_rv64_i_cache :: Bool -> Template
-gen_rv64_i_cache has_zifencei = gen_cache (GenConf False has_zifencei True) False
+gen_rv64_i_cache :: Template
+gen_rv64_i_cache = readParams $ \p -> gen_cache (GenConf False (Arch.has_ifencei (archDesc p)) True) False
 
-gen_rv32_Xcheri_cache :: Bool -> Template
-gen_rv32_Xcheri_cache has_zifencei = gen_cache (GenConf False has_zifencei False) True
+gen_rv32_Xcheri_cache :: Template
+gen_rv32_Xcheri_cache = readParams $ \p -> gen_cache (GenConf False (Arch.has_ifencei (archDesc p)) False) True
 
-gen_rv64_Xcheri_cache :: Bool -> Template
-gen_rv64_Xcheri_cache has_zifencei = gen_cache (GenConf False has_zifencei True) True
+gen_rv64_Xcheri_cache :: Template
+gen_rv64_Xcheri_cache = readParams $ \p -> gen_cache (GenConf False (Arch.has_ifencei (archDesc p)) True) True
 
 gen_memory :: Bool -> Bool -> Bool -> Bool -> Template
 gen_memory has_a has_zifencei has_xlen_64 has_caplen = random $
@@ -201,9 +201,11 @@ gen_pte_perms = random $
                                      add 5 5 6,
                                      lui 7 0x40000,
                                      slli 7 7 1,
-                                     sd 7 1 0,
-                                     csrrw 0 (unsafe_csrs_indexFromName "satp") 5,
-                                     csrrwi 0 (unsafe_csrs_indexFromName "sccsr") (clg0 * 4)]
+                                     sd 7 1 0]
+                                     <>
+                                     csrw (unsafe_csrs_indexFromName "satp") 5
+                                     <>
+                                     csrwi (unsafe_csrs_indexFromName "sccsr") (clg0 * 4)
                                      <>
                                      (noShrink $ inst $ sfence 0 0)
                                      <> mconcat [
@@ -211,7 +213,7 @@ gen_pte_perms = random $
                                      instUniform [ccleartag 3 3, cmove 3 3],
                                      instUniform [sw 0 3 16, sq 0 3 16],
                                      instUniform [lw 4 0 16, lq 4 0 16],
-                                     inst $ csrrwi 0 (unsafe_csrs_indexFromName "sccsr") (clg1 * 4),
+                                     csrwi (unsafe_csrs_indexFromName "sccsr") (clg1 * 4),
                                      instUniform [lw 4 0 16, lq 4 0 16],
                                      inst $ cgettag 5 4,
                                      inst ecall]
@@ -241,7 +243,7 @@ gen_pte39_trans_core lxReg addrReg pteReg = random $
                                      li64 lxReg  l1pa,
                                      inst $ sd lxReg pteReg 0,
                                      li64 pteReg satp,
-                                     inst $ csrrw 0 (unsafe_csrs_indexFromName "satp") pteReg,
+                                     csrw (unsafe_csrs_indexFromName "satp") pteReg,
                                      li64 addrReg addrInitial]
                                      <>
                                      (noShrink $ inst $ sfence 0 0)
@@ -279,7 +281,7 @@ gen_pte48_trans_core lxReg addrReg pteReg = random $
                                      li64 lxReg  l1pa,
                                      inst $ sd lxReg pteReg 0,
                                      li64 pteReg satp,
-                                     inst $ csrrw 0 (unsafe_csrs_indexFromName "satp") pteReg,
+                                     csrw (unsafe_csrs_indexFromName "satp") pteReg,
                                      li64 addrReg addrInitial]
                                      <>
                                      (noShrink $ inst $ sfence 0 0)

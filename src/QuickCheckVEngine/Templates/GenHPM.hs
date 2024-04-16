@@ -40,5 +40,5 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils
 import QuickCheckVEngine.Templates.RandomTest
 
-genHPM :: ArchDesc -> Template
-genHPM = surroundWithHPMAccess . randomTest
+genHPM :: Template
+genHPM = surroundWithHPMAccess randomTest
