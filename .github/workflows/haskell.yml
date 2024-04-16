@@ -1,0 +1,38 @@
+name: Haskell CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+jobs:
+
+  hlint:
+    name: Run HLint on the QuickCheck Verification Engine codebase
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 'Set up HLint'
+        uses: haskell-actions/hlint-setup@v2
+      - name: 'Run HLint'
+        uses: haskell-actions/hlint-run@v2
+
+  build:
+    name: Build the QuickCheck Verification Engine
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.8'
+          cabal-version: '3.8'
+      - name: Install dependencies
+        run: |
+          cabal update
+          cabal build --only-dependencies
+      - name: Build
+        run: cabal build all

@@ -1,4 +1,4 @@
-resolver: lts-20.1
+resolver: lts-20.9
 
 # User packages to be built.
 packages:
@@ -7,4 +7,4 @@ packages:
 # These entries can reference officially published versions as well as
 # forks / in-progress versions pinned to a git hash.
 extra-deps:
-- bitwise-1.0.0.1  # not included in the default resolver set
+  - bitwise-1.0.0.1  # not included in the default resolver set
