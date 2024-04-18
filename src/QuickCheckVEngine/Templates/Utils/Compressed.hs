@@ -59,10 +59,10 @@ regs_nz_n2 = 1:[3..31]
 regs' = [0..7]
 regs'_nz = [1..7]
 
-genCompressed_imm       = bits 6
-genCompressed_uimm      = bits 8
-genCompressed_nzimm     = bits 18
-genCompressed_nzuimm    = bits 6
+genCompressed_imm       = bits 12 -- see C.J / C.JAL
+genCompressed_uimm      = bits 10 -- see C.LQSP / C.SQSP
+genCompressed_nzimm     = bits 18 -- see C.LUI
+genCompressed_nzuimm    = bits 10 -- see C.ADDI4SPN
 genCompressed_rs1'      = bits 3
 genCompressed_rs1'_rd'  = oneof $ map return regs'
 genCompressed_rs1_nz    = oneof $ map return regs_nz
