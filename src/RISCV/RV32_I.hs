@@ -85,6 +85,7 @@ module RISCV.RV32_I (
 , sh
 , sw
 , fence
+, fence_tso
 , resrvd
 , mret
 , sret
@@ -204,6 +205,8 @@ sw_raw           =                   "imm[11:5] rs2[4:0] rs1[4:0] 010 imm[4:0] 0
 sw rs1 rs2 imm   = encode sw_raw      imm       rs2      rs1
 fence_raw        =                   "0000 pred[3:0] succ[3:0] 00000 000 00000 0001111"
 fence pred succ  = encode fence_raw        pred      succ
+fence_tso_raw    =                   "1000 0011 0011 00000 000 00000 0001111" -- Optional instruction
+fence_tso        = encode fence_tso_raw -- Optional instruction
 resrvd_raw       =                   "0000 0000 0000 00000 000 00000 0000000"
 resrvd           = encode resrvd_raw
 mret_raw         =                   "0011 0000 0010 00000 000 00000 1110011"
@@ -259,6 +262,7 @@ rv32_i_disass = [ add_raw    --> prettyR "add"
                 , sh_raw     --> prettyS "sh"
                 , sw_raw     --> prettyS "sw"
                 , fence_raw  --> prettyF
+                , fence_tso_raw --> "fence.tso"
                 , resrvd_raw --> "reserved"
                 , mret_raw   --> "mret"
                 , sret_raw   --> "sret"
@@ -325,6 +329,7 @@ rv32_i_extract = [ add_raw    --> extract_2op add_raw
                  , sh_raw     --> extract_nodst sh_raw
                  , sw_raw     --> extract_nodst sw_raw
 --               , fence_raw  --> noextract
+--               , fence_tso_raw --> noextract
 --               , resrvd_raw --> noextract
 --               , mret_raw   --> noextract
 --               , sret_raw   --> noextract
@@ -399,6 +404,7 @@ rv32_i_shrink = [ add_raw    --> shrink_arith
                 , sh_raw     --> shrink_store
                 , sw_raw     --> shrink_store
 --              , fence_raw  --> noshrink
+--              , fence_tso_raw --> noshrink
                 , resrvd_raw --> shrink_illegal
                 , mret_raw   --> shrink_illegal
                 , sret_raw   --> shrink_illegal
@@ -475,7 +481,8 @@ rv32_i_store srcAddr srcData imm = [ sb srcAddr srcData imm
 
 -- | List of RV32 base integer fence instructions
 rv32_i_fence :: Integer -> Integer -> [Instruction]
-rv32_i_fence fenceOp1 fenceOp2 = [fence fenceOp1 fenceOp2]
+rv32_i_fence fenceOp1 fenceOp2 = [fence fenceOp1 fenceOp2
+                                 , fence_tso ]
 
 -- | List of RV32 base integer memory instructions
 rv32_i_mem :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer
