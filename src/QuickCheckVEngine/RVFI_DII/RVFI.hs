@@ -477,26 +477,26 @@ checkOptionalField cond msg showF a b = _checkField cond msg (optionalFieldsSame
 
 -- | Compare 'RVFI_Packet's
 rvfiCheck :: Bool -> Bool -> RVFI_Packet -> RVFI_Packet -> Maybe String
-rvfiCheck pedantic is64 x y
+rvfiCheck strict is64 x y
   | rvfiIsHalt x = if rvfi_halt x == rvfi_halt y then Nothing else Just "expected halt package"
   | otherwise = case errors of [] -> Nothing
                                xs -> Just $ intercalate ", " xs
   where errors = catMaybes
-          [ checkField (pedantic || rvfi_trap x == 0) "insn" printHex (maskUpper False (rvfi_insn x)) (maskUpper False (rvfi_insn y)),
+          [ checkField (strict || rvfi_trap x == 0) "insn" printHex (maskUpper False (rvfi_insn x)) (maskUpper False (rvfi_insn y)),
             checkField True "trap" show (rvfi_trap x) (rvfi_trap y),
             checkField True "halt" show (rvfi_halt x) (rvfi_halt y),
             checkOptionalField True "mode" show (rvfi_mode x) (rvfi_mode y),
             checkOptionalField True "XLEN" show (rvfi_ixl x) (rvfi_ixl y),
-            checkField (pedantic || rvfi_trap x == 0) "rd_addr" show (getRDAddr x) (getRDAddr y),
-            checkField (pedantic || rvfi_trap x == 0) "rd_wdata" printHex (getRDWData is64 x) (getRDWData is64 y),
-            checkField pedantic "rs1_addr" show (getRS1Addr x) (getRS1Addr y),
-            checkField pedantic "rs1_rdata" printHex (getRS1RData is64 x) (getRS1RData is64 y),
-            checkField pedantic "rs2_addr" show (getRS2Addr x) (getRS2Addr y),
-            checkField pedantic "rs2_rdata" printHex (getRS2RData is64 x) (getRS2RData is64 y),
+            checkField (strict || rvfi_trap x == 0) "rd_addr" show (getRDAddr x) (getRDAddr y),
+            checkField (strict || rvfi_trap x == 0) "rd_wdata" printHex (getRDWData is64 x) (getRDWData is64 y),
+            checkField strict "rs1_addr" show (getRS1Addr x) (getRS1Addr y),
+            checkField strict "rs1_rdata" printHex (getRS1RData is64 x) (getRS1RData is64 y),
+            checkField strict "rs2_addr" show (getRS2Addr x) (getRS2Addr y),
+            checkField strict "rs2_rdata" printHex (getRS2RData is64 x) (getRS2RData is64 y),
             checkField True "pc_wdata" printHex (maskUpper is64 (rvfi_pc_wdata x)) (maskUpper is64 (rvfi_pc_wdata y)),
-            checkField (pedantic || ((maybe 0 rvfi_mem_wmask (rvfi_mem_data x)) /= 0)) "mem_addr" printHex (getMemAddr is64 x) (getMemAddr is64 y),
-            _checkField (pedantic || rvfi_trap x == 0) "mem_wdata" (compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata) "", -- TODO: context
-            _checkField (pedantic || rvfi_trap x == 0) "mem_rdata" (compareMemData is64 x y rvfi_mem_rmask rvfi_mem_rdata) "" -- TODO: context
+            checkField (strict || ((maybe 0 rvfi_mem_wmask (rvfi_mem_data x)) /= 0)) "mem_addr" printHex (getMemAddr is64 x) (getMemAddr is64 y),
+            _checkField (strict || rvfi_trap x == 0) "mem_wdata" (compareMemData is64 x y rvfi_mem_wmask rvfi_mem_wdata) "", -- TODO: context
+            _checkField (strict || rvfi_trap x == 0) "mem_rdata" (compareMemData is64 x y rvfi_mem_rmask rvfi_mem_rdata) "" -- TODO: context
           ]
         printHex x = "0x" ++ showHex x ""
 
