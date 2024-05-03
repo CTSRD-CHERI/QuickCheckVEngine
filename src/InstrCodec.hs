@@ -122,9 +122,11 @@ subst :: Mapping -> BitList -> BitList
 subst m bs = unscatter [(bi, bs !! si) | (bi, si) <- m]
 
 -- Join a scattered bit-string, complain if gaps or overlapping
-unscatter :: [(Int, a)] -> [a]
-unscatter = join 0
+unscatter :: [(Int, Bool)] -> BitList
+unscatter m = zeros ++ join lsb m
   where
+   lsb = minimum [j | (j, _) <- m]
+   zeros = take lsb $ repeat False
    join _ [] = []
    join i m =
      case [x | (j, x) <- m, i == j] of
