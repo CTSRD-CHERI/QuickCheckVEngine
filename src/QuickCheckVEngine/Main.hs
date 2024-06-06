@@ -130,8 +130,8 @@ defaultOptions = Options
     , optContinueOnFail= False
     , optIgnoreAsserts = False
     , optSingleImp     = False
-    , csrIncludeRegex = Nothing
-    , csrExcludeRegex = Nothing
+    , csrIncludeRegex  = Nothing
+    , csrExcludeRegex  = Nothing
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -184,7 +184,7 @@ options =
   , Option ['L']     ["test-length"]
       (ReqArg (\ f opts -> opts { testLen = read f }) "TEST-LENGTH")
         "Generate tests up to TEST-LENGTH instructions long"
-  , Option []       ["strict-comparison"]
+  , Option []        ["strict-comparison"]
       (NoArg (\ opts -> opts { optStrict = True }))
         "Compare all RVFI fields"
   , Option ['S']     ["disable-shrink"]
@@ -202,10 +202,10 @@ options =
   , Option []        ["single-implementation"]
       (NoArg (\ opts -> opts { optSingleImp = True }))
         "Run with only implementation A, testing asserts only (if enabled)"
-  , Option []     ["csr-include-regex"]
+  , Option []        ["csr-include-regex"]
       (ReqArg (\ f opts -> opts { csrIncludeRegex = Just f }) "REGEX")
         "Specify REGEX to test only a subset of CSRs"
-  , Option []     ["csr-exclude-regex"]
+  , Option []        ["csr-exclude-regex"]
       (ReqArg (\ f opts -> opts { csrExcludeRegex = Just f }) "REGEX")
         "Specify REGEX to exclude a subset of CSRs from tests"
   ]
