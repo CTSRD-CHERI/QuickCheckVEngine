@@ -150,17 +150,19 @@ fromString str = ArchDesc { has_xlen_32     = True
                           }
   where rawSplit = splitOneOf "_zx" (map toLower str)
         archStrings = filter (\x -> not $ null x) rawSplit
-        rv64 = (head archStrings) =~ "rv64"
-        i = (head archStrings =~ "i") || (head archStrings =~ "g")
-        m = (head archStrings =~ "m") || (head archStrings =~ "g")
-        s = (head archStrings =~ "s") || (head archStrings =~ "g")
-        a = (head archStrings =~ "a") || (head archStrings =~ "g")
-        f = (head archStrings =~ "f") || (head archStrings =~ "g")
-        d = (head archStrings =~ "d") || (head archStrings =~ "g")
-        icsr = elem "icsr" archStrings || (head archStrings =~ "g")
-        ihpm = elem "ihpm" archStrings || (head archStrings =~ "g")
-        ifencei = elem "ifencei" archStrings || (head archStrings =~ "g")
-        c = head archStrings =~ "c"
-        n = head archStrings =~ "n"
+        archHead = case archStrings of []  -> ""
+                                       h:t -> h
+        rv64 = (archHead) =~ "rv64"
+        i = (archHead =~ "i") || (archHead =~ "g")
+        m = (archHead =~ "m") || (archHead =~ "g")
+        s = (archHead =~ "s") || (archHead =~ "g")
+        a = (archHead =~ "a") || (archHead =~ "g")
+        f = (archHead =~ "f") || (archHead =~ "g")
+        d = (archHead =~ "d") || (archHead =~ "g")
+        icsr = elem "icsr" archStrings || (archHead =~ "g")
+        ihpm = elem "ihpm" archStrings || (archHead =~ "g")
+        ifencei = elem "ifencei" archStrings || (archHead =~ "g")
+        c = archHead =~ "c"
+        n = archHead =~ "n"
         cheri = elem "cheri" archStrings
         nocloadtags = elem "nocloadtags" archStrings
