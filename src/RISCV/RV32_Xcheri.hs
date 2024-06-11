@@ -596,6 +596,7 @@ rv32_xcheri_misc src1 src2 srcScr imm dest =
   , ccseal      dest src1 src2
   , csealentry  dest src1
   , ccleartag   dest src1
+  , cmove       dest src1
   , cspecialrw  dest srcScr src1 ]
 
 -- | List of cheri control instructions
