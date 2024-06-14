@@ -100,6 +100,7 @@ data Options = Options
     , optShrink        :: Bool
     , optStrict        :: Bool
     , optSave          :: Bool
+    , optSaveAll       :: Bool
     , optContinueOnFail:: Bool
     , optIgnoreAsserts :: Bool
     , csrIncludeRegex  :: Maybe String
@@ -127,6 +128,7 @@ defaultOptions = Options
     , optShrink        = True
     , optStrict        = False
     , optSave          = True
+    , optSaveAll       = False
     , optContinueOnFail= False
     , optIgnoreAsserts = False
     , optSingleImp     = False
@@ -193,6 +195,9 @@ options =
   , Option []        ["no-save"]
       (NoArg (\ opts -> opts { optSave = False }))
         "Don't offer to save failed counter-examples"
+  , Option []        ["save-all"]
+      (NoArg (\ opts -> opts { optSaveAll = True }))
+        "Save all traces not just failures"
   , Option []        ["continue-on-fail"]
       (NoArg (\ opts -> opts { optContinueOnFail = True }))
         "Keep running tests after failure to find multiple failures"
@@ -293,7 +298,7 @@ main = withSocketsDo $ do
   let checkSingle :: Test TestResult -> Int -> Bool -> Int -> (Test TestResult -> IO ()) -> IO Result
       checkSingle test verbosity doShrink len onFail = do
         quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 1000 else 0))
-                             (prop implA m_implB alive onFail archDesc (timeoutDelay flags) verbosity (optIgnoreAsserts flags) (optStrict flags) (return test))
+                             (prop implA m_implB alive onFail archDesc (timeoutDelay flags) verbosity Nothing (optIgnoreAsserts flags) (optStrict flags) (return test))
   let check_mcause_on_trap :: Test TestResult -> Test TestResult
       check_mcause_on_trap (trace :: Test TestResult) = if or (hasTrap <$> trace) then filterTest p trace <> wrapTest testSuffix else trace
         where hasTrap (_, a, b) = maybe False rvfiIsTrap a || maybe False rvfiIsTrap b
@@ -327,7 +332,7 @@ main = withSocketsDo $ do
                               Nothing   -> "# Automatically generated failing test case\n"
               writeFile (dir ++ "/failure-" ++ tstamp ++ ".S") (prelude ++ contents)
   let saveOnFail :: Maybe FilePath -> Test TestResult -> (Test TestResult -> Test TestResult) -> IO ()
-      saveOnFail sourceFile test testTrans = runImpls implA m_implB alive (timeoutDelay flags) 0 test onTrace onDeath onDeath
+      saveOnFail sourceFile test testTrans = runImpls implA m_implB alive (timeoutDelay flags) 0 Nothing test onTrace onDeath onDeath
         where onDeath test = do putStrLn "Failure rerunning test"
                                 askAndSave sourceFile (show test) Nothing testTrans
               onTrace trace = askAndSave sourceFile (showAnnotatedTrace (isNothing m_implB) archDesc trace) (Just trace) testTrans
@@ -335,7 +340,7 @@ main = withSocketsDo $ do
   let checkResult = if optVerbosity flags > 1 then verboseCheckWithResult else quickCheckWithResult
   let checkGen gen remainingTests =
         checkResult (Args Nothing remainingTests 1 (testLen flags) (optVerbosity flags > 0) (if optShrink flags then 1000 else 0))
-                    (prop implA m_implB alive (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) (optVerbosity flags) (optIgnoreAsserts flags) (optStrict flags) gen)
+                    (prop implA m_implB alive (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) (optVerbosity flags) (if (optSaveAll flags) then (saveDir flags) else Nothing) (optIgnoreAsserts flags) (optStrict flags) gen)
   failuresRef <- newIORef 0
   let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
         | skipped == 0 = do putStrLn $ "Reading trace from " ++ fileName

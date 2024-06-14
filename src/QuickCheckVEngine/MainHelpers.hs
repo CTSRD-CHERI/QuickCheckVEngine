@@ -60,6 +60,7 @@ import System.Timeout
 import Data.IORef
 import Data.Maybe
 import Data.Binary
+import Data.Time.Clock
 import Network.Socket
 import Network.Socket.ByteString.Lazy
 import Test.QuickCheck
@@ -150,15 +151,14 @@ wrapTest = (<> single (diiEnd, Nothing, Nothing))
          . (f <$>)
   where f (MkInstruction i) = (diiInstruction i, Nothing, Nothing)
 
-runImpls :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> Int -> Int -> Test TestResult
+runImpls :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> Int -> Int -> Maybe FilePath -> Test TestResult
          -> (Test TestResult -> IO a) -> (Test DII_Packet -> IO a) -> (Test DII_Packet -> IO a)
          -> IO a
-runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequentDeaths = do
+runImpls connA m_connB alive delay verbosity saveDir test onTrace onFirstDeath onSubsequentDeaths = do
   let instTrace = (\(x, _, _) -> x) <$> test
-  let insts = instTrace
   currentlyAlive <- readIORef alive
   if currentlyAlive then do
-    m_trace <- doRVFIDII connA m_connB alive delay verbosity insts
+    m_trace <- doRVFIDII connA m_connB alive delay verbosity saveDir test
     case m_trace of
       Just trace -> onTrace trace
       _ -> onFirstDeath instTrace
@@ -170,11 +170,11 @@ runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequ
 --   'Test -> IO ()' to be performed on failure that takes in the reduced
 --   'Test' which caused the failure
 prop :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> (Test TestResult -> IO ())
-     -> ArchDesc -> Int -> Int -> Bool -> Bool -> Gen (Test TestResult) -> Property
-prop connA m_connB alive onFail arch delay verbosity ignoreAsserts strict gen =
+     -> ArchDesc -> Int -> Int -> Maybe FilePath -> Bool -> Bool -> Gen (Test TestResult) -> Property
+prop connA m_connB alive onFail arch delay verbosity saveDir ignoreAsserts strict gen =
   forAllShrink gen shrink mkProp
   where mkProp test = whenFail (onFail test) (doProp test)
-        doProp test = monadicIO $ run $ runImpls connA m_connB alive delay verbosity test onTrace onFirstDeath onSubsequentDeaths
+        doProp test = monadicIO $ run $ runImpls connA m_connB alive delay verbosity saveDir test onTrace onFirstDeath onSubsequentDeaths
         colourGreen = "\ESC[32m"
         colourRed = "\ESC[31m"
         colourEnd = "\ESC[0m"
@@ -204,8 +204,10 @@ prop connA m_connB alive onFail arch delay verbosity ignoreAsserts strict gen =
 --   'IORef Bool' for alive to 'False' indicating that further interaction with
 --   the implementations is futile
 doRVFIDII :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> Int
-          -> Int -> Test DII_Packet -> IO (Maybe (Test TestResult))
-doRVFIDII connA m_connB alive delay verbosity insts = do
+          -> Int -> Maybe FilePath -> Test TestResult -> IO (Maybe (Test TestResult))
+doRVFIDII connA m_connB alive delay verbosity saveDir test = do
+  let instTrace = (\(x, _, _) -> x) <$> test
+  let insts = instTrace
   currentlyAlive <- readIORef alive
   if currentlyAlive then do
     result <- try $ do
@@ -227,6 +229,14 @@ doRVFIDII connA m_connB alive delay verbosity insts = do
       when (isNothing m_traceA || isNothing m_traceAB) $ writeIORef alive False
       when (isNothing m_traceA) $ putStrLn "Error: implementation A timeout. Forcing all future tests to report 'SUCCESS'"
       when (isNothing m_traceAB) $ putStrLn "Error: implementation B timeout. Forcing all future tests to report 'SUCCESS'"
+      --
+      case saveDir of
+        Nothing -> do return ()
+        Just dir -> do
+          t <- getCurrentTime
+          let tstamp = [if x == ' ' then '_' else if x == ':' then '-' else x | x <- show t]
+          let prelude = "# Automatically generated test case\n"
+          writeFile (dir ++ "/random-test-" ++ tstamp ++ ".S") (prelude ++ (show test))
       --
       return $ fromMaybe (emptyTrace traceA) m_traceAB
     case result of
