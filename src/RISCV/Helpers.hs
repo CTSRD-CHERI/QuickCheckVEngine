@@ -74,6 +74,26 @@ module RISCV.Helpers (
 , prettyR_rm
 , prettyR4_rm
 , prettyS_F
+, prettyCR
+, prettyCR_1op
+, prettyCI
+, prettyCI_sig
+, prettyCI_F
+, prettyCI_reg
+, prettyCI_imm
+, prettyCI_sig_imm
+, prettyCSS
+, prettyCSS_F
+, prettyCIW
+, prettyCL
+, prettyCL_F
+, prettyCS
+, prettyCS_F
+, prettyCA
+, prettyCB
+, prettyCB_sig
+, prettyCB_reg
+, prettyCJ
 -- * Others
 , reg
 , int
@@ -204,6 +224,28 @@ toSigned :: (Ord a, Num a) => Int -> a -> a
 toSigned w x | x >= 0 = if x >= 2^(w-1) then x - 2^w else x
              | otherwise = error $ "cannot toSigned on negative number"
 
+-- | RVC compressed integer register pretty printer
+reg' :: Integer -> String
+reg' = cIntReg
+
+-- | Gives a RISCV register name 'String' when provided an RVC compressed
+--   integer register index
+cIntReg :: Integer -> String
+cIntReg i
+  | i >= 0 && i < 8 = intReg (i + 8)
+  | otherwise = "unknownCompressedRegIdx" ++ show i
+
+-- | RVC compressed floating-point register pretty printer
+fpReg' :: Integer -> String
+fpReg' = cFpReg
+
+-- | Gives a RISCV floating point register name 'String' when provided an
+--   RVC compressed floating-point register index
+cFpReg :: Integer -> String
+cFpReg i
+  | i >= 0 && i < 8 = fpReg (i + 8)
+  | otherwise = "unknownCompressedRegIdx" ++ show i
+
 
 -- ** Instructions
 
@@ -325,6 +367,77 @@ prettyR4_rm instr rs3 rs2 rs1 rm rd =
 
 prettyS_F instr imm rs2 rs1 =
   concat [instr, " ", fpReg rs2, ", ", reg rs1, "(", int imm, ")"]
+
+-- ** Compressed Instructions
+
+-- | CR-type 'Register' compressed instruction pretty printer
+prettyCR instr rs2 rs1_rd =
+  concat [instr, " ", reg rs1_rd, ", ", reg rs2]
+-- | CR-type (single-operand variant)
+prettyCR_1op instr rs1_rd =
+  concat [instr, " ", reg rs1_rd]
+
+-- | CI-type 'Immediate' compressed instruction pretty printer
+prettyCI instr imm rs1_rd =
+  concat [instr, " ", reg   rs1_rd, ", ", int imm]
+-- | CI-type (signed variant)
+prettyCI_sig ise instr imm rs1_rd =
+  concat [instr, " ", reg   rs1_rd, ", ", int $ toSigned ise imm]
+-- | CI-type (floating-point variant)
+prettyCI_F instr imm rs1_rd =
+  concat [instr, " ", fpReg rs1_rd, ", ", int imm]
+-- | CI-type (register-only variant)
+prettyCI_reg instr rs1_rd =
+  concat [instr, " ", reg   rs1_rd]
+-- | CI-type (immediate-only variant)
+prettyCI_imm instr imm =
+  concat [instr, " ", int imm]
+-- | CI-type (signed immediate-only variant)
+prettyCI_sig_imm ise instr imm =
+  concat [instr, " ", int $ toSigned ise imm]
+
+-- | CSS-type 'Stack-relative Store' compressed instruction pretty printer
+prettyCSS instr imm rs2 =
+  concat [instr, " ", reg   rs2, ", ", int imm]
+-- | CSS-type (floating-point variant)
+prettyCSS_F instr imm rs2 =
+  concat [instr, " ", fpReg rs2, ", ", int imm]
+
+-- | CIW-type 'Wide-Immediate' compressed instruction pretty printer
+prettyCIW instr imm rd' =
+  concat [instr, " ", reg' rd', ", ", int imm]
+
+-- | CL-type 'Load' compressed instruction pretty printer
+prettyCL instr imm rd' rs1' =
+  concat [instr, " ", reg'   rd', ", ", reg' rs1', "[", int imm, "]"]
+-- | CL-type (floating-point variant)
+prettyCL_F instr imm rd' rs1' =
+  concat [instr, " ", fpReg' rd', ", ", reg' rs1', "[", int imm, "]"]
+
+-- | CS-type 'Store' compressed instruction pretty printer
+prettyCS instr imm rs1' rs2' =
+  concat [instr, " ", reg'   rs2', ", ", reg' rs1', "[", int imm, "]"]
+-- | CS-type (floating-point variant)
+prettyCS_F instr imm rs1' rs2' =
+  concat [instr, " ", fpReg' rs2', ", ", reg' rs1', "[", int imm, "]"]
+
+-- | CA-type 'Arithmetic' compressed instruction pretty printer
+prettyCA instr rs1_rd' rs2' =
+  concat [instr, " ", reg' rs1_rd', ", ", reg' rs2']
+
+-- | CB-type 'Branch' compressed instruction pretty printer
+prettyCB instr imm rs1' =
+  concat [instr, " ", reg' rs1', ", ", int imm]
+-- | CB-type (signed variant)
+prettyCB_sig ise instr imm rs1' =
+  concat [instr, " ", reg' rs1', ", ", int $ toSigned ise imm]
+-- | CB-type (register-only variant)
+prettyCB_reg instr rs1' =
+  concat [instr, " ", reg' rs1']
+
+-- | CJ-type 'Jump' compressed instruction pretty printer
+prettyCJ instr imm =
+  concat [instr, " ", int $ toSigned 12 imm]
 
 type ExtractedRegs = ( Bool -- ^ is_bypass
                      , Maybe Integer -- ^ rs2
