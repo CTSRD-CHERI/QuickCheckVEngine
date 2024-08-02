@@ -100,6 +100,15 @@ module RISCV.RV_C (
 , rv_c
 ) where
 
+import RISCV.Helpers (prettyCR, prettyCR_1op,
+                      prettyCI, prettyCI_sig, prettyCI_F, prettyCI_reg,prettyCI_imm, prettyCI_sig_imm,
+                      prettyCSS, prettyCSS_F,
+                      prettyCIW,
+                      prettyCL, prettyCL_F,
+                      prettyCS, prettyCS_F,
+                      prettyCA,
+                      prettyCB, prettyCB_sig, prettyCB_reg,
+                      prettyCJ)
 import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 c_illegal_raw           =                            "000                                          00000000      000 00"
@@ -210,11 +219,69 @@ c_fswsp rs2 uimm        = encode c_fswsp_raw                   uimm             
 c_sdsp_raw              =                            "111      uimm[5:3] uimm[8:6]            rs2[4:0] 10"
 c_sdsp rs2 uimm         = encode c_sdsp_raw                    uimm                           rs2
 
--- | TODO Dissassembly of RISC-V compressed instructions
+-- | Dissassembly of RISC-V compressed instructions padded to 32-bits.
+-- | No instruction expansion or implicit operands are shown.
+-- |
+-- | Note: left-shifting of RV_C immediates is done in `decode`,
+-- |       not in the pretty printing functions.
+pad :: String -> String
+pad = (++) "0000000000000000"
 rv_c_disass :: [DecodeBranch String]
-rv_c_disass = []
+rv_c_disass = [ pad c_illegal_raw  --> "c.illegal"
+              , pad c_addi4spn_raw --> prettyCIW "c.addi4spn"
+              , pad c_fld_raw      --> prettyCL_F "c.fld"
+              , pad c_flq_raw      --> prettyCL_F "c.flq"
+              , pad c_lw_raw       --> prettyCL   "c.lw"
+              , pad c_flw_raw      --> prettyCL_F "c.flw"
+              , pad c_ld_raw       --> prettyCL   "c.ld"
+--            , c_res_a_raw
+              , pad c_fsd_raw      --> prettyCS_F "c.fsd"
+              , pad c_fsq_raw      --> prettyCS_F "c.fsq"
+              , pad c_sw_raw       --> prettyCS   "c.sw"
+              , pad c_fsw_raw      --> prettyCS_F "c.fsw"
+              , pad c_sd_raw       --> prettyCS   "c.sd"
+              , pad c_nop_raw      --> prettyCI_imm "c.nop"
+              , pad c_addi_raw     --> prettyCI_sig 6 "c.addi"
+              , pad c_jal_raw      --> prettyCJ "c.jal"
+              , pad c_addiw_raw    --> prettyCI_sig 6 "c.addiw"
+              , pad c_li_raw       --> prettyCI_sig 6 "c.li"
+              , pad c_addi16sp_raw --> prettyCI_sig_imm 10 "c.addi16sp"
+              , pad c_lui_raw      --> prettyCI_sig 18 "c.lui"
+              , pad c_srli64_raw   --> prettyCB_reg "c.srli64"
+              , pad c_srli_raw     --> prettyCB     "c.srli"
+              , pad c_srai64_raw   --> prettyCB_reg "c.srai64"
+              , pad c_srai_raw     --> prettyCB     "c.srai"
+              , pad c_andi_raw     --> prettyCB_sig 6 "c.andi"
+              , pad c_sub_raw      --> prettyCA "c.sub"
+              , pad c_xor_raw      --> prettyCA "c.xor"
+              , pad c_or_raw       --> prettyCA "c.or"
+              , pad c_and_raw      --> prettyCA "c.and"
+              , pad c_subw_raw     --> prettyCA "c.subw"
+              , pad c_addw_raw     --> prettyCA "c.addw"
+--            , c_res_b_raw
+--            , c_res_c_raw
+              , pad c_j_raw        --> prettyCJ "c.j"
+              , pad c_beqz_raw     --> prettyCB_sig 9 "c.beqz"
+              , pad c_bnez_raw     --> prettyCB_sig 9 "c.bnez"
+              , pad c_slli64_raw   --> prettyCI_reg "c.slli64"
+              , pad c_slli_raw     --> prettyCI     "c.slli"
+              , pad c_fldsp_raw    --> prettyCI_F "c.fldsp"
+              , pad c_lqsp_raw     --> prettyCI   "c.lqsp"
+              , pad c_lwsp_raw     --> prettyCI   "c.lwsp"
+              , pad c_flwsp_raw    --> prettyCI_F "c.flwsp"
+              , pad c_ldsp_raw     --> prettyCI   "c.ldsp"
+              , pad c_jr_raw       --> prettyCR_1op "c.jr"
+              , pad c_mv_raw       --> prettyCR "c.mv"
+              , pad c_ebreak_raw   --> "c.ebreak"
+              , pad c_jalr_raw     --> prettyCR_1op "c.jalr"
+              , pad c_add_raw      --> prettyCR "c.add"
+              , pad c_fsdsp_raw    --> prettyCSS_F "c.fsdsp"
+              , pad c_sqsp_raw     --> prettyCSS   "c.sqsp"
+              , pad c_swsp_raw     --> prettyCSS   "c.swsp"
+              , pad c_fswsp_raw    --> prettyCSS_F "c.fswsp"
+              , pad c_sdsp_raw     --> prettyCSS   "c.sdsp" ]
 
--- | TODO List of RISC-V compressed instructions
+-- | List of RISC-V compressed instructions
 rv_c :: Integer -> Integer -> Integer -> Integer
      -> Integer -> Integer -> Integer -> Integer
      -> Integer -> Integer -> Integer

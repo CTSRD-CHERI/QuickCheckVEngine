@@ -68,6 +68,7 @@ import RISCV.RV64_M
 import RISCV.RV64_A
 import RISCV.RV64_F
 import RISCV.RV64_D
+import RISCV.RV_C
 import RISCV.Helpers
 
 import Text.Printf
@@ -85,6 +86,7 @@ rv_pretty instr = case decode 32 instr instList of
                    ++ rv32_zicsr_disass
                    ++ rv32_zifencei_disass
                    ++ rv32_xcheri_disass
+                   ++ rv_c_disass
 
 instance Show Instruction where
   show i@(MkInstruction v) = printf ".4byte 0x%08x # %s" v (rv_pretty i)
