@@ -45,13 +45,13 @@ module RISCV.RV_C (
   c_illegal
 , c_addi4spn
 , c_fld
-, c_flq
+, c_lq
 , c_lw
 , c_flw
 , c_ld
 --, c_res_a
 , c_fsd
-, c_fsq
+, c_sq
 , c_sw
 , c_fsw
 , c_sd
@@ -117,8 +117,8 @@ c_addi4spn_raw          =                            "000 nzuimm[5:4] nzuimm[9:6
 c_addi4spn rd' nzuimm   = encode c_addi4spn_raw           nzuimm                                            rd'
 c_fld_raw               =                            "001   uimm[5:3]             rs1'[2:0]       uimm[7:6] rd'[2:0] 00"
 c_fld rd' rs1' uimm     = encode c_fld_raw                  uimm                  rs1'                      rd'
-c_flq_raw               =                            "001   uimm[5:4]     uimm[8] rs1'[2:0]       uimm[7:6] rd'[2:0] 00"
-c_flq rd' rs1' uimm     = encode c_flq_raw                  uimm          uimm    rs1'                      rd'
+c_lq_raw                =                            "001   uimm[5:4]     uimm[8] rs1'[2:0]       uimm[7:6] rd'[2:0] 00"
+c_lq rd' rs1' uimm      = encode c_lq_raw                   uimm          uimm    rs1'                      rd'
 c_lw_raw                =                            "010   uimm[5:3]             rs1'[2:0] uimm[2] uimm[6] rd'[2:0] 00"
 c_lw rd' rs1' uimm      = encode c_lw_raw                   uimm                  rs1'                      rd'
 c_flw_raw               =                            "011   uimm[5:3]             rs1'[2:0] uimm[2] uimm[6] rd'[2:0] 00"
@@ -129,8 +129,8 @@ c_ld rd' rs1' uimm      = encode c_ld_raw                   uimm                
 --c_res_a                 = encode c_res_a_raw
 c_fsd_raw               =                            "101   uimm[5:3]            rs1'[2:0]       uimm[7:6] rs2'[2:0] 00"
 c_fsd rs1' rs2' uimm    = encode c_fsd_raw                  uimm                 rs1'                      rs2'
-c_fsq_raw               =                            "101   uimm[5:4]   uimm[8]  rs1'[2:0]       uimm[7:6] rs2'[2:0] 00"
-c_fsq rs1' rs2' uimm    = encode c_fsq_raw                  uimm        uimm     rs1'                      rs2'
+c_sq_raw                =                            "101   uimm[5:4]   uimm[8]  rs1'[2:0]       uimm[7:6] rs2'[2:0] 00"
+c_sq rs1' rs2' uimm     = encode c_sq_raw                   uimm        uimm     rs1'                      rs2'
 c_sw_raw                =                            "110   uimm[5:3]            rs1'[2:0] uimm[2] uimm[6] rs2'[2:0] 00"
 c_sw rs1' rs2' uimm     = encode c_sw_raw                   uimm                 rs1'                      rs2'
 c_fsw_raw               =                            "111   uimm[5:3]            rs1'[2:0] uimm[2] uimm[6] rs2'[2:0] 00"
@@ -230,13 +230,13 @@ rv_c_disass :: [DecodeBranch String]
 rv_c_disass = [ pad c_illegal_raw  --> "c.illegal"
               , pad c_addi4spn_raw --> prettyCIW "c.addi4spn"
               , pad c_fld_raw      --> prettyCL_F "c.fld"
-              , pad c_flq_raw      --> prettyCL_F "c.flq"
+              , pad c_lq_raw       --> prettyCL   "c.lq"
               , pad c_lw_raw       --> prettyCL   "c.lw"
               , pad c_flw_raw      --> prettyCL_F "c.flw"
               , pad c_ld_raw       --> prettyCL   "c.ld"
 --            , c_res_a_raw
               , pad c_fsd_raw      --> prettyCS_F "c.fsd"
-              , pad c_fsq_raw      --> prettyCS_F "c.fsq"
+              , pad c_sq_raw       --> prettyCS   "c.sq"
               , pad c_sw_raw       --> prettyCS   "c.sw"
               , pad c_fsw_raw      --> prettyCS_F "c.fsw"
               , pad c_sd_raw       --> prettyCS   "c.sd"
@@ -293,13 +293,13 @@ rv_c imm uimm nzimm nzuimm
      rd rd' rd_nz rd_nz_n2 = [ c_illegal
                              , c_addi4spn rd'      nzuimm
                              , c_fld      rd' rs1' uimm
-                             , c_flq      rd' rs1' uimm
+                             , c_lq       rd' rs1' uimm
                              , c_lw       rd' rs1' uimm
                              , c_flw      rd' rs1' uimm
                              , c_ld       rd' rs1' uimm
 --                           , c_res_a
                              , c_fsd      rs1' rs2' uimm
-                             , c_fsq      rs1' rs2' uimm
+                             , c_sq       rs1' rs2' uimm
                              , c_sw       rs1' rs2' uimm
                              , c_fsw      rs1' rs2' uimm
                              , c_sd       rs1' rs2' uimm
