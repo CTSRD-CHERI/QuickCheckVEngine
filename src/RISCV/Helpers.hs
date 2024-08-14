@@ -85,6 +85,7 @@ module RISCV.Helpers (
 , prettyCSS
 , prettyCSS_F
 , prettyCIW
+, prettyCIW_reg
 , prettyCL
 , prettyCL_F
 , prettyCS
@@ -94,6 +95,9 @@ module RISCV.Helpers (
 , prettyCB_sig
 , prettyCB_reg
 , prettyCJ
+, prettyIgnr1
+, prettyIgnr2
+, prettyIgnr3
 -- * Others
 , reg
 , int
@@ -406,6 +410,9 @@ prettyCSS_F instr imm rs2 =
 -- | CIW-type 'Wide-Immediate' compressed instruction pretty printer
 prettyCIW instr imm rd' =
   concat [instr, " ", reg' rd', ", ", int imm]
+-- | CIW-type (register-only variant)
+prettyCIW_reg instr rd' =
+  concat [instr, " ", reg' rd']
 
 -- | CL-type 'Load' compressed instruction pretty printer
 prettyCL instr imm rd' rs1' =
@@ -438,6 +445,15 @@ prettyCB_reg instr rs1' =
 -- | CJ-type 'Jump' compressed instruction pretty printer
 prettyCJ instr imm =
   concat [instr, " ", int $ toSigned 12 imm]
+
+-- | Operand-swallowing instruction pretty printers.
+-- | Useful for special cases, such as reserved or overlapping encodings.
+prettyIgnr1 :: String -> Integer -> String
+prettyIgnr1 instr _     = instr
+prettyIgnr2 :: String -> Integer -> Integer -> String
+prettyIgnr2 instr _ _   = instr
+prettyIgnr3 :: String -> Integer -> Integer -> Integer-> String
+prettyIgnr3 instr _ _ _ = instr
 
 type ExtractedRegs = ( Bool -- ^ is_bypass
                      , Maybe Integer -- ^ rs2
