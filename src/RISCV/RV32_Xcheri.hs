@@ -576,8 +576,8 @@ rv32_xcheri_arithmetic src1 src2 imm dest =
   , csetboundsexact     dest src1 src2
   , csetboundsimmediate dest src1      imm
   , cincoffsetimmediate dest src1      imm
-  , ctoptr              dest src1 src2
-  , cfromptr            dest src1 src2
+  --, ctoptr              dest src1 src2
+  --, cfromptr            dest src1 src2
   , csub                dest src1 src2
   , ctestsubset         dest src1 src2 ]
 
