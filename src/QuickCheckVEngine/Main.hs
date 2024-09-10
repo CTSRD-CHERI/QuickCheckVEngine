@@ -103,6 +103,7 @@ data Options = Options
     , optSaveAll       :: Bool
     , optContinueOnFail:: Bool
     , optIgnoreAsserts :: Bool
+    , optTrapDebug     :: Bool
     , csrIncludeRegex  :: Maybe String
     , csrExcludeRegex  :: Maybe String
     } deriving Show
@@ -132,6 +133,7 @@ defaultOptions = Options
     , optContinueOnFail= False
     , optIgnoreAsserts = False
     , optSingleImp     = False
+    , optTrapDebug     = True
     , csrIncludeRegex  = Nothing
     , csrExcludeRegex  = Nothing
     }
@@ -207,6 +209,9 @@ options =
   , Option []        ["single-implementation"]
       (NoArg (\ opts -> opts { optSingleImp = True }))
         "Run with only implementation A, testing asserts only (if enabled)"
+  , Option []        ["no-trap-debug"]
+      (NoArg (\ opts -> opts { optTrapDebug = False }))
+        "Don't generate CSR inspection instructions to help with exception diagnosis when tests fail"
   , Option []        ["csr-include-regex"]
       (ReqArg (\ f opts -> opts { csrIncludeRegex = Just f }) "REGEX")
         "Specify REGEX to test only a subset of CSRs"
@@ -300,7 +305,7 @@ main = withSocketsDo $ do
         quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 1000 else 0))
                              (prop implA m_implB alive onFail archDesc (timeoutDelay flags) verbosity Nothing (optIgnoreAsserts flags) (optStrict flags) (return test))
   let check_mcause_on_trap :: Test TestResult -> Test TestResult
-      check_mcause_on_trap (trace :: Test TestResult) = if or (hasTrap <$> trace) then filterTest p trace <> wrapTest testSuffix else trace
+      check_mcause_on_trap (trace :: Test TestResult) = if optTrapDebug flags && (or (hasTrap <$> trace)) then filterTest p trace <> wrapTest testSuffix else trace
         where hasTrap (_, a, b) = maybe False rvfiIsTrap a || maybe False rvfiIsTrap b
               testSuffix = noShrink $ singleSeq [ csrrs 1 (unsafe_csrs_indexFromName "mcause") 0
                                                 , csrrs 1 (unsafe_csrs_indexFromName "mtval" ) 0
