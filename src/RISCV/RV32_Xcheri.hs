@@ -142,6 +142,8 @@ cgetaddr_raw                       =                                        "111
 cgetaddr rd cs1                    = encode cgetaddr_raw                                   cs1          rd
 cgethigh_raw                       =                                        "1111111 10111 cs1[4:0] 000 rd[4:0] 1011011"
 cgethigh rd cs1                    = encode cgethigh_raw                                   cs1          rd
+cgettop_raw                        =                                        "1111111 11000 cs1[4:0] 000 rd[4:0] 1011011"
+cgettop rd cs1                     = encode cgettop_raw                                    cs1          rd
 
 -- Capability Modification
 cseal_raw                          =                                        "0001011 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
@@ -338,6 +340,7 @@ rv32_xcheri_disass = [ cgetperm_raw                    --> prettyR_2op "cgetperm
                      , cgetoffset_raw                  --> prettyR_2op "cgetoffset"
                      , cgetaddr_raw                    --> prettyR_2op "cgetaddr"
                      , cgethigh_raw                    --> prettyR_2op "cgethigh"
+                     , cgettop_raw                     --> prettyR_2op "cgettop"
                      , cseal_raw                       --> prettyR "cseal"
                      , cunseal_raw                     --> prettyR "cunseal"
                      , candperm_raw                    --> prettyR "candperm"
@@ -400,6 +403,7 @@ rv32_xcheri_extract = [ cgetperm_raw                    --> extract_1op cgetperm
                       , cgetflags_raw                   --> extract_1op cgetflags_raw
                       , cgetaddr_raw                    --> extract_1op cgetaddr_raw
                       , cgethigh_raw                    --> extract_1op cgethigh_raw
+                      , cgettop_raw                     --> extract_1op cgettop_raw
                       , cseal_raw                       --> extract_2op cseal_raw
                       , cunseal_raw                     --> extract_2op cunseal_raw
                       , candperm_raw                    --> extract_2op candperm_raw
@@ -467,10 +471,14 @@ shrink_cgetaddr cs rd = [addi rd cs 0]
 shrink_cgethigh :: Integer -> Integer -> [Instruction]
 shrink_cgethigh cs rd = [addi rd cs 0, addi rd cs 0xfff]
 
+shrink_cgettop :: Integer -> Integer -> [Instruction]
+shrink_cgettop cs rd = [addi rd 0 0xfff, cgetaddr rd cs]
+
 shrink_cap :: Integer -> Integer -> [Instruction]
 shrink_cap cs cd = [ecall,
                     cmove cd cs,
                     cgetaddr cd cs,
+                    cgettop cd cs,
                     cgethigh cd cs,
                     cgetperm cd cs,
                     cgettype cd cs,
@@ -517,6 +525,7 @@ rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
                      , cgetflags_raw                   --> shrink_cgetflags
                      , cgetaddr_raw                    --> shrink_cgetaddr
                      , cgethigh_raw                    --> shrink_cgethigh
+                     , cgettop_raw                     --> shrink_cgettop
                      , cseal_raw                       --> shrink_capcap
                      , cunseal_raw                     --> shrink_capcap
                      , candperm_raw                    --> shrink_capint
@@ -564,9 +573,11 @@ rv32_xcheri_inspection src dest = [ cgetperm                    dest src
                                   , cgetoffset                  dest src
                                   , cgetaddr                    dest src
                                   , cgethigh                    dest src
+                                  , cgettop                     dest src
                                   , cgetflags                   dest src
                                   , croundrepresentablelength   dest src
-                                  , crepresentablealignmentmask dest src]
+                                  , crepresentablealignmentmask dest src
+                                  ]
 
 -- | List of cheri arithmetic instructions
 rv32_xcheri_arithmetic :: Integer -> Integer -> Integer -> Integer -> [Instruction]
