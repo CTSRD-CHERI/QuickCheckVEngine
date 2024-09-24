@@ -408,10 +408,10 @@ prettyCIW instr imm rd' =
   concat [instr, " ", reg' rd', ", ", int imm]
 
 -- | CL-type 'Load' compressed instruction pretty printer
-prettyCL instr imm rd' rs1' =
+prettyCL instr imm rs1' rd' =
   concat [instr, " ", reg'   rd', ", ", reg' rs1', "[", int imm, "]"]
 -- | CL-type (floating-point variant)
-prettyCL_F instr imm rd' rs1' =
+prettyCL_F instr imm rs1' rd' =
   concat [instr, " ", fpReg' rd', ", ", reg' rs1', "[", int imm, "]"]
 
 -- | CS-type 'Store' compressed instruction pretty printer
