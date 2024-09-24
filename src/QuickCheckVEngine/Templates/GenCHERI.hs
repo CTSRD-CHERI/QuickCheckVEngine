@@ -135,7 +135,26 @@ randomCHERIRVCTest = random $ do
   rvcInst <- bits 16
   return $ mconcat [ switchEncodingMode
                    , genRandomCHERITest
+                   -- Copy low index regs (targets of src generator) into
+                   -- registers indexable with compressed instructions
+                   , inst $ cmove 8  1
+                   , inst $ cmove 9  2
+                   , inst $ cmove 10 3
+                   , inst $ cmove 11 4
+                   , inst $ cmove 12 5
+                   , inst $ cmove 13 6
+                   , inst $ cmove 14 7
+                   , inst $ cmove 15 8
                    , uniform [inst $ MkInstruction rvcInst, gen_rv_c]
+                   -- Copy back to inspect the registers
+                   , inst $ cmove 1  8
+                   , inst $ cmove 2  9
+                   , inst $ cmove 3 10
+                   , inst $ cmove 4 11
+                   , inst $ cmove 5 12
+                   , inst $ cmove 6 13
+                   , inst $ cmove 7 14
+                   , inst $ cmove 8 15
                    , repeatN 5 genCHERIinspection
                    ]
 
