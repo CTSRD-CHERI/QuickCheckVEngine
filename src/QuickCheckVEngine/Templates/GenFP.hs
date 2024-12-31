@@ -44,7 +44,8 @@ module QuickCheckVEngine.Templates.GenFP (
 import InstrCodec
 import RISCV
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.FP
+import QuickCheckVEngine.Templates.Utils.General
 import Test.QuickCheck
 
 gen_rv32_f :: Template

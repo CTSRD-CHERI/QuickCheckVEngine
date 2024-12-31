@@ -42,7 +42,7 @@ import Test.QuickCheck
 import RISCV.RV32_I
 import RISCV.RV64_I
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.General
 
 gen_rv32_i_arithmetic :: Template
 gen_rv32_i_arithmetic = random $ do

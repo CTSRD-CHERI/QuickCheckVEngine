@@ -35,7 +35,6 @@ executable QCVEngine
                        QuickCheckVEngine.TestTypes,
                        QuickCheckVEngine.Test,
                        QuickCheckVEngine.Template,
-                       QuickCheckVEngine.Templates.Utils,
                        QuickCheckVEngine.Templates.Utils.General,
                        QuickCheckVEngine.Templates.Utils.FP,
                        QuickCheckVEngine.Templates.Utils.HPM,

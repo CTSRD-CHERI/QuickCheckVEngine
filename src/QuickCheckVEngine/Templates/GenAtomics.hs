@@ -43,7 +43,8 @@ import RISCV.RV32_A
 import RISCV.RV64_A
 import RISCV.RV32_Xcheri
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.CHERI
+import QuickCheckVEngine.Templates.Utils.General
 
 gen_rv32_a :: Template
 gen_rv32_a = readParams $ \p -> genAtomics False (has_cheri (archDesc p))

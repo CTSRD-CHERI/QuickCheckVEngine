@@ -37,7 +37,7 @@ module QuickCheckVEngine.Templates.GenHPM (
 
 import RISCV
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.HPM
 import QuickCheckVEngine.Templates.RandomTest
 
 genHPM :: Template

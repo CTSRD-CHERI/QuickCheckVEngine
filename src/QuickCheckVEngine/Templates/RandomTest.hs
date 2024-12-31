@@ -39,7 +39,8 @@ module QuickCheckVEngine.Templates.RandomTest (
 import Test.QuickCheck
 import RISCV
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.FP
+import QuickCheckVEngine.Templates.Utils.General
 
 -- | 'randomTest' provides a 'Template' for a random test
 randomTest :: Template

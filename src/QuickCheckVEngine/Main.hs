@@ -62,7 +62,6 @@ import QuickCheckVEngine.MainHelpers
 import QuickCheckVEngine.RVFI_DII
 import qualified QuickCheckVEngine.Template as T
 import QuickCheckVEngine.Test
-import QuickCheckVEngine.Templates.Utils
 import QuickCheckVEngine.Templates.GenAll
 import QuickCheckVEngine.Templates.GenArithmetic
 import QuickCheckVEngine.Templates.GenMemory

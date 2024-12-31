@@ -54,7 +54,9 @@ import RISCV.RV_CSRs
 import RISCV.ArchDesc
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.GenMemory
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.CHERI
+import QuickCheckVEngine.Templates.Utils.HPM
+import QuickCheckVEngine.Templates.Utils.General
 import QuickCheckVEngine.RVFI_DII.RVFI
 import QuickCheckVEngine.Templates.GenMemory
 import Data.Bits

@@ -50,7 +50,9 @@ import Control.Monad
 import RISCV
 import InstrCodec
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.CHERI
+import QuickCheckVEngine.Templates.Utils.FP
+import QuickCheckVEngine.Templates.Utils.General
 import QuickCheckVEngine.Templates.GenArithmetic
 import QuickCheckVEngine.Templates.GenFP
 import QuickCheckVEngine.Templates.GenCompressed

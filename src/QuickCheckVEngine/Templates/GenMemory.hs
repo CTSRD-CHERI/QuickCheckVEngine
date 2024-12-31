@@ -60,7 +60,7 @@ import RISCV.RV64_I
 import RISCV.RV32_Xcheri
 import RISCV.RV_CSRs
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.General
 import Data.Bits
 import qualified RISCV.ArchDesc as Arch
 
