@@ -45,10 +45,6 @@ module QuickCheckVEngine.Templates.Utils.CHERI (
 , switchEncodingMode
 , cspecialRWChain
 , tagCacheTest
-, genCHERIinspection
-, genCHERIarithmetic
-, genCHERImisc
-, genCHERIcontrol
 , loadTags
 ) where
 
@@ -202,65 +198,3 @@ tagCacheTest = random $ do
   return $     legalCapStore addrReg
             <> legalCapLoad addrReg targetReg
             <> inst (cgettag targetReg targetReg)
-
-genCHERIinspection :: Template
-genCHERIinspection = random $ do
-  srcAddr  <- src
-  srcData  <- src
-  dest     <- dest
-  imm      <- bits 12
-  longImm  <- bits 20
-  fenceOp1 <- bits 3
-  fenceOp2 <- bits 3
-  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
-                        , (1, return (unsafe_csrs_indexFromName "mcause"))
-                        , (1, bits 12) ]
-  return $ dist [ (1, instUniform $ rv32_xcheri_inspection srcAddr dest)
-                , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
-
-genCHERIarithmetic :: Template
-genCHERIarithmetic = random $ do
-  srcAddr  <- src
-  srcData  <- src
-  dest     <- dest
-  imm      <- bits 12
-  longImm  <- bits 20
-  fenceOp1 <- bits 3
-  fenceOp2 <- bits 3
-  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
-                        , (1, return (unsafe_csrs_indexFromName "mcause"))
-                        , (1, bits 12) ]
-  return $ dist [ (1, instUniform $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
-                , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
-
-genCHERImisc :: Template
-genCHERImisc = random $ do
-  srcAddr  <- src
-  srcData  <- src
-  dest     <- dest
-  imm      <- bits 12
-  longImm  <- bits 20
-  fenceOp1 <- bits 3
-  fenceOp2 <- bits 3
-  srcScr   <- elements [0, 1, 28, 29, 30, 31]
-  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
-                        , (1, return (unsafe_csrs_indexFromName "mcause"))
-                        , (1, bits 12) ]
-  return $ dist [ (1, instUniform $ rv32_xcheri_misc srcAddr srcData srcScr imm dest)
-                , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
-
-genCHERIcontrol :: Template
-genCHERIcontrol = random $ do
-  srcAddr  <- src
-  srcData  <- src
-  dest     <- dest
-  imm      <- bits 12
-  longImm  <- bits 20
-  fenceOp1 <- bits 3
-  fenceOp2 <- bits 3
-  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
-                        , (1, return (unsafe_csrs_indexFromName "mcause"))
-                        , (1, bits 12) ]
-  return $ dist [ (2, instUniform $ rv32_xcheri_control srcAddr srcData dest)
-                , (1, inst (csetbounds dest srcData srcAddr))
-                , (2, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
