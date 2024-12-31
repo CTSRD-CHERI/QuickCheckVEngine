@@ -66,6 +66,8 @@ module QuickCheckVEngine.Test (
 , gatherReports
 , filterTest
 , showTestWithComments
+-- **
+, shrinkTest
 ) where
 
 import Test.QuickCheck
@@ -83,18 +85,18 @@ import Data.List
 -- * Test shrinking
 --------------------------------------------------------------------------------
 
-instance Arbitrary (Test TestResult) where
-  arbitrary = return TestEmpty
-  shrink TestEmpty = []
-  shrink (TestSingle x) = []
-  shrink (TestSequence x y) = let xs = shrink x
-                                  ys = shrink y
-                              in    [TestSequence x' y  | x' <- xs]
-                                 ++ [TestSequence x  y' | y' <- ys]
-  shrink (TestMeta (MetaNoShrink, _) _) = []
-  shrink (TestMeta m@(MetaShrinkStrategy f, _) x) =
-    TestMeta m <$> (f x ++ shrink x)
-  shrink (TestMeta m x) = TestMeta m <$> shrink x
+shrinkTest = go
+ where
+  go TestEmpty = []
+  go (TestSingle x) = []
+  go (TestSequence x y) = let xs = go x
+                              ys = go y
+                          in    [TestSequence x' y  | x' <- xs]
+                             ++ [TestSequence x  y' | y' <- ys]
+  go (TestMeta (MetaNoShrink, _) _) = []
+  go (TestMeta m@(MetaShrinkStrategy f, _) x) =
+    TestMeta m <$> (f x ++ go x)
+  go (TestMeta m x) = TestMeta m <$> go x
 
 data ShrinkMethods =
   MkShrinkMethods { methodSingle :: TestResult -> [Test TestResult]

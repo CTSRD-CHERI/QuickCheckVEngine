@@ -172,7 +172,7 @@ runImpls connA m_connB alive delay verbosity saveDir test onTrace onFirstDeath o
 prop :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> (Test TestResult -> IO ())
      -> ArchDesc -> Int -> Int -> Maybe FilePath -> Bool -> Bool -> Gen (Test TestResult) -> Property
 prop connA m_connB alive onFail arch delay verbosity saveDir ignoreAsserts strict gen =
-  forAllShrink gen shrink mkProp
+  forAllShrink gen shrinkTest mkProp
   where mkProp test = whenFail (onFail test) (doProp test)
         doProp test = monadicIO $ run $ runImpls connA m_connB alive delay verbosity saveDir test onTrace onFirstDeath onSubsequentDeaths
         colourGreen = "\ESC[32m"
