@@ -39,7 +39,7 @@ module QuickCheckVEngine.Templates.GenCSRs (
 import RISCV.RV32_I
 import RISCV.RV32_Zicsr
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.General
 
 gen_rv32_i_zicsr :: Template
 gen_rv32_i_zicsr = readParams $ \param -> random $

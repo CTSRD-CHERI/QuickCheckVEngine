@@ -39,7 +39,7 @@ module QuickCheckVEngine.Templates.GenMulDiv (
 import RISCV.RV32_M
 import RISCV.RV64_M
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.General
 
 gen_rv32_m :: Template
 gen_rv32_m = genMulDiv False

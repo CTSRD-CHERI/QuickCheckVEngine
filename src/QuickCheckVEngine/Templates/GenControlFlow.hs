@@ -40,7 +40,7 @@ import InstrCodec
 import Test.QuickCheck
 import RISCV.RV32_I
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.General
 
 gen_rv32_i_controlflow :: Template
 gen_rv32_i_controlflow = genControlFlow

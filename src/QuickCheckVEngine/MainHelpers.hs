@@ -74,7 +74,7 @@ import RISCV hiding (and, or)
 import QuickCheckVEngine.RVFI_DII
 import QuickCheckVEngine.Test
 import qualified QuickCheckVEngine.Template as T
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.General
 
 instance Show DII_Packet where
   show (DII_End _) = "# Test end"

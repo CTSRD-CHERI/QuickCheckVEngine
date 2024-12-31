@@ -37,7 +37,8 @@ module QuickCheckVEngine.Templates.GenCompressed (
 
 import RISCV.RV_C
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.Compressed
+import QuickCheckVEngine.Templates.Utils.General
 
 gen_rv_c :: Template
 gen_rv_c = random $ do

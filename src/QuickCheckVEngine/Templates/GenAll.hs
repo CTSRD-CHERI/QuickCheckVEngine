@@ -39,7 +39,8 @@ import Test.QuickCheck
 import RISCV
 import RISCV.ArchDesc
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.FP
+import QuickCheckVEngine.Templates.Utils.General
 
 genAll :: Template
 genAll = readParams $ \params -> random $ do
