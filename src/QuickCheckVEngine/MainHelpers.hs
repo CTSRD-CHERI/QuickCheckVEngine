@@ -151,8 +151,16 @@ wrapTest = (<> single (diiEnd, Nothing, Nothing))
          . (f <$>)
   where f (MkInstruction i) = (diiInstruction i, Nothing, Nothing)
 
-runImpls :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> Int -> Int -> Maybe FilePath -> Test TestResult
-         -> (Test TestResult -> IO a) -> (Test DII_Packet -> IO a) -> (Test DII_Packet -> IO a)
+runImpls :: RvfiDiiConnection         -- ^ Implementation A connection
+         -> Maybe RvfiDiiConnection   -- ^ Implementation B connection
+         -> IORef Bool                -- ^ Implementations still alive?
+         -> Int                       -- ^ RVFI-DII delay
+         -> Int                       -- ^ Verbosity
+         -> Maybe FilePath            -- ^ Optional save directory for failed tests
+         -> Test TestResult           -- ^ Test to run
+         -> (Test TestResult -> IO a) -- ^ Callback: report from implementations
+         -> (Test DII_Packet -> IO a) -- ^ Callback: first implementation disconnect
+         -> (Test DII_Packet -> IO a) -- ^ Callback: already disconnected implementations
          -> IO a
 runImpls connA m_connB alive delay verbosity saveDir test onTrace onFirstDeath onSubsequentDeaths = do
   let instTrace = (\(x, _, _) -> x) <$> test
@@ -169,8 +177,18 @@ runImpls connA m_connB alive delay verbosity saveDir test onTrace onFirstDeath o
 --   for equivalence. It receives among other things a callback function
 --   'Test -> IO ()' to be performed on failure that takes in the reduced
 --   'Test' which caused the failure
-prop :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> (Test TestResult -> IO ())
-     -> ArchDesc -> Int -> Int -> Maybe FilePath -> Bool -> Bool -> Gen (Test TestResult) -> Property
+prop :: RvfiDiiConnection             -- ^ Implementation A connection
+     -> Maybe RvfiDiiConnection       -- ^ Implementation B connection
+     -> IORef Bool                    -- ^ Implementations still alive?
+     -> (Test TestResult -> IO ())    -- ^ Callback on falsification
+     -> ArchDesc                      -- ^ Archictecture description
+     -> Int                           -- ^ RVFI-DII Delay
+     -> Int                           -- ^ Verbosity
+     -> Maybe FilePath                -- ^ Optional save directory for failed tests
+     -> Bool                          -- ^ Ignore embedded asserts in tests
+     -> Bool                          -- ^ Strict RVFI response comparison
+     -> Gen (Test TestResult)         -- ^ Test generator
+     -> Property
 prop connA m_connB alive onFail arch delay verbosity saveDir ignoreAsserts strict gen =
   forAllShrink gen shrinkTest mkProp
   where mkProp test = whenFail (onFail test) (doProp test)
@@ -203,8 +221,14 @@ prop connA m_connB alive onFail arch delay verbosity saveDir ignoreAsserts stric
 --   'Just (traceA, traceB)', otherwise 'Nothing' and sets the provided
 --   'IORef Bool' for alive to 'False' indicating that further interaction with
 --   the implementations is futile
-doRVFIDII :: RvfiDiiConnection -> Maybe RvfiDiiConnection -> IORef Bool -> Int
-          -> Int -> Maybe FilePath -> Test TestResult -> IO (Maybe (Test TestResult))
+doRVFIDII :: RvfiDiiConnection        -- ^ Implementation A connection
+          -> Maybe RvfiDiiConnection  -- ^ Implementation B connection
+          -> IORef Bool               -- ^ Implementations still alive?
+          -> Int                      -- ^ RVFI-DII delay
+          -> Int                      -- ^ Verbosity
+          -> Maybe FilePath           -- ^ Optional save directory for failed tests
+          -> Test TestResult          -- ^ Input instruction sequence
+          -> IO (Maybe (Test TestResult))
 doRVFIDII connA m_connB alive delay verbosity saveDir test = do
   let instTrace = (\(x, _, _) -> x) <$> test
   let insts = instTrace
