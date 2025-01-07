@@ -57,7 +57,7 @@ import RISCV.RV32_I
 import RISCV.RV32_A
 import RISCV.RV32_Zifencei
 import RISCV.RV64_I
-import RISCV.RV32_Xcheri
+import RISCV.RV32_Zcheri
 import RISCV.RV_CSRs
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils.General

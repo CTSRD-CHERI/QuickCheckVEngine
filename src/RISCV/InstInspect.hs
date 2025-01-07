@@ -62,7 +62,7 @@ import RISCV.RV32_F
 import RISCV.RV32_D
 import RISCV.RV32_Zicsr
 import RISCV.RV32_Zifencei
-import RISCV.RV32_Xcheri
+import RISCV.RV32_Zcheri
 import RISCV.RV64_I
 import RISCV.RV64_M
 import RISCV.RV64_A
