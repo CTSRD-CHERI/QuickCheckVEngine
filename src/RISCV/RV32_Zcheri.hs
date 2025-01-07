@@ -61,6 +61,7 @@ module RISCV.RV32_Zcheri (
 , cgetlen
 , cgettag
 , cgethigh
+, cgetmode
 , cseal
 , cunseal
 , candperm
@@ -130,6 +131,8 @@ cgettag_raw                        =                                        "000
 cgettag rd cs1                     = encode cgettag_raw                                    cs1          rd
 cgethigh_raw                       =                                        "0001000 00100 cs1[4:0] 000 rd[4:0] 0110011"
 cgethigh rd cs1                    = encode cgethigh_raw                                   cs1          rd
+cgetmode_raw                       =                                        "0001000 00011 cs1[4:0] 000 rd[4:0] 0110011"
+cgetmode rd cs1                    = encode cgetmode_raw                                   cs1          rd
 
 -- Capability Modification
 cseal_raw                          =                                        "0001011 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
@@ -323,6 +326,7 @@ rv32_xcheri_disass = [ cgetperm_raw                    --> prettyR_2op "cgetperm
                      , cgetlen_raw                     --> prettyR_2op "cgetlen"
                      , cgettag_raw                     --> prettyR_2op "cgettag"
                      , cgethigh_raw                    --> prettyR_2op "cgethigh"
+                     , cgetmode_raw                    --> prettyR_2op "cgetmode"
                      , cseal_raw                       --> prettyR "cseal"
                      , cunseal_raw                     --> prettyR "cunseal"
                      , candperm_raw                    --> prettyR "candperm"
@@ -380,6 +384,7 @@ rv32_xcheri_extract = [ cgetperm_raw                    --> extract_1op cgetperm
                       , cgetlen_raw                     --> extract_1op cgetlen_raw
                       , cgettag_raw                     --> extract_1op cgettag_raw
                       , cgethigh_raw                    --> extract_1op cgethigh_raw
+                      , cgetmode_raw                    --> extract_1op cgetmode_raw
                       , cseal_raw                       --> extract_2op cseal_raw
                       , cunseal_raw                     --> extract_2op cunseal_raw
                       , candperm_raw                    --> extract_2op candperm_raw
@@ -435,10 +440,14 @@ shrink_cgettag cs rd = [addi rd 0 1, addi rd 0 0]
 shrink_cgethigh :: Integer -> Integer -> [Instruction]
 shrink_cgethigh cs rd = [addi rd cs 0, addi rd cs 0xfff]
 
+shrink_cgetmode :: Integer -> Integer -> [Instruction]
+shrink_cgetmode cs rd = [addi rd 0 1, addi rd 0 0]
+
 shrink_cap :: Integer -> Integer -> [Instruction]
 shrink_cap cs cd = [ecall,
                     cmove cd cs,
                     cgethigh cd cs,
+                    cgetmode cd cs,
                     cgetperm cd cs,
                     cgettype cd cs,
                     cgetbase cd cs,
@@ -475,6 +484,7 @@ rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
                      , cgetlen_raw                     --> shrink_cgetlen
                      , cgettag_raw                     --> shrink_cgettag
                      , cgethigh_raw                    --> shrink_cgethigh
+                     , cgetmode_raw                    --> shrink_cgetmode
                      , cseal_raw                       --> shrink_capcap
                      , cunseal_raw                     --> shrink_capcap
                      , candperm_raw                    --> shrink_capint
@@ -519,6 +529,7 @@ rv32_xcheri_inspection src dest = [ cgetperm                    dest src
                                   , cgetlen                     dest src
                                   , cgettag                     dest src
                                   , cgethigh                    dest src
+                                  , cgetmode                    dest src
                                   , croundrepresentablelength   dest src
                                   , crepresentablealignmentmask dest src]
 
