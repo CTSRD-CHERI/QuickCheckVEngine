@@ -201,7 +201,7 @@ tagCacheTest = random $ do
   targetReg <- dest
   return $     legalCapStore addrReg
             <> legalCapLoad addrReg targetReg
-            <> inst (cgettag targetReg targetReg)
+            <> inst (gctag targetReg targetReg)
 
 genCHERIinspection :: Template
 genCHERIinspection = random $ do
