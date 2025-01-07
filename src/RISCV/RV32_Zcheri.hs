@@ -55,13 +55,13 @@
 
 module RISCV.RV32_Zcheri (
 -- * RISC-V CHERI, instruction definitions
-  cgetperm
-, cgettype
-, cgetbase
-, cgetlen
-, cgettag
-, cgethigh
-, cgetmode
+  gcperm
+, gctype
+, gcbase
+, gclen
+, gctag
+, gchigh
+, gcmode
 , cseal
 , cunseal
 , candperm
@@ -119,20 +119,20 @@ import RISCV.RV32_I
 import RISCV.ArchDesc
 
 -- Capability Inspection
-cgetperm_raw                       =                                        "0001000 00001 cs1[4:0] 000 rd[4:0] 0110011"
-cgetperm rd cs1                    = encode cgetperm_raw                                   cs1          rd
-cgettype_raw                       =                                        "0001000 00010 cs1[4:0] 000 rd[4:0] 0110011"
-cgettype rd cs1                    = encode cgettype_raw                                   cs1          rd
-cgetbase_raw                       =                                        "0001000 00101 cs1[4:0] 000 rd[4:0] 0110011"
-cgetbase rd cs1                    = encode cgetbase_raw                                   cs1          rd
-cgetlen_raw                        =                                        "0001000 00110 cs1[4:0] 000 rd[4:0] 0110011"
-cgetlen rd cs1                     = encode cgetlen_raw                                    cs1          rd
-cgettag_raw                        =                                        "0001000 00000 cs1[4:0] 000 rd[4:0] 0110011"
-cgettag rd cs1                     = encode cgettag_raw                                    cs1          rd
-cgethigh_raw                       =                                        "0001000 00100 cs1[4:0] 000 rd[4:0] 0110011"
-cgethigh rd cs1                    = encode cgethigh_raw                                   cs1          rd
-cgetmode_raw                       =                                        "0001000 00011 cs1[4:0] 000 rd[4:0] 0110011"
-cgetmode rd cs1                    = encode cgetmode_raw                                   cs1          rd
+gcperm_raw                       =                                        "0001000 00001 cs1[4:0] 000 rd[4:0] 0110011"
+gcperm rd cs1                    = encode gcperm_raw                                   cs1          rd
+gctype_raw                       =                                        "0001000 00010 cs1[4:0] 000 rd[4:0] 0110011"
+gctype rd cs1                    = encode gctype_raw                                   cs1          rd
+gcbase_raw                       =                                        "0001000 00101 cs1[4:0] 000 rd[4:0] 0110011"
+gcbase rd cs1                    = encode gcbase_raw                                   cs1          rd
+gclen_raw                        =                                        "0001000 00110 cs1[4:0] 000 rd[4:0] 0110011"
+gclen rd cs1                     = encode gclen_raw                                    cs1          rd
+gctag_raw                        =                                        "0001000 00000 cs1[4:0] 000 rd[4:0] 0110011"
+gctag rd cs1                     = encode gctag_raw                                    cs1          rd
+gchigh_raw                       =                                        "0001000 00100 cs1[4:0] 000 rd[4:0] 0110011"
+gchigh rd cs1                    = encode gchigh_raw                                   cs1          rd
+gcmode_raw                       =                                        "0001000 00011 cs1[4:0] 000 rd[4:0] 0110011"
+gcmode rd cs1                    = encode gcmode_raw                                   cs1          rd
 
 -- Capability Modification
 cseal_raw                          =                                        "0001011 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
@@ -320,13 +320,13 @@ pretty_cspecialrw instr idx cs1 cd =
 
 -- | Dissassembly of CHERI instructions
 rv32_xcheri_disass :: [DecodeBranch String]
-rv32_xcheri_disass = [ cgetperm_raw                    --> prettyR_2op "cgetperm"
-                     , cgettype_raw                    --> prettyR_2op "cgettype"
-                     , cgetbase_raw                    --> prettyR_2op "cgetbase"
-                     , cgetlen_raw                     --> prettyR_2op "cgetlen"
-                     , cgettag_raw                     --> prettyR_2op "cgettag"
-                     , cgethigh_raw                    --> prettyR_2op "cgethigh"
-                     , cgetmode_raw                    --> prettyR_2op "cgetmode"
+rv32_xcheri_disass = [ gcperm_raw                      --> prettyR_2op "gcperm"
+                     , gctype_raw                      --> prettyR_2op "gctype"
+                     , gcbase_raw                      --> prettyR_2op "gcbase"
+                     , gclen_raw                       --> prettyR_2op "gclen"
+                     , gctag_raw                       --> prettyR_2op "gctag"
+                     , gchigh_raw                      --> prettyR_2op "gchigh"
+                     , gcmode_raw                      --> prettyR_2op "gcmode"
                      , cseal_raw                       --> prettyR "cseal"
                      , cunseal_raw                     --> prettyR "cunseal"
                      , candperm_raw                    --> prettyR "candperm"
@@ -378,13 +378,13 @@ extract_cstore :: Integer -> Integer -> Integer -> ExtractedRegs
 extract_cstore rs2 rs1 mop = (False, Just rs2, Just rs1, Nothing, \x y z -> encode cstore_raw x y mop)
 
 rv32_xcheri_extract :: [DecodeBranch ExtractedRegs]
-rv32_xcheri_extract = [ cgetperm_raw                    --> extract_1op cgetperm_raw
-                      , cgettype_raw                    --> extract_1op cgettype_raw
-                      , cgetbase_raw                    --> extract_1op cgetbase_raw
-                      , cgetlen_raw                     --> extract_1op cgetlen_raw
-                      , cgettag_raw                     --> extract_1op cgettag_raw
-                      , cgethigh_raw                    --> extract_1op cgethigh_raw
-                      , cgetmode_raw                    --> extract_1op cgetmode_raw
+rv32_xcheri_extract = [ gcperm_raw                      --> extract_1op gcperm_raw
+                      , gctype_raw                      --> extract_1op gctype_raw
+                      , gcbase_raw                      --> extract_1op gcbase_raw
+                      , gclen_raw                       --> extract_1op gclen_raw
+                      , gctag_raw                       --> extract_1op gctag_raw
+                      , gchigh_raw                      --> extract_1op gchigh_raw
+                      , gcmode_raw                      --> extract_1op gcmode_raw
                       , cseal_raw                       --> extract_2op cseal_raw
                       , cunseal_raw                     --> extract_2op cunseal_raw
                       , candperm_raw                    --> extract_2op candperm_raw
@@ -422,37 +422,37 @@ rv32_xcheri_extract = [ cgetperm_raw                    --> extract_1op cgetperm
                       , lq_raw                          --> extract_imm lq_raw
                       ]
 
-shrink_cgetperm :: Integer -> Integer -> [Instruction]
-shrink_cgetperm cs rd = [addi rd 0 0, addi rd 0 0x7ff]
+shrink_gcperm :: Integer -> Integer -> [Instruction]
+shrink_gcperm cs rd = [addi rd 0 0, addi rd 0 0x7ff]
 
-shrink_cgettype :: Integer -> Integer -> [Instruction]
-shrink_cgettype cs rd = [addi rd 0 0, addi rd 0 6, addi rd 0 0xfff]
+shrink_gctype :: Integer -> Integer -> [Instruction]
+shrink_gctype cs rd = [addi rd 0 0, addi rd 0 6, addi rd 0 0xfff]
 
-shrink_cgetbase :: Integer -> Integer -> [Instruction]
-shrink_cgetbase cs rd = [addi rd 0 0]
+shrink_gcbase :: Integer -> Integer -> [Instruction]
+shrink_gcbase cs rd = [addi rd 0 0]
 
-shrink_cgetlen :: Integer -> Integer -> [Instruction]
-shrink_cgetlen cs rd = [addi rd 0 0, addi rd 0 0xfff, cgetbase rd cs]
+shrink_gclen :: Integer -> Integer -> [Instruction]
+shrink_gclen cs rd = [addi rd 0 0, addi rd 0 0xfff, gcbase rd cs]
 
-shrink_cgettag :: Integer -> Integer -> [Instruction]
-shrink_cgettag cs rd = [addi rd 0 1, addi rd 0 0]
+shrink_gctag :: Integer -> Integer -> [Instruction]
+shrink_gctag cs rd = [addi rd 0 1, addi rd 0 0]
 
-shrink_cgethigh :: Integer -> Integer -> [Instruction]
-shrink_cgethigh cs rd = [addi rd cs 0, addi rd cs 0xfff]
+shrink_gchigh :: Integer -> Integer -> [Instruction]
+shrink_gchigh cs rd = [addi rd cs 0, addi rd cs 0xfff]
 
-shrink_cgetmode :: Integer -> Integer -> [Instruction]
-shrink_cgetmode cs rd = [addi rd 0 1, addi rd 0 0]
+shrink_gcmode :: Integer -> Integer -> [Instruction]
+shrink_gcmode cs rd = [addi rd 0 1, addi rd 0 0]
 
 shrink_cap :: Integer -> Integer -> [Instruction]
 shrink_cap cs cd = [ecall,
                     cmove cd cs,
-                    cgethigh cd cs,
-                    cgetmode cd cs,
-                    cgetperm cd cs,
-                    cgettype cd cs,
-                    cgetbase cd cs,
-                    cgetlen cd cs,
-                    cgettag cd cs
+                    gchigh cd cs,
+                    gcmode cd cs,
+                    gcperm cd cs,
+                    gctype cd cs,
+                    gcbase cd cs,
+                    gclen cd cs,
+                    gctag cd cs
                    ]
 
 shrink_capcap :: Integer -> Integer -> Integer -> [Instruction]
@@ -478,13 +478,13 @@ shrink_cstore :: Integer -> Integer -> Integer -> [Instruction]
 shrink_cstore rs2 cs1 mop = [addi 0 0 0];
 
 rv32_xcheri_shrink :: [DecodeBranch [Instruction]]
-rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
-                     , cgettype_raw                    --> shrink_cgettype
-                     , cgetbase_raw                    --> shrink_cgetbase
-                     , cgetlen_raw                     --> shrink_cgetlen
-                     , cgettag_raw                     --> shrink_cgettag
-                     , cgethigh_raw                    --> shrink_cgethigh
-                     , cgetmode_raw                    --> shrink_cgetmode
+rv32_xcheri_shrink = [ gcperm_raw                      --> shrink_gcperm
+                     , gctype_raw                      --> shrink_gctype
+                     , gcbase_raw                      --> shrink_gcbase
+                     , gclen_raw                       --> shrink_gclen
+                     , gctag_raw                       --> shrink_gctag
+                     , gchigh_raw                      --> shrink_gchigh
+                     , gcmode_raw                      --> shrink_gcmode
                      , cseal_raw                       --> shrink_capcap
                      , cunseal_raw                     --> shrink_capcap
                      , candperm_raw                    --> shrink_capint
@@ -523,13 +523,13 @@ rv32_xcheri_shrink = [ cgetperm_raw                    --> shrink_cgetperm
 
 -- | List of cheri inspection instructions
 rv32_xcheri_inspection :: Integer -> Integer -> [Instruction]
-rv32_xcheri_inspection src dest = [ cgetperm                    dest src
-                                  , cgettype                    dest src
-                                  , cgetbase                    dest src
-                                  , cgetlen                     dest src
-                                  , cgettag                     dest src
-                                  , cgethigh                    dest src
-                                  , cgetmode                    dest src
+rv32_xcheri_inspection src dest = [ gcperm                      dest src
+                                  , gctype                      dest src
+                                  , gcbase                      dest src
+                                  , gclen                       dest src
+                                  , gctag                       dest src
+                                  , gchigh                      dest src
+                                  , gcmode                      dest src
                                   , croundrepresentablelength   dest src
                                   , crepresentablealignmentmask dest src]
 

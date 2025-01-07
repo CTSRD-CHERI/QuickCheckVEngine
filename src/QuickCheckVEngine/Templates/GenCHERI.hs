@@ -75,14 +75,14 @@ capDecodeTest = random $ do
                     li32 2 ((shift cap (-96)) Data.Bits..&. 0xffffffff),
                     inst $ sw 1 2 12,
                     inst $ lq 2 1 0,
-                    inst $ cgetlen 6 2,
-                    inst $ cgetbase 6 2,
-                    inst $ cgethigh 6 2,
-                    inst $ cgettype 6 2,
-                    inst $ cgetperm 6 2,
+                    inst $ gclen 6 2,
+                    inst $ gcbase 6 2,
+                    inst $ gchigh 6 2,
+                    inst $ gctype 6 2,
+                    inst $ gcperm 6 2,
                     inst $ cbuildcap 2 3 2,
-                    inst $ cgettype 4 2,
-                    inst $ cgettag 5 2]
+                    inst $ gctype 4 2,
+                    inst $ gctag 5 2]
 
 
 genRandomCHERITest :: Template
@@ -125,7 +125,7 @@ genRandomCHERITest = readParams $ \param -> random $ do
                 , (10, makeShortCap)
                 , (5, clearASR tmpReg tmpReg2)
                 , (5, boundPCC tmpReg tmpReg2 imm longImm)
-                , (20, inst $ cgettag dest dest)
+                , (20, inst $ gctag dest dest)
                 , (if has_nocloadtags arch then 0 else 10, loadTags srcAddr srcData)
                 ]
 

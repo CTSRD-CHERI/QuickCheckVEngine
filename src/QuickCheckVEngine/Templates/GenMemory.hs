@@ -169,7 +169,7 @@ gen_cache conf has_caplen = random $
                                    return $ instUniform $ rv64_i_store src1 src2 0)] | (has_xlen_64 conf)]
               ++ [[(2, random $ do srcAddr <- elements [1, 2, 3]
                                    return $ instSeq [ lq 13 srcAddr 0,
-                                                      cgettag 13 13])
+                                                      gctag 13 13])
                   ,(2, random $ do srcData <- elements [1, 2, 3, 4, 5]
                                    srcAddr <- elements [1, 2, 3]
                                    return $ inst $ sq srcAddr srcData 0)] | has_caplen]
@@ -215,7 +215,7 @@ gen_pte_perms = random $
                                      instUniform [lw 4 0 16, lq 4 0 16],
                                      csrwi (unsafe_csrs_indexFromName "sccsr") (clg1 * 4),
                                      instUniform [lw 4 0 16, lq 4 0 16],
-                                     inst $ cgettag 5 4,
+                                     inst $ gctag 5 4,
                                      inst ecall]
 
 gen_pte39_trans_core lxReg addrReg pteReg = random $
