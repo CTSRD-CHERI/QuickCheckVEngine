@@ -47,7 +47,7 @@ import InstrCodec
 import Test.QuickCheck
 import RISCV.RV32_I
 import RISCV.RV64_I
-import RISCV.RV32_Xcheri
+import RISCV.RV32_Zcheri
 import RISCV.RV32_F
 import RISCV.RV32_D
 import RISCV.RV_CSRs
