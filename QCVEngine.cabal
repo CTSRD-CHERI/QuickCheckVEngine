@@ -21,6 +21,7 @@ executable QCVEngine
                        RISCV.RV32_Zifencei,
                        RISCV.RV32_Zicsr,
                        RISCV.RV32_Xcheri,
+                       RISCV.RV32_Zcheri,
                        RISCV.RV64_I,
                        RISCV.RV64_M,
                        RISCV.RV64_A,
