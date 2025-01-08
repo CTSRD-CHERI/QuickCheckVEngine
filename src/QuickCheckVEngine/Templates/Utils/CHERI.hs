@@ -49,7 +49,6 @@ module QuickCheckVEngine.Templates.Utils.CHERI (
 , genCHERIarithmetic
 , genCHERImisc
 , genCHERIcontrol
-, loadTags
 ) where
 
 import Test.QuickCheck
@@ -73,10 +72,6 @@ randomCInvoke cs1 cs2 typeReg tmpReg =
   <> dist [ (1, instSeq [ addi tmpReg 0 0xeff
                         , candperm cs2 cs2 tmpReg ])
           , (9, mempty) ]
-  <> dist [ (9, inst $ cseal cs1 cs1 typeReg)
-          , (1, mempty) ] -- seal?
-  <> dist [ (9, inst $ cseal cs2 cs2 typeReg)
-          , (1, mempty) ]
   <> instSeq [ cinvoke cs2 cs1
              , cmv 31 1 ]
 
@@ -118,8 +113,9 @@ makeShortCap = random $ do
   offset <- oneof [choose (0,32), bits 14]
   return $ instSeq [ csetboundsimmediate dst source len,
                      addi tmp 0 (Data.Bits.shift offset (-12)),
-                     slli tmp tmp 12,
-                     csetoffset dst dst tmp,
+                     gcbase dst tmp,
+                     addi dst dst 12,
+                     csetaddr dst tmp dst,
                      cincoffsetimmediate dst dst (offset Data.Bits..&. 0xfff)]
 
 legalCapLoad :: Integer -> Integer -> Template
@@ -140,30 +136,6 @@ legalCapStore addrReg = random $ do
                    , slli tmpReg tmpReg 1
                    , add addrReg tmpReg addrReg
                    , cstore dataReg addrReg 0x4 ]
-
-loadTags :: Integer -> Integer -> Template
-loadTags addrReg capReg = random $ do
-  tmpReg <- src
-  dataReg <- dest
-  return $ ( instSeq [ lui tmpReg 0x40004
-                     , slli tmpReg tmpReg 1
-                     , csetaddr addrReg addrReg tmpReg
-                     , ccleartag tmpReg capReg ])
-           <> maybeCapStore addrReg tmpReg capReg
-           <> inst (cincoffsetimmediate addrReg addrReg 16)
-           <> maybeCapStore addrReg tmpReg capReg
-           <> inst (cincoffsetimmediate addrReg addrReg 16)
-           <> maybeCapStore addrReg tmpReg capReg
-           <> inst (cincoffsetimmediate addrReg addrReg 16)
-           <> maybeCapStore addrReg tmpReg capReg
-           <> inst (cincoffsetimmediate addrReg addrReg 16)
-           <> maybeCapStore addrReg tmpReg capReg
-           <> inst (cincoffsetimmediate addrReg addrReg 16)
-           <> inst (cincoffsetimmediate addrReg addrReg (4096 - (16 * 5)))
-           <> inst (cloadtags dataReg addrReg)
-              where maybeCapStore addrReg capReg tmpReg = instUniform [ sq addrReg capReg 0
-                                                                      , sq addrReg tmpReg 0 ]
-
 
 loadRegion ::  Integer -> Integer -> Integer -> Integer -> Template -> Template
 loadRegion numLines capReg cacheLSize tmpReg insts =

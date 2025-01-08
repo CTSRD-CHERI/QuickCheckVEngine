@@ -34,7 +34,6 @@
 
 module QuickCheckVEngine.Templates.GenCHERI (
   capDecodeTest,
-  cLoadTagsTest,
   gen_simple_cclear,
   gen_simple_fpclear,
   randomCHERITest,
@@ -53,9 +52,6 @@ import QuickCheckVEngine.Templates.GenArithmetic
 import QuickCheckVEngine.Templates.GenFP
 import QuickCheckVEngine.Templates.GenCompressed
 import Data.Bits
-
-cLoadTagsTest :: Template
-cLoadTagsTest = loadTags 1 2
 
 capDecodeTest :: Template
 capDecodeTest = random $ do
@@ -80,7 +76,7 @@ capDecodeTest = random $ do
                     inst $ gchigh 6 2,
                     inst $ gctype 6 2,
                     inst $ gcperm 6 2,
-                    inst $ cbuildcap 2 3 2,
+                    inst $ cbld 2 3 2,
                     inst $ gctype 4 2,
                     inst $ gctag 5 2]
 
@@ -126,7 +122,6 @@ genRandomCHERITest = readParams $ \param -> random $ do
                 , (5, clearASR tmpReg tmpReg2)
                 , (5, boundPCC tmpReg tmpReg2 imm longImm)
                 , (20, inst $ gctag dest dest)
-                , (if has_nocloadtags arch then 0 else 10, loadTags srcAddr srcData)
                 ]
 
 randomCHERIRVCTest :: Template
