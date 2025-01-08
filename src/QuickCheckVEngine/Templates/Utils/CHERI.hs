@@ -78,7 +78,7 @@ randomCInvoke cs1 cs2 typeReg tmpReg =
   <> dist [ (9, inst $ cseal cs2 cs2 typeReg)
           , (1, mempty) ]
   <> instSeq [ cinvoke cs2 cs1
-             , cmove 31 1 ]
+             , cmv 31 1 ]
 
 boundPCC :: Integer -> Integer -> Integer -> Integer -> Template
 boundPCC tmp1 tmp2 offset size =
