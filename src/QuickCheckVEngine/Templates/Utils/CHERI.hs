@@ -61,16 +61,16 @@ import QuickCheckVEngine.Templates.Utils.General
 randomCInvoke :: Integer -> Integer -> Integer -> Integer -> Template
 randomCInvoke cs1 cs2 typeReg tmpReg =
      dist [ (1, instSeq [ addi 0 tmpReg 0xffd
-                        , candperm cs1 cs1 tmpReg ])
+                        , acperm cs1 cs1 tmpReg ])
           , (9, mempty) ] -- clear X perm?
   <> dist [ (9, instSeq [ addi tmpReg 0 0xffd
-                        , candperm cs2 cs2 tmpReg ])
+                        , acperm cs2 cs2 tmpReg ])
           , (1, mempty) ]
   <> dist [ (1, instSeq [ addi tmpReg 0 0xeff
-                        , candperm cs1 cs1 tmpReg ])
+                        , acperm cs1 cs1 tmpReg ])
           , (9, mempty) ] -- clear CInvoke perm?
   <> dist [ (1, instSeq [ addi tmpReg 0 0xeff
-                        , candperm cs2 cs2 tmpReg ])
+                        , acperm cs2 cs2 tmpReg ])
           , (9, mempty) ]
   <> instSeq [ cinvoke cs2 cs1
              , cmv 31 1 ]
@@ -79,15 +79,15 @@ boundPCC :: Integer -> Integer -> Integer -> Integer -> Template
 boundPCC tmp1 tmp2 offset size =
   mconcat [ inst $ cspecialrw tmp1 0 0, -- Get PCC
             li64 tmp2 offset,
-            inst $ cincoffset tmp1 tmp1 tmp2, -- increment PCC
+            inst $ cadd tmp1 tmp1 tmp2, -- increment PCC
             li64 tmp2 size,
-            inst $ csetbounds tmp1 tmp1 tmp2, -- reduce bounds
+            inst $ scbndsr tmp1 tmp1 tmp2, -- reduce bounds
             inst $ jalr_cap tmp1 tmp1 ] -- jump to new PCC
 
 clearASR :: Integer -> Integer -> Template
 clearASR tmp1 tmp2 = instSeq [ cspecialrw tmp1 0 0, -- Get PCC
                                addi tmp2 0 0xbff, -- Load immediate without ASR set
-                               candperm tmp1 tmp1 tmp2, -- Mask out ASR
+                               acperm tmp1 tmp1 tmp2, -- Mask out ASR
                                cspecialrw 0 28 tmp1, -- Clear ASR in trap vector
                                jalr_cap tmp1 0 ]
 
@@ -95,28 +95,28 @@ makeCap :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Tem
 makeCap dst source tmp base len offset =
   mconcat [ makeCap_core dst source tmp base
           , li64 tmp len
-          , inst $ csetbounds dst dst tmp
+          , inst $ scbndsr dst dst tmp
           , li64 tmp offset
-          , inst $ cincoffset dst dst tmp ]
+          , inst $ cadd dst dst tmp ]
 
 makeCap_core :: Integer -> Integer -> Integer -> Integer -> Template
 makeCap_core dst source tmp base =
   mconcat [ li64 tmp base
-          , inst $ csetaddr dst source tmp]
+          , inst $ scaddr dst source tmp]
 
 makeShortCap :: Template
 makeShortCap = random $ do
   dst <- dest
   source <- src
   tmp <- src
-  len <- choose (0, 32)
+  len <- choose (0, 31)
   offset <- oneof [choose (0,32), bits 14]
-  return $ instSeq [ csetboundsimmediate dst source len,
+  return $ instSeq [ scbndsi dst source 0 len,
                      addi tmp 0 (Data.Bits.shift offset (-12)),
                      gcbase dst tmp,
                      addi dst dst 12,
-                     csetaddr dst tmp dst,
-                     cincoffsetimmediate dst dst (offset Data.Bits..&. 0xfff)]
+                     scaddr dst tmp dst,
+                     caddi dst dst (offset Data.Bits..&. 0xfff)]
 
 legalCapLoad :: Integer -> Integer -> Template
 legalCapLoad addrReg targetReg = random $ do
@@ -141,7 +141,7 @@ loadRegion ::  Integer -> Integer -> Integer -> Integer -> Template -> Template
 loadRegion numLines capReg cacheLSize tmpReg insts =
    if numLines == 0 then insts
    else if numLines == 1 then mconcat [insts, inst (cload tmpReg capReg 0x0)]
-   else loadRegion (numLines - 1) capReg cacheLSize tmpReg (mconcat [insts, inst (cload tmpReg capReg 0x0), inst (cincoffsetimmediate capReg capReg cacheLSize)])
+   else loadRegion (numLines - 1) capReg cacheLSize tmpReg (mconcat [insts, inst (cload tmpReg capReg 0x0), inst (caddi capReg capReg cacheLSize)])
 
 switchEncodingMode :: Template
 switchEncodingMode = random $ do
@@ -150,7 +150,7 @@ switchEncodingMode = random $ do
   mode    <- elements [0, 1]
   return $ instSeq [ cspecialrw tmpReg1 0 0
                    , addi tmpReg2 0 mode
-                   , csetflags tmpReg1 tmpReg1 tmpReg2
+                   , scmode tmpReg1 tmpReg1 tmpReg2
                    , cspecialrw 0 28 tmpReg1 --Also write trap vector so we stay in cap mode
                    , jalr_cap 0 tmpReg1 ]
 
@@ -234,5 +234,5 @@ genCHERIcontrol = random $ do
                         , (1, return (unsafe_csrs_indexFromName "mcause"))
                         , (1, bits 12) ]
   return $ dist [ (2, instUniform $ rv32_xcheri_control srcAddr srcData dest)
-                , (1, inst (csetbounds dest srcData srcAddr))
+                , (1, inst (scbndsr dest srcData srcAddr))
                 , (2, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
