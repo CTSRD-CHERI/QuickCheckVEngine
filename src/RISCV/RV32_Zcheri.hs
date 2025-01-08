@@ -62,17 +62,17 @@ module RISCV.RV32_Zcheri (
 , gctag
 , gchigh
 , gcmode
-, candperm
-, csetflags
-, csetaddr
-, csethigh
-, cincoffset
-, cincoffsetimmediate
-, csetbounds
-, csetboundsexact
-, csetboundsimmediate
+, acperm
+, scmode
+, scaddr
+, schi
+, cadd
+, caddi
+, scbndsr
+, scbnds
+, scbndsi
 , cbld
-, csealentry
+, sentry
 , ctoptr
 , cfromptr
 , csub
@@ -128,28 +128,28 @@ gcmode_raw                       =                                        "00010
 gcmode rd cs1                    = encode gcmode_raw                                   cs1          rd
 
 -- Capability Modification
-candperm_raw                       =                                        "0001101 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-candperm cd cs1 rs2                = encode candperm_raw                             rs2      cs1          cd
-csetflags_raw                      =                                        "0001110 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csetflags cd cs1 rs2               = encode csetflags_raw                            rs2      cs1          cd
-csetaddr_raw                       =                                        "0010000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csetaddr cd cs1 rs2                = encode csetaddr_raw                             rs2      cs1          cd
-csethigh_raw                       =                                        "0010110 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csethigh cd cs1 rs2                = encode csethigh_raw                             rs2      cs1          cd
-cincoffset_raw                     =                                        "0010001 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cincoffset cd cs1 rs2              = encode cincoffset_raw                           rs2      cs1          cd
-cincoffsetimmediate_raw            =                                        "imm[11:0] cs1[4:0] 001 cd[4:0] 1011011"
-cincoffsetimmediate cd cs1 imm     = encode cincoffsetimmediate_raw          imm       cs1          cd
-csetbounds_raw                     =                                        "0001000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csetbounds cd cs1 rs2              = encode csetbounds_raw                           rs2      cs1          cd
-csetboundsexact_raw                =                                        "0001001 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csetboundsexact cd cs1 rs2         = encode csetboundsexact_raw                      rs2      cs1          cd
-csetboundsimmediate_raw            =                                        "imm[11:0] cs1[4:0] 010 cd[4:0] 1011011"
-csetboundsimmediate cd cs1 imm     = encode csetboundsimmediate_raw          imm       cs1          cd
+acperm_raw                         =                                        "0000110 rs2[4:0] cs1[4:0] 010 cd[4:0] 0110011"
+acperm cd cs1 rs2                  = encode acperm_raw                               rs2      cs1          cd
+scmode_raw                         =                                        "0000110 rs2[4:0] cs1[4:0] 111 cd[4:0] 0110011"
+scmode cd cs1 rs2                  = encode scmode_raw                               rs2      cs1          cd
+scaddr_raw                         =                                        "0000110 rs2[4:0] cs1[4:0] 001 cd[4:0] 0110011"
+scaddr cd cs1 rs2                  = encode scaddr_raw                               rs2      cs1          cd
+schi_raw                           =                                        "0000110 rs2[4:0] cs1[4:0] 011 cd[4:0] 0110011"
+schi cd cs1 rs2                    = encode schi_raw                                 rs2      cs1          cd
+cadd_raw                           =                                        "0000110 rs2[4:0] cs1[4:0] 000 cd[4:0] 0110011"
+cadd cd cs1 rs2                    = encode cadd_raw                                 rs2      cs1          cd
+caddi_raw                          =                                        "imm[11:0] cs1[4:0] 010 cd[4:0] 0011011"
+caddi cd cs1 imm                   = encode caddi_raw                       imm        cs1          cd
+scbndsr_raw                        =                                        "0001000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+scbndsr cd cs1 rs2                 = encode scbndsr_raw                              rs2      cs1          cd
+scbnds_raw                         =                                        "0000111 rs2[4:0] cs1[4:0] 000 cd[4:0] 0110011"
+scbnds cd cs1 rs2                  = encode scbnds_raw                      rs2      cs1          cd
+scbndsi_raw                        =                                        "000001 s[0:0] imm[4:0] cs1[4:0] 101 cd[4:0] 0010011"
+scbndsi cd cs1 s imm               = encode scbndsi_raw                             s      imm      cs1          cd
 cbld_raw                           =                                        "0011101 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 cbld cd cs1 cs2                    = encode cbld_raw                                 cs2      cs1          cd
-csealentry_raw                     =                                        "1111111 10001 cs1[4:0] 000 cd[4:0] 1011011"
-csealentry cd cs1                  = encode csealentry_raw                                 cs1          cd
+sentry_raw                         =                                        "0001000 01000 cs1[4:0] 000 cd[4:0] 0110011"
+sentry cd cs1                      = encode sentry_raw                                     cs1          cd
 
 
 -- Capability Pointer Arithmetic
@@ -297,6 +297,10 @@ pretty_cspecialrw instr idx cs1 cd =
         name_scr 31 = "mepcc"
         name_scr idx = int idx
 
+-- | Scaled I-type instruction pretty printer
+pretty_scbndsi instr s imm cs1 cd =
+  concat [instr, " ", reg cd, ", ", reg cs1, ", ", int s, ", ", int imm]
+
 -- | Dissassembly of CHERI instructions
 rv32_xcheri_disass :: [DecodeBranch String]
 rv32_xcheri_disass = [ gcperm_raw                      --> prettyR_2op "gcperm"
@@ -306,16 +310,16 @@ rv32_xcheri_disass = [ gcperm_raw                      --> prettyR_2op "gcperm"
                      , gctag_raw                       --> prettyR_2op "gctag"
                      , gchigh_raw                      --> prettyR_2op "gchigh"
                      , gcmode_raw                      --> prettyR_2op "gcmode"
-                     , candperm_raw                    --> prettyR "candperm"
-                     , csetaddr_raw                    --> prettyR "csetaddr"
-                     , csethigh_raw                    --> prettyR "csethigh"
-                     , cincoffset_raw                  --> prettyR "cincoffset"
-                     , csetbounds_raw                  --> prettyR "csetbounds"
-                     , csetboundsexact_raw             --> prettyR "csetboundsexact"
+                     , acperm_raw                      --> prettyR "acperm"
+                     , scaddr_raw                      --> prettyR "csetaddr"
+                     , schi_raw                        --> prettyR "schi"
+                     , cadd_raw                        --> prettyR "cadd"
+                     , scbndsr_raw                     --> prettyR "scbndsr"
+                     , scbnds_raw                      --> prettyR "scbnds"
                      , cbld_raw                        --> prettyR "cbld"
-                     , csealentry_raw                  --> prettyR_2op "csealentry"
-                     , cincoffsetimmediate_raw         --> prettyI "cincoffsetimmediate"
-                     , csetboundsimmediate_raw         --> prettyI "csetboundsimmediate"
+                     , sentry_raw                      --> prettyR_2op "sentry"
+                     , caddi_raw                       --> prettyI "caddi"
+                     , scbndsi_raw                     --> pretty_scbndsi "scbndsi"
                      , ctoptr_raw                      --> prettyR "ctoptr"
                      , cfromptr_raw                    --> prettyR "cfromptr"
                      , csub_raw                        --> prettyR "csub"
@@ -331,7 +335,7 @@ rv32_xcheri_disass = [ gcperm_raw                      --> prettyR_2op "gcperm"
                      , crepresentablealignmentmask_raw --> prettyR_2op "crepresentablealignmentmask"
                      , cload_raw                       --> prettyCLoad
                      , cstore_raw                      --> prettyCStore
-                     , csetflags_raw                   --> prettyR "csetflags"
+                     , scmode_raw                      --> prettyR "scmode"
                      , sq_raw                          --> prettyS "sq"
                      , lq_raw                          --> prettyL "lq"
                      , lr_q_raw                        --> prettyR_A_1op "lr.q"
@@ -357,16 +361,16 @@ rv32_xcheri_extract = [ gcperm_raw                      --> extract_1op gcperm_r
                       , gctag_raw                       --> extract_1op gctag_raw
                       , gchigh_raw                      --> extract_1op gchigh_raw
                       , gcmode_raw                      --> extract_1op gcmode_raw
-                      , candperm_raw                    --> extract_2op candperm_raw
-                      , csetaddr_raw                    --> extract_2op csetaddr_raw
-                      , csethigh_raw                    --> extract_2op csethigh_raw
-                      , cincoffset_raw                  --> extract_2op cincoffset_raw
-                      , csetbounds_raw                  --> extract_2op csetbounds_raw
-                      , csetboundsexact_raw             --> extract_2op csetboundsexact_raw
+                      , acperm_raw                      --> extract_2op acperm_raw
+                      , scaddr_raw                      --> extract_2op scaddr_raw
+                      , schi_raw                        --> extract_2op schi_raw
+                      , cadd_raw                        --> extract_2op cadd_raw
+                      , scbndsr_raw                     --> extract_2op scbndsr_raw
+                      , scbnds_raw                      --> extract_2op scbnds_raw
                       , cbld_raw                        --> extract_2op cbld_raw
-                      , csealentry_raw                  --> extract_1op csealentry_raw
-                      , cincoffsetimmediate_raw         --> extract_imm cincoffsetimmediate_raw
-                      , csetboundsimmediate_raw         --> extract_imm csetboundsimmediate_raw
+                      , sentry_raw                      --> extract_1op sentry_raw
+                      , caddi_raw                       --> extract_imm caddi_raw
+                      , scbndsi_raw                     --> extract_imm scbndsi_raw
                       , ctoptr_raw                      --> extract_2op ctoptr_raw
                       , cfromptr_raw                    --> extract_2op cfromptr_raw
                       , csub_raw                        --> extract_2op csub_raw
@@ -379,7 +383,7 @@ rv32_xcheri_extract = [ gcperm_raw                      --> extract_1op gcperm_r
                       , crepresentablealignmentmask_raw --> extract_1op crepresentablealignmentmask_raw
                       , cload_raw                       --> extract_imm cload_raw
                       , cstore_raw                      --> extract_cstore
-                      , csetflags_raw                   --> extract_2op csetflags_raw
+                      , scmode_raw                      --> extract_2op scmode_raw
                       , sq_raw                          --> extract_nodst sq_raw
                       , lq_raw                          --> extract_imm lq_raw
                       ]
@@ -445,20 +449,20 @@ rv32_xcheri_shrink = [ gcperm_raw                      --> shrink_gcperm
                      , gctag_raw                       --> shrink_gctag
                      , gchigh_raw                      --> shrink_gchigh
                      , gcmode_raw                      --> shrink_gcmode
-                     , candperm_raw                    --> shrink_capint
-                     , csetaddr_raw                    --> shrink_capint
-                     , csethigh_raw                    --> shrink_capint
-                     , cincoffset_raw                  --> shrink_capint
-                     , csetbounds_raw                  --> shrink_capint
-                     , csetboundsexact_raw             --> shrink_capint
+                     , acperm_raw                      --> shrink_capint
+                     , scaddr_raw                      --> shrink_capint
+                     , schi_raw                        --> shrink_capint
+                     , cadd_raw                        --> shrink_capint
+                     , scbndsr_raw                     --> shrink_capint
+                     , scbnds_raw                      --> shrink_capint
                      , cbld_raw                        --> shrink_capcap
-                     , csealentry_raw                  --> shrink_cap
-                     , cincoffsetimmediate_raw         --> shrink_capimm
-                     , csetboundsimmediate_raw         --> shrink_capimm
+                     , sentry_raw                      --> shrink_cap
+                     , caddi_raw                       --> shrink_capimm
+                     , scbndsi_raw                     --> shrink_capimm
                      , ctoptr_raw                      --> shrink_capcap
                      , csub_raw                        --> shrink_capcap
 --                   , cspecialrw_raw                  --> noshrink
---                   , cmv_raw                       --> noshrink
+--                   , cmv_raw                         --> noshrink
 --                   , jalr_cap_raw                       --> noshrink
                      , cinvoke_raw                     --> shrink_cinvoke
                      , ctestsubset_raw                 --> shrink_ctestsubset
@@ -466,7 +470,7 @@ rv32_xcheri_shrink = [ gcperm_raw                      --> shrink_gcperm
 --                   , crepresentablealignmentmask_raw --> noshrink
                      , cload_raw                       --> shrink_cload
                      , cstore_raw                      --> shrink_cstore
-                     , csetflags_raw                   --> shrink_capcap
+                     , scmode_raw                      --> shrink_capcap
 --                   , sq_raw                          --> noshrink
 --                   , lq_raw                          --> noshrink
                      ]
@@ -486,13 +490,13 @@ rv32_xcheri_inspection src dest = [ gcperm                      dest src
 -- | List of cheri arithmetic instructions
 rv32_xcheri_arithmetic :: Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_arithmetic src1 src2 imm dest =
-  [ csetaddr            dest src1 src2
-  , csethigh            dest src1 src2
-  , cincoffset          dest src1 src2
-  , csetbounds          dest src1 src2
-  , csetboundsexact     dest src1 src2
-  , csetboundsimmediate dest src1      imm
-  , cincoffsetimmediate dest src1      imm
+  [ scaddr              dest src1 src2
+  , schi                dest src1 src2
+  , cadd                dest src1 src2
+  , scbndsr             dest src1 src2
+  , scbnds              dest src1 src2
+  , scbndsi             dest src1 0 imm
+  , caddi               dest src1 imm
   , ctoptr              dest src1 src2
   , cfromptr            dest src1 src2
   , csub                dest src1 src2
@@ -501,10 +505,10 @@ rv32_xcheri_arithmetic src1 src2 imm dest =
 -- | List of cheri miscellaneous instructions
 rv32_xcheri_misc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_misc src1 src2 srcScr imm dest =
-  [ candperm    dest src1 src2
-  , csetflags   dest src1 src2
-  , csealentry  dest src1
-  , cmv       dest src1
+  [ acperm      dest src1 src2
+  , scmode      dest src1 src2
+  , sentry      dest src1
+  , cmv         dest src1
   , cspecialrw  dest srcScr src1 ]
 
 -- | List of cheri control instructions
