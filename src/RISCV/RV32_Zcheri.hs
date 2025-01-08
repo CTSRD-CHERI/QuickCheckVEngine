@@ -62,11 +62,8 @@ module RISCV.RV32_Zcheri (
 , gctag
 , gchigh
 , gcmode
-, cseal
-, cunseal
 , candperm
 , csetflags
-, csetoffset
 , csetaddr
 , csethigh
 , cincoffset
@@ -74,12 +71,8 @@ module RISCV.RV32_Zcheri (
 , csetbounds
 , csetboundsexact
 , csetboundsimmediate
-, ccleartag
-, cbuildcap
-, ccopytype
-, ccseal
+, cbld
 , csealentry
-, cloadtags
 , ctoptr
 , cfromptr
 , csub
@@ -135,16 +128,10 @@ gcmode_raw                       =                                        "00010
 gcmode rd cs1                    = encode gcmode_raw                                   cs1          rd
 
 -- Capability Modification
-cseal_raw                          =                                        "0001011 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cseal cd cs1 cs2                   = encode cseal_raw                                cs2      cs1          cd
-cunseal_raw                        =                                        "0001100 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cunseal cd cs1 cs2                 = encode cunseal_raw                              cs2      cs1          cd
 candperm_raw                       =                                        "0001101 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 candperm cd cs1 rs2                = encode candperm_raw                             rs2      cs1          cd
 csetflags_raw                      =                                        "0001110 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 csetflags cd cs1 rs2               = encode csetflags_raw                            rs2      cs1          cd
-csetoffset_raw                     =                                        "0001111 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csetoffset cd cs1 rs2              = encode csetoffset_raw                           rs2      cs1          cd
 csetaddr_raw                       =                                        "0010000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 csetaddr cd cs1 rs2                = encode csetaddr_raw                             rs2      cs1          cd
 csethigh_raw                       =                                        "0010110 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
@@ -159,18 +146,10 @@ csetboundsexact_raw                =                                        "000
 csetboundsexact cd cs1 rs2         = encode csetboundsexact_raw                      rs2      cs1          cd
 csetboundsimmediate_raw            =                                        "imm[11:0] cs1[4:0] 010 cd[4:0] 1011011"
 csetboundsimmediate cd cs1 imm     = encode csetboundsimmediate_raw          imm       cs1          cd
-ccleartag_raw                      =                                        "1111111 01011 cs1[4:0] 000 cd[4:0] 1011011"
-ccleartag cd cs1                   = encode ccleartag_raw                                  cs1          cd
-cbuildcap_raw                      =                                        "0011101 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cbuildcap cd cs1 cs2               = encode cbuildcap_raw                            cs2      cs1          cd
-ccopytype_raw                      =                                        "0011110 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-ccopytype cd cs1 cs2               = encode ccopytype_raw                            cs2      cs1          cd
-ccseal_raw                         =                                        "0011111 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-ccseal cd cs1 cs2                  = encode ccseal_raw                               cs2      cs1          cd
+cbld_raw                           =                                        "0011101 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cbld cd cs1 cs2                    = encode cbld_raw                                 cs2      cs1          cd
 csealentry_raw                     =                                        "1111111 10001 cs1[4:0] 000 cd[4:0] 1011011"
 csealentry cd cs1                  = encode csealentry_raw                                 cs1          cd
-cloadtags_raw                      =                                        "1111111 10010 cs1[4:0] 000 rd[4:0] 1011011"
-cloadtags rd cs1                   = encode cloadtags_raw                                  cs1          rd
 
 
 -- Capability Pointer Arithmetic
@@ -327,21 +306,14 @@ rv32_xcheri_disass = [ gcperm_raw                      --> prettyR_2op "gcperm"
                      , gctag_raw                       --> prettyR_2op "gctag"
                      , gchigh_raw                      --> prettyR_2op "gchigh"
                      , gcmode_raw                      --> prettyR_2op "gcmode"
-                     , cseal_raw                       --> prettyR "cseal"
-                     , cunseal_raw                     --> prettyR "cunseal"
                      , candperm_raw                    --> prettyR "candperm"
-                     , csetoffset_raw                  --> prettyR "csetoffset"
                      , csetaddr_raw                    --> prettyR "csetaddr"
                      , csethigh_raw                    --> prettyR "csethigh"
                      , cincoffset_raw                  --> prettyR "cincoffset"
                      , csetbounds_raw                  --> prettyR "csetbounds"
                      , csetboundsexact_raw             --> prettyR "csetboundsexact"
-                     , cbuildcap_raw                   --> prettyR "cbuildcap"
-                     , ccopytype_raw                   --> prettyR "ccopytype"
-                     , ccseal_raw                      --> prettyR "ccseal"
+                     , cbld_raw                        --> prettyR "cbld"
                      , csealentry_raw                  --> prettyR_2op "csealentry"
-                     , cloadtags_raw                   --> prettyR_2op "cloadtags"
-                     , ccleartag_raw                   --> prettyR_2op "ccleartag"
                      , cincoffsetimmediate_raw         --> prettyI "cincoffsetimmediate"
                      , csetboundsimmediate_raw         --> prettyI "csetboundsimmediate"
                      , ctoptr_raw                      --> prettyR "ctoptr"
@@ -385,21 +357,14 @@ rv32_xcheri_extract = [ gcperm_raw                      --> extract_1op gcperm_r
                       , gctag_raw                       --> extract_1op gctag_raw
                       , gchigh_raw                      --> extract_1op gchigh_raw
                       , gcmode_raw                      --> extract_1op gcmode_raw
-                      , cseal_raw                       --> extract_2op cseal_raw
-                      , cunseal_raw                     --> extract_2op cunseal_raw
                       , candperm_raw                    --> extract_2op candperm_raw
-                      , csetoffset_raw                  --> extract_2op csetoffset_raw
                       , csetaddr_raw                    --> extract_2op csetaddr_raw
                       , csethigh_raw                    --> extract_2op csethigh_raw
                       , cincoffset_raw                  --> extract_2op cincoffset_raw
                       , csetbounds_raw                  --> extract_2op csetbounds_raw
                       , csetboundsexact_raw             --> extract_2op csetboundsexact_raw
-                      , cbuildcap_raw                   --> extract_2op cbuildcap_raw
-                      , ccopytype_raw                   --> extract_2op ccopytype_raw
-                      , ccseal_raw                      --> extract_2op ccseal_raw
+                      , cbld_raw                        --> extract_2op cbld_raw
                       , csealentry_raw                  --> extract_1op csealentry_raw
-                      , cloadtags_raw                   --> extract_1op cloadtags_raw
-                      , ccleartag_raw                   --> extract_1op ccleartag_raw
                       , cincoffsetimmediate_raw         --> extract_imm cincoffsetimmediate_raw
                       , csetboundsimmediate_raw         --> extract_imm csetboundsimmediate_raw
                       , ctoptr_raw                      --> extract_2op ctoptr_raw
@@ -410,9 +375,6 @@ rv32_xcheri_extract = [ gcperm_raw                      --> extract_1op gcperm_r
                       , jalr_cap_raw                       --> extract_1op jalr_cap_raw
                       , cinvoke_raw                     --> extract_cinvoke
                       , ctestsubset_raw                 --> extract_2op ctestsubset_raw
---                    , clear_raw                       --> noextract -- TODO
---                    , cclear_raw                       --> noextract -- TODO
---                    , fpclear_raw                     --> noextract -- TODO
                       , croundrepresentablelength_raw   --> extract_1op croundrepresentablelength_raw
                       , crepresentablealignmentmask_raw --> extract_1op crepresentablealignmentmask_raw
                       , cload_raw                       --> extract_imm cload_raw
@@ -469,8 +431,6 @@ shrink_cinvoke cs2 cs1 = shrink_capcap cs2 cs1 31
 
 shrink_ctestsubset cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
 
-shrink_cfromptr rs cs cd = [csetoffset cd cs rs] ++ shrink_capint rs cs cd
-
 shrink_cload :: Integer -> Integer -> Integer -> [Instruction]
 shrink_cload cb cd mop = [addi 0 0 0];
 
@@ -485,33 +445,23 @@ rv32_xcheri_shrink = [ gcperm_raw                      --> shrink_gcperm
                      , gctag_raw                       --> shrink_gctag
                      , gchigh_raw                      --> shrink_gchigh
                      , gcmode_raw                      --> shrink_gcmode
-                     , cseal_raw                       --> shrink_capcap
-                     , cunseal_raw                     --> shrink_capcap
                      , candperm_raw                    --> shrink_capint
-                     , csetoffset_raw                  --> shrink_capint
                      , csetaddr_raw                    --> shrink_capint
                      , csethigh_raw                    --> shrink_capint
                      , cincoffset_raw                  --> shrink_capint
                      , csetbounds_raw                  --> shrink_capint
                      , csetboundsexact_raw             --> shrink_capint
-                     , cbuildcap_raw                   --> shrink_capcap
-                     , ccopytype_raw                   --> shrink_capcap
-                     , ccseal_raw                      --> shrink_capcap
+                     , cbld_raw                        --> shrink_capcap
                      , csealentry_raw                  --> shrink_cap
-                     , ccleartag_raw                   --> shrink_cap
                      , cincoffsetimmediate_raw         --> shrink_capimm
                      , csetboundsimmediate_raw         --> shrink_capimm
                      , ctoptr_raw                      --> shrink_capcap
-                     , cfromptr_raw                    --> shrink_cfromptr
                      , csub_raw                        --> shrink_capcap
 --                   , cspecialrw_raw                  --> noshrink
 --                   , cmv_raw                       --> noshrink
 --                   , jalr_cap_raw                       --> noshrink
                      , cinvoke_raw                     --> shrink_cinvoke
                      , ctestsubset_raw                 --> shrink_ctestsubset
---                   , clear_raw                       --> noshrink
---                   , cclear_raw                      --> noshrink
---                   , fpclear_raw                     --> noshrink
 --                   , croundrepresentablelength_raw   --> noshrink
 --                   , crepresentablealignmentmask_raw --> noshrink
                      , cload_raw                       --> shrink_cload
@@ -536,8 +486,7 @@ rv32_xcheri_inspection src dest = [ gcperm                      dest src
 -- | List of cheri arithmetic instructions
 rv32_xcheri_arithmetic :: Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_arithmetic src1 src2 imm dest =
-  [ csetoffset          dest src1 src2
-  , csetaddr            dest src1 src2
+  [ csetaddr            dest src1 src2
   , csethigh            dest src1 src2
   , cincoffset          dest src1 src2
   , csetbounds          dest src1 src2
@@ -552,15 +501,9 @@ rv32_xcheri_arithmetic src1 src2 imm dest =
 -- | List of cheri miscellaneous instructions
 rv32_xcheri_misc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_misc src1 src2 srcScr imm dest =
-  [ cseal       dest src1 src2
-  , cunseal     dest src1 src2
-  , candperm    dest src1 src2
-  , cbuildcap   dest src1 src2
+  [ candperm    dest src1 src2
   , csetflags   dest src1 src2
-  , ccopytype   dest src1 src2
-  , ccseal      dest src1 src2
   , csealentry  dest src1
-  , ccleartag   dest src1
   , cmv       dest src1
   , cspecialrw  dest srcScr src1 ]
 
@@ -579,7 +522,8 @@ rv32_xcheri_mem    arch srcAddr srcData imm mop dest =
   --, lq     dest srcAddr dest        imm
   --, sq          srcAddr srcData     imm
   ]
-  ++ [cloadtags dest srcAddr | not $ has_nocloadtags arch]
+  ++ [cload dest srcAddr mop
+  ,   gctag dest dest]
 
 -- | List of cheri memory instructions
 rv32_a_xcheri :: Integer -> Integer -> Integer -> [Instruction]

@@ -63,15 +63,10 @@ import Data.Bits
 
 rv32_xcheri_misc_alt :: Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_misc_alt src1 src2 imm dest =
-  [ cseal       dest src1 src2
-  , cunseal     dest src1 src2
-  , candperm    dest src1 src2
-  , cbuildcap   dest src1 src2
+  [ candperm    dest src1 src2
+  , cbld   dest src1 src2
   , csetflags   dest src1 src2
-  , ccopytype   dest src1 src2
-  , ccseal      dest src1 src2
-  , csealentry  dest src1
-  , ccleartag   dest src1 ]
+  , csealentry  dest src1]
 
 genCSCDataTorture :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
 genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
@@ -314,7 +309,7 @@ gen_csc_data_verify = random $ do
                        , makeCap bitsReg authReg tmpReg1 0x80014000 0x100 0
                        , inst $ csealentry sldReg bitsReg
                        , inst $ candperm nopermReg bitsReg 0
-                       , inst $ ccleartag bitsReg bitsReg
+                       , inst $ cbld bitsReg 0 bitsReg -- clear tag
                        , inst $ lw tmpReg1 capReg 0
                        ]
   let body = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (repeatTillEnd (genCSCDataTorture capReg tmpReg1 bitsReg sldReg nopermReg authReg)) tmpReg0 hpmCntIdx Nothing
@@ -375,7 +370,7 @@ gen_csc_inst_verify = random $ do
                        , inst $ cmv startReg jumpReg
                        , inst $ cstore jumpReg memReg 0x0c
                        , inst $ cincoffsetimmediate tmpReg jumpReg 0x100
-                       , inst $ ccleartag tmpReg tmpReg
+                       , inst $ cbld tmpReg 0 tmpReg -- clear tag
                        , inst $ cstore tmpReg memReg2 0x0c
                        , inst $ cload tmpReg memReg2 0x1f
                        , startSeq
