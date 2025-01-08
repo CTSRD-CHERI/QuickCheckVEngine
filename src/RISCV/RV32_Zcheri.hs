@@ -83,7 +83,7 @@ module RISCV.RV32_Zcheri (
 , ctoptr
 , cfromptr
 , csub
-, cmove
+, cmv
 , jalr_cap
 , cinvoke
 , ctestsubset
@@ -180,8 +180,8 @@ cfromptr_raw                       =                                        "001
 cfromptr cd cs1 rs2                = encode cfromptr_raw                             rs2      cs1          cd
 csub_raw                           =                                        "0010100 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 csub cd cs1 cs2                    = encode csub_raw                                 cs2      cs1          cd
-cmove_raw                          =                                        "1111111 01010 cs1[4:0] 000 cd[4:0] 1011011"
-cmove cd cs1                       = encode cmove_raw                                      cs1          cd
+cmv_raw                            =                                        "0000110 00000 cs1[4:0] 000 cd[4:0] 0110011"
+cmv cd cs1                         = encode cmv_raw                                        cs1          cd
 cspecialrw_raw                     =                                        "0000001 cSP[4:0] cs1[4:0] 000 cd[4:0] 1011011"
 cspecialrw cd cSP cs1              = encode cspecialrw_raw                           cSP      cs1          cd
 
@@ -348,7 +348,7 @@ rv32_xcheri_disass = [ gcperm_raw                      --> prettyR_2op "gcperm"
                      , cfromptr_raw                    --> prettyR "cfromptr"
                      , csub_raw                        --> prettyR "csub"
                      , cspecialrw_raw                  --> pretty_cspecialrw "cspecialrw"
-                     , cmove_raw                       --> prettyR_2op "cmove"
+                     , cmv_raw                         --> prettyR_2op "cmv"
                      , jalr_cap_raw                       --> prettyR_2op "jalr_cap"
                      , cinvoke_raw                     --> pretty_2src "cinvoke"
                      , ctestsubset_raw                 --> prettyR "ctestsubset"
@@ -368,8 +368,8 @@ rv32_xcheri_disass = [ gcperm_raw                      --> prettyR_2op "gcperm"
 extract_cspecialrw :: Integer -> Integer -> Integer -> ExtractedRegs
 extract_cspecialrw idx rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode cspecialrw_raw idx y z)
 
-extract_cmove :: Integer -> Integer -> ExtractedRegs
-extract_cmove rs1 rd = (True, Nothing, Just rs1, Just rd, \x y z -> encode cmove_raw y z)
+extract_cmv :: Integer -> Integer -> ExtractedRegs
+extract_cmv rs1 rd = (True, Nothing, Just rs1, Just rd, \x y z -> encode cmv_raw y z)
 
 extract_cinvoke :: Integer -> Integer -> ExtractedRegs
 extract_cinvoke rs2 rs1 = (False, Just rs2, Just rs1, Just 31, \x y z -> encode cinvoke_raw x y)
@@ -406,7 +406,7 @@ rv32_xcheri_extract = [ gcperm_raw                      --> extract_1op gcperm_r
                       , cfromptr_raw                    --> extract_2op cfromptr_raw
                       , csub_raw                        --> extract_2op csub_raw
                       , cspecialrw_raw                  --> extract_cspecialrw
-                      , cmove_raw                       --> extract_cmove
+                      , cmv_raw                         --> extract_cmv
                       , jalr_cap_raw                       --> extract_1op jalr_cap_raw
                       , cinvoke_raw                     --> extract_cinvoke
                       , ctestsubset_raw                 --> extract_2op ctestsubset_raw
@@ -445,7 +445,7 @@ shrink_gcmode cs rd = [addi rd 0 1, addi rd 0 0]
 
 shrink_cap :: Integer -> Integer -> [Instruction]
 shrink_cap cs cd = [ecall,
-                    cmove cd cs,
+                    cmv cd cs,
                     gchigh cd cs,
                     gcmode cd cs,
                     gcperm cd cs,
@@ -505,7 +505,7 @@ rv32_xcheri_shrink = [ gcperm_raw                      --> shrink_gcperm
                      , cfromptr_raw                    --> shrink_cfromptr
                      , csub_raw                        --> shrink_capcap
 --                   , cspecialrw_raw                  --> noshrink
---                   , cmove_raw                       --> noshrink
+--                   , cmv_raw                       --> noshrink
 --                   , jalr_cap_raw                       --> noshrink
                      , cinvoke_raw                     --> shrink_cinvoke
                      , ctestsubset_raw                 --> shrink_ctestsubset
@@ -561,7 +561,7 @@ rv32_xcheri_misc src1 src2 srcScr imm dest =
   , ccseal      dest src1 src2
   , csealentry  dest src1
   , ccleartag   dest src1
-  , cmove       dest src1
+  , cmv       dest src1
   , cspecialrw  dest srcScr src1 ]
 
 -- | List of cheri control instructions

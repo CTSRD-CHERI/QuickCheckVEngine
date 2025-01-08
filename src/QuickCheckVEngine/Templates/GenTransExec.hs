@@ -372,7 +372,7 @@ gen_csc_inst_verify = random $ do
                        , makeCap_core pccReg authReg2 tmpReg 0x80002000
                        , makeCap_core memReg authReg2 tmpReg 0x80007000
                        , makeCap_core memReg2 authReg2 tmpReg 0x80007100
-                       , inst $ cmove startReg jumpReg
+                       , inst $ cmv startReg jumpReg
                        , inst $ cstore jumpReg memReg 0x0c
                        , inst $ cincoffsetimmediate tmpReg jumpReg 0x100
                        , inst $ ccleartag tmpReg tmpReg
@@ -390,16 +390,16 @@ gen_csc_inst_verify = random $ do
                        , inst $ cincoffsetimmediate tmpReg jumpReg 0x100
                        , inst $ cload tmpReg tmpReg 0x8
                        , inst $ add pccReg zeroReg zeroReg
-                       , inst $ cmove jumpReg startReg
+                       , inst $ cmv jumpReg startReg
                        -- zero out all sbcRegs
-                       , inst $ cmove 22 zeroReg
-                       , inst $ cmove 23 zeroReg
-                       , inst $ cmove 24 zeroReg
-                       , inst $ cmove 25 zeroReg
-                       , inst $ cmove 26 zeroReg
-                       , inst $ cmove 27 zeroReg
-                       , inst $ cmove 28 zeroReg
-                       , inst $ cmove 29 zeroReg
+                       , inst $ cmv 22 zeroReg
+                       , inst $ cmv 23 zeroReg
+                       , inst $ cmv 24 zeroReg
+                       , inst $ cmv 25 zeroReg
+                       , inst $ cmv 26 zeroReg
+                       , inst $ cmv 27 zeroReg
+                       , inst $ cmv 28 zeroReg
+                       , inst $ cmv 29 zeroReg
                        , inst $ csetboundsimmediate jumpReg jumpReg 256
                        , inst $ csetboundsimmediate tmpReg startReg 256
                        , inst $ cspecialrw 0 mtcc jumpReg
