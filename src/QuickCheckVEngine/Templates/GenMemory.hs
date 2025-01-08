@@ -210,7 +210,7 @@ gen_pte_perms = random $
                                      (noShrink $ inst $ sfence 0 0)
                                      <> mconcat [
                                      inst sret,
-                                     instUniform [ccleartag 3 3, cmove 3 3],
+                                     instUniform [ccleartag 3 3, cmv 3 3],
                                      instUniform [sw 0 3 16, sq 0 3 16],
                                      instUniform [lw 4 0 16, lq 4 0 16],
                                      csrwi (unsafe_csrs_indexFromName "sccsr") (clg1 * 4),
