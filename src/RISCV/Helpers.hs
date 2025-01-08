@@ -266,7 +266,6 @@ prettyI instr imm rs1 rd =
 prettyI_sig instr imm rs1 rd =
   concat [instr, " ", reg rd, ", ", reg rs1, ", ", int $ toSigned 12 imm]
 
-
 -- | Pretty printer for load instructions
 prettyL instr imm rs1 rd =
   concat [instr, " ", reg rd, ", ", reg rs1, "[", int $ toSigned 12 imm, "]"]
