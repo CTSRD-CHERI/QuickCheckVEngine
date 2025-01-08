@@ -79,6 +79,8 @@ module RISCV.RV32_Zcheri (
 , cmv
 , jalr_cap
 , cinvoke
+, modeswcap
+, modeswint
 , ctestsubset
 , cspecialrw
 , clear
@@ -170,6 +172,10 @@ jalr_cap_raw                       =                                        "111
 jalr_cap cd cs1                    = encode jalr_cap_raw                                      cs1          cd
 cinvoke_raw                        =                                        "1111110 cs2[4:0] cs1[4:0] 000 00001 1011011"
 cinvoke cs2 cs1                    = encode cinvoke_raw                              cs2      cs1
+modeswcap_raw                      =                                        "0001001 00000 00000 001 00000 0110011"
+modeswcap                          = encode modeswcap_raw
+modeswint_raw                      =                                        "0001010 00000 00000 001 00000 0110011"
+modeswint                          = encode modeswint_raw
 
 -- Assertion
 ctestsubset_raw                    =                                        "0100000 cs2[4:0] cs1[4:0] 000 rd[4:0] 1011011"
@@ -327,6 +333,8 @@ rv32_xcheri_disass = [ gcperm_raw                      --> prettyR_2op "gcperm"
                      , cmv_raw                         --> prettyR_2op "cmv"
                      , jalr_cap_raw                       --> prettyR_2op "jalr_cap"
                      , cinvoke_raw                     --> pretty_2src "cinvoke"
+                     , modeswcap_raw                   --> "modesw.cap"
+                     , modeswint_raw                   --> "modesw.int"
                      , ctestsubset_raw                 --> prettyR "ctestsubset"
                      , clear_raw                       --> pretty_reg_clear "clear"
                      , cclear_raw                      --> pretty_reg_clear "cclear"
