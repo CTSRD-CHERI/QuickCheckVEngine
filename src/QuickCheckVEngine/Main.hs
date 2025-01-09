@@ -322,10 +322,12 @@ main = withSocketsDo $ do
             Just dir -> do
               t <- getCurrentTime
               let tstamp = [if x == ' ' then '_' else if x == ':' then '-' else x | x <- show t]
+              let fname = dir ++ "/failure-" ++ tstamp ++ ".S"
               let prelude = case sourceFile of
                               Just name -> "# Generated from input file: " ++ show name ++ "\n"
                               Nothing   -> "# Automatically generated failing test case\n"
-              writeFile (dir ++ "/failure-" ++ tstamp ++ ".S") (prelude ++ contents)
+              putStrLn $ "Writing counterexample file to: " ++ fname
+              writeFile fname (prelude ++ contents)
   let saveOnFail :: Maybe FilePath -> Test TestResult -> (Test TestResult -> Test TestResult) -> IO ()
       saveOnFail sourceFile test testTrans = runImpls implA m_implB alive (timeoutDelay flags) 0 test onTrace onDeath onDeath
         where onDeath test = do putStrLn "Failure rerunning test"
