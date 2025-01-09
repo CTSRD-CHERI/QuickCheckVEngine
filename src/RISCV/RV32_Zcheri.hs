@@ -73,9 +73,6 @@ module RISCV.RV32_Zcheri (
 , scbndsi
 , cbld
 , sentry
-, ctoptr
-, cfromptr
-, csub
 , cmv
 , jalr_cap
 , cinvoke
@@ -155,12 +152,6 @@ sentry cd cs1                      = encode sentry_raw                          
 
 
 -- Capability Pointer Arithmetic
-ctoptr_raw                         =                                        "0010010 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-ctoptr cd cs1 cs2                  = encode ctoptr_raw                               cs2      cs1          cd
-cfromptr_raw                       =                                        "0010011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cfromptr cd cs1 rs2                = encode cfromptr_raw                             rs2      cs1          cd
-csub_raw                           =                                        "0010100 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-csub cd cs1 cs2                    = encode csub_raw                                 cs2      cs1          cd
 cmv_raw                            =                                        "0000110 00000 cs1[4:0] 000 cd[4:0] 0110011"
 cmv cd cs1                         = encode cmv_raw                                        cs1          cd
 cspecialrw_raw                     =                                        "0000001 cSP[4:0] cs1[4:0] 000 cd[4:0] 1011011"
@@ -326,9 +317,6 @@ rv32_xcheri_disass = [ gcperm_raw                      --> prettyR_2op "gcperm"
                      , sentry_raw                      --> prettyR_2op "sentry"
                      , caddi_raw                       --> prettyI "caddi"
                      , scbndsi_raw                     --> pretty_scbndsi "scbndsi"
-                     , ctoptr_raw                      --> prettyR "ctoptr"
-                     , cfromptr_raw                    --> prettyR "cfromptr"
-                     , csub_raw                        --> prettyR "csub"
                      , cspecialrw_raw                  --> pretty_cspecialrw "cspecialrw"
                      , cmv_raw                         --> prettyR_2op "cmv"
                      , jalr_cap_raw                       --> prettyR_2op "jalr_cap"
@@ -379,9 +367,6 @@ rv32_xcheri_extract = [ gcperm_raw                      --> extract_1op gcperm_r
                       , sentry_raw                      --> extract_1op sentry_raw
                       , caddi_raw                       --> extract_imm caddi_raw
                       , scbndsi_raw                     --> extract_imm scbndsi_raw
-                      , ctoptr_raw                      --> extract_2op ctoptr_raw
-                      , cfromptr_raw                    --> extract_2op cfromptr_raw
-                      , csub_raw                        --> extract_2op csub_raw
                       , cspecialrw_raw                  --> extract_cspecialrw
                       , cmv_raw                         --> extract_cmv
                       , jalr_cap_raw                       --> extract_1op jalr_cap_raw
@@ -467,8 +452,6 @@ rv32_xcheri_shrink = [ gcperm_raw                      --> shrink_gcperm
                      , sentry_raw                      --> shrink_cap
                      , caddi_raw                       --> shrink_capimm
                      , scbndsi_raw                     --> shrink_capimm
-                     , ctoptr_raw                      --> shrink_capcap
-                     , csub_raw                        --> shrink_capcap
 --                   , cspecialrw_raw                  --> noshrink
 --                   , cmv_raw                         --> noshrink
 --                   , jalr_cap_raw                       --> noshrink
@@ -505,9 +488,6 @@ rv32_xcheri_arithmetic src1 src2 imm dest =
   , scbnds              dest src1 src2
   , scbndsi             dest src1 0 imm
   , caddi               dest src1 imm
-  , ctoptr              dest src1 src2
-  , cfromptr            dest src1 src2
-  , csub                dest src1 src2
   , ctestsubset         dest src1 src2 ]
 
 -- | List of cheri miscellaneous instructions
@@ -522,7 +502,9 @@ rv32_xcheri_misc src1 src2 srcScr imm dest =
 -- | List of cheri control instructions
 rv32_xcheri_control :: Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_control src1 src2 dest = [ jalr_cap dest src1
-                                     , cinvoke  src2 src1 ]
+                                     , cinvoke  src2 src1
+                                     , modeswcap
+                                     , modeswint]
 
 -- | List of cheri memory instructions
 rv32_xcheri_mem :: ArchDesc -> Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
