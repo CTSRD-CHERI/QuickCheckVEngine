@@ -212,8 +212,7 @@ prop connA m_connB alive onFail arch delay verbosity saveDir ignoreAsserts stric
         -- We don't want to shrink once one of the implementations has died,
         -- so always return that the property is true
         onSubsequentDeaths _ = do
-          putStrLn "Warning: reporting success since implementations not running"
-          return $ property True
+          return $ property Discard
 
 -- | Send a sequence of instructions ('[DII_Packet]') to the implementations
 --   running behind the two provided 'Sockets's and recieve their respective
