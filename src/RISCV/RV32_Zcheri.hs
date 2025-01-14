@@ -105,82 +105,82 @@ import RISCV.RV32_I
 import RISCV.ArchDesc
 
 -- Capability Inspection
-gcperm_raw               =                                        "0001000 00001 cs1[4:0] 000 rd[4:0] 0110011"
-gcperm rd cs1            = encode gcperm_raw                                   cs1          rd
-gctype_raw               =                                        "0001000 00010 cs1[4:0] 000 rd[4:0] 0110011"
-gctype rd cs1            = encode gctype_raw                                   cs1          rd
-gcbase_raw               =                                        "0001000 00101 cs1[4:0] 000 rd[4:0] 0110011"
-gcbase rd cs1            = encode gcbase_raw                                   cs1          rd
-gclen_raw                =                                        "0001000 00110 cs1[4:0] 000 rd[4:0] 0110011"
-gclen rd cs1             = encode gclen_raw                                    cs1          rd
-gctag_raw                =                                        "0001000 00000 cs1[4:0] 000 rd[4:0] 0110011"
-gctag rd cs1             = encode gctag_raw                                    cs1          rd
-gchigh_raw               =                                        "0001000 00100 cs1[4:0] 000 rd[4:0] 0110011"
-gchigh rd cs1            = encode gchigh_raw                                   cs1          rd
-gcmode_raw               =                                        "0001000 00011 cs1[4:0] 000 rd[4:0] 0110011"
-gcmode rd cs1            = encode gcmode_raw                                   cs1          rd
+gcperm_raw               =                              "0001000 00001 cs1[4:0] 000 rd[4:0] 0110011"
+gcperm rd cs1            = encode gcperm_raw                           cs1          rd
+gctype_raw               =                              "0001000 00010 cs1[4:0] 000 rd[4:0] 0110011"
+gctype rd cs1            = encode gctype_raw                           cs1          rd
+gcbase_raw               =                              "0001000 00101 cs1[4:0] 000 rd[4:0] 0110011"
+gcbase rd cs1            = encode gcbase_raw                           cs1          rd
+gclen_raw                =                              "0001000 00110 cs1[4:0] 000 rd[4:0] 0110011"
+gclen rd cs1             = encode gclen_raw                            cs1          rd
+gctag_raw                =                              "0001000 00000 cs1[4:0] 000 rd[4:0] 0110011"
+gctag rd cs1             = encode gctag_raw                            cs1          rd
+gchigh_raw               =                              "0001000 00100 cs1[4:0] 000 rd[4:0] 0110011"
+gchigh rd cs1            = encode gchigh_raw                           cs1          rd
+gcmode_raw               =                              "0001000 00011 cs1[4:0] 000 rd[4:0] 0110011"
+gcmode rd cs1            = encode gcmode_raw                           cs1          rd
 
 -- Capability Modification
-acperm_raw                 =                                        "0000110 rs2[4:0] cs1[4:0] 010 cd[4:0] 0110011"
-acperm cd cs1 rs2          = encode acperm_raw                               rs2      cs1          cd
-scmode_raw                 =                                        "0000110 rs2[4:0] cs1[4:0] 111 cd[4:0] 0110011"
-scmode cd cs1 rs2          = encode scmode_raw                               rs2      cs1          cd
-scaddr_raw                 =                                        "0000110 rs2[4:0] cs1[4:0] 001 cd[4:0] 0110011"
-scaddr cd cs1 rs2          = encode scaddr_raw                               rs2      cs1          cd
-schi_raw                   =                                        "0000110 rs2[4:0] cs1[4:0] 011 cd[4:0] 0110011"
-schi cd cs1 rs2            = encode schi_raw                                 rs2      cs1          cd
-cadd_raw                   =                                        "0000110 rs2[4:0] cs1[4:0] 000 cd[4:0] 0110011"
-cadd cd cs1 rs2            = encode cadd_raw                                 rs2      cs1          cd
-caddi_raw                  =                                        "imm[11:0] cs1[4:0] 010 cd[4:0] 0011011"
-caddi cd cs1 imm                   = encode caddi_raw                       imm        cs1          cd
-scbndsr_raw                =                                        "0001000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-scbndsr cd cs1 rs2         = encode scbndsr_raw                              rs2      cs1          cd
-scbnds_raw                 =                                        "0000111 rs2[4:0] cs1[4:0] 000 cd[4:0] 0110011"
-scbnds cd cs1 rs2          = encode scbnds_raw                      rs2      cs1          cd
-scbndsi_raw                =                                        "000001 s[0:0] imm[4:0] cs1[4:0] 101 cd[4:0] 0010011"
-scbndsi cd cs1 s imm       = encode scbndsi_raw                             s      imm      cs1          cd
-cbld_raw                   =                                        "0011101 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cbld cd cs1 cs2            = encode cbld_raw                                 cs2      cs1          cd
-sentry_raw                 =                                        "0001000 01000 cs1[4:0] 000 cd[4:0] 0110011"
-sentry cd cs1              = encode sentry_raw                                     cs1          cd
+acperm_raw                 =                            "0000110 rs2[4:0] cs1[4:0] 010 cd[4:0] 0110011"
+acperm cd cs1 rs2          = encode acperm_raw                   rs2      cs1          cd
+scmode_raw                 =                            "0000110 rs2[4:0] cs1[4:0] 111 cd[4:0] 0110011"
+scmode cd cs1 rs2          = encode scmode_raw                   rs2      cs1          cd
+scaddr_raw                 =                            "0000110 rs2[4:0] cs1[4:0] 001 cd[4:0] 0110011"
+scaddr cd cs1 rs2          = encode scaddr_raw                   rs2      cs1          cd
+schi_raw                   =                            "0000110 rs2[4:0] cs1[4:0] 011 cd[4:0] 0110011"
+schi cd cs1 rs2            = encode schi_raw                     rs2      cs1          cd
+cadd_raw                   =                            "0000110 rs2[4:0] cs1[4:0] 000 cd[4:0] 0110011"
+cadd cd cs1 rs2            = encode cadd_raw                     rs2      cs1          cd
+caddi_raw                  =                            "imm[11:0] cs1[4:0] 010 cd[4:0] 0011011"
+caddi cd cs1 imm           = encode caddi_raw            imm        cs1          cd
+scbndsr_raw                =                            "0001000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+scbndsr cd cs1 rs2         = encode scbndsr_raw                  rs2      cs1          cd
+scbnds_raw                 =                            "0000111 rs2[4:0] cs1[4:0] 000 cd[4:0] 0110011"
+scbnds cd cs1 rs2          = encode scbnds_raw                   rs2      cs1          cd
+scbndsi_raw                =                            "000001 s[0:0] imm[4:0] cs1[4:0] 101 cd[4:0] 0010011"
+scbndsi cd cs1 s imm       = encode scbndsi_raw                 s      imm      cs1          cd
+cbld_raw                   =                            "0011101 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cbld cd cs1 cs2            = encode cbld_raw                     cs2      cs1          cd
+sentry_raw                 =                            "0001000 01000 cs1[4:0] 000 cd[4:0] 0110011"
+sentry cd cs1              = encode sentry_raw                         cs1          cd
 
 
 -- Capability Pointer Arithmetic
-cmv_raw                    =                                        "0000110 00000 cs1[4:0] 000 cd[4:0] 0110011"
-cmv cd cs1                 = encode cmv_raw                                        cs1          cd
-cspecialrw_raw             =                                        "0000001 cSP[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cspecialrw cd cSP cs1      = encode cspecialrw_raw                           cSP      cs1          cd
+cmv_raw                    =                            "0000110 00000 cs1[4:0] 000 cd[4:0] 0110011"
+cmv cd cs1                 = encode cmv_raw                            cs1          cd
+cspecialrw_raw             =                            "0000001 cSP[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cspecialrw cd cSP cs1      = encode cspecialrw_raw               cSP      cs1          cd
 
 
 -- Control Flow
-modeswcap_raw                      =                                        "0001001 00000 00000 001 00000 0110011"
+modeswcap_raw                      =                     "0001001 00000 00000 001 00000 0110011"
 modeswcap                          = encode modeswcap_raw
-modeswint_raw                      =                                        "0001010 00000 00000 001 00000 0110011"
+modeswint_raw                      =                     "0001010 00000 00000 001 00000 0110011"
 modeswint                          = encode modeswint_raw
 
 -- Assertion
-scss_raw                           =                                        "0000110 cs2[4:0] cs1[4:0] 110 rd[4:0] 0110011"
-scss rd cs1 cs2                    = encode scss_raw                                 cs2      cs1          rd
+scss_raw                           =                     "0000110 cs2[4:0] cs1[4:0] 110 rd[4:0] 0110011"
+scss rd cs1 cs2                    = encode scss_raw              cs2      cs1          rd
 
 -- Adjusting to Compressed Capability Precision
-cram_raw    =                                                               "1111111 01001 rs1[4:0] 000 rd[4:0] 1011011"
-cram rd rs1 = encode cram_raw                                                              rs1          rd
+cram_raw    =                                            "0001000 00111 rs1[4:0] 000 rd[4:0] 0110011"
+cram rd rs1 = encode cram_raw                                           rs1          rd
 
 -- Memory -- Needs further refinement
-cload_raw                  =                                        "1111101 mop[4:0] cb[4:0] 000 cd[4:0] 1011011"
-cload cd cb mop            = encode cload_raw                                mop      cb          cd
-cstore_raw                 =                                        "1111100 rs2[4:0] cs1[4:0] 000 mop[4:0] 1011011"
-cstore rs2 cs1 mop         = encode cstore_raw                               rs2      cs1          mop
-lq_raw                     =                                        "imm[11:0] rs1[4:0] 010 cd[4:0] 0001111"
-lq cd rs1 imm              = encode lq_raw                           imm       rs1          cd
-sq_raw                     =                                        "imm[11:5] cs2[4:0] rs1[4:0] 100 imm[4:0] 0100011"
-sq rs1 cs2 imm             = encode sq_raw                           imm       cs2      rs1
-lr_q_raw                   =                                        "00010 aq[0] rl[0]    00000 rs1[4:0] 100 rd[4:0] 0101111"
-lr_q rd rs1 aq rl          = encode lr_q_raw                               aq    rl             rs1          rd
-sc_q_raw                   =                                        "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
-sc_q rd rs1 rs2 aq rl      = encode sc_q_raw                               aq    rl    rs2      rs1          rd
-amoswap_q_raw              =                                        "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
-amoswap_q rd rs1 rs2 aq rl = encode amoswap_q_raw                               aq    rl    rs2      rs1          rd
+cload_raw                  =                             "1111101 mop[4:0] cb[4:0] 000 cd[4:0] 1011011"
+cload cd cb mop            = encode cload_raw                     mop      cb          cd
+cstore_raw                 =                             "1111100 rs2[4:0] cs1[4:0] 000 mop[4:0] 1011011"
+cstore rs2 cs1 mop         = encode cstore_raw                    rs2      cs1          mop
+lq_raw                     =                             "imm[11:0] rs1[4:0] 010 cd[4:0] 0001111"
+lq cd rs1 imm              = encode lq_raw                imm       rs1          cd
+sq_raw                     =                             "imm[11:5] cs2[4:0] rs1[4:0] 100 imm[4:0] 0100011"
+sq rs1 cs2 imm             = encode sq_raw                imm       cs2      rs1
+lr_q_raw                   =                             "00010 aq[0] rl[0]    00000 rs1[4:0] 100 rd[4:0] 0101111"
+lr_q rd rs1 aq rl          = encode lr_q_raw                    aq    rl             rs1          rd
+sc_q_raw                   =                             "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
+sc_q rd rs1 rs2 aq rl      = encode sc_q_raw                    aq    rl    rs2      rs1          rd
+amoswap_q_raw              =                             "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
+amoswap_q rd rs1 rs2 aq rl = encode amoswap_q_raw               aq    rl    rs2      rs1          rd
 
 -- | Pretty-print a capability load instruction
 prettyCLoad :: Integer -> Integer -> Integer -> String
