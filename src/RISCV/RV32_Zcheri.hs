@@ -74,16 +74,10 @@ module RISCV.RV32_Zcheri (
 , cbld
 , sentry
 , cmv
-, jalr_cap
-, cinvoke
 , modeswcap
 , modeswint
 , ctestsubset
 , cspecialrw
-, clear
-, cclear
-, fpclear
-, croundrepresentablelength
 , crepresentablealignmentmask
 , cload
 , cstore
@@ -159,10 +153,6 @@ cspecialrw cd cSP cs1              = encode cspecialrw_raw                      
 
 
 -- Control Flow
-jalr_cap_raw                       =                                        "1111111 01100 cs1[4:0] 000 cd[4:0] 1011011"
-jalr_cap cd cs1                    = encode jalr_cap_raw                                      cs1          cd
-cinvoke_raw                        =                                        "1111110 cs2[4:0] cs1[4:0] 000 00001 1011011"
-cinvoke cs2 cs1                    = encode cinvoke_raw                              cs2      cs1
 modeswcap_raw                      =                                        "0001001 00000 00000 001 00000 0110011"
 modeswcap                          = encode modeswcap_raw
 modeswint_raw                      =                                        "0001010 00000 00000 001 00000 0110011"
@@ -172,17 +162,7 @@ modeswint                          = encode modeswint_raw
 ctestsubset_raw                    =                                        "0100000 cs2[4:0] cs1[4:0] 000 rd[4:0] 1011011"
 ctestsubset rd cs1 cs2             = encode ctestsubset_raw                          cs2      cs1          rd
 
--- Register Clearing
-clear_raw                          =                                        "1111111 01101 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
-clear q imm                        = encode clear_raw                                      q      imm
-cclear_raw                         =                                        "1111111 01110 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
-cclear q imm                       = encode cclear_raw                                     q      imm
-fpclear_raw                        =                                        "1111111 10000 q[1:0] imm[7:5] 000 imm[4:0] 1011011"
-fpclear q imm                      = encode fpclear_raw                                    q      imm
-
 -- Adjusting to Compressed Capability Precision
-croundrepresentablelength_raw      =                                        "1111111 01000 rs1[4:0] 000 rd[4:0] 1011011"
-croundrepresentablelength rd rs1   = encode croundrepresentablelength_raw                  rs1          rd
 crepresentablealignmentmask_raw    =                                        "1111111 01001 rs1[4:0] 000 rd[4:0] 1011011"
 crepresentablealignmentmask rd rs1 = encode crepresentablealignmentmask_raw                rs1          rd
 
@@ -266,9 +246,6 @@ prettyCStore rs2 rs1 mop =
                               0x1c -> "sc.q.cap" -- TODO only valid in rv64
                               _ -> "INVALID"
 
--- | Pretty-print a register clear instruction
-pretty_reg_clear instr imm qt = concat [instr, " ", int qt, ", ", int imm]
-
 -- | Pretty-print a 2 sources instruction
 pretty_2src instr src2 src1 = concat [instr, " ", reg src1, ", ", reg src2]
 
@@ -319,15 +296,9 @@ rv32_xcheri_disass = [ gcperm_raw                      --> prettyR_2op "gcperm"
                      , scbndsi_raw                     --> pretty_scbndsi "scbndsi"
                      , cspecialrw_raw                  --> pretty_cspecialrw "cspecialrw"
                      , cmv_raw                         --> prettyR_2op "cmv"
-                     , jalr_cap_raw                       --> prettyR_2op "jalr_cap"
-                     , cinvoke_raw                     --> pretty_2src "cinvoke"
                      , modeswcap_raw                   --> "modesw.cap"
                      , modeswint_raw                   --> "modesw.int"
                      , ctestsubset_raw                 --> prettyR "ctestsubset"
-                     , clear_raw                       --> pretty_reg_clear "clear"
-                     , cclear_raw                      --> pretty_reg_clear "cclear"
-                     , fpclear_raw                     --> pretty_reg_clear "fpclear"
-                     , croundrepresentablelength_raw   --> prettyR_2op "croundrepresentablelength"
                      , crepresentablealignmentmask_raw --> prettyR_2op "crepresentablealignmentmask"
                      , cload_raw                       --> prettyCLoad
                      , cstore_raw                      --> prettyCStore
@@ -342,9 +313,6 @@ extract_cspecialrw idx rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> en
 
 extract_cmv :: Integer -> Integer -> ExtractedRegs
 extract_cmv rs1 rd = (True, Nothing, Just rs1, Just rd, \x y z -> encode cmv_raw y z)
-
-extract_cinvoke :: Integer -> Integer -> ExtractedRegs
-extract_cinvoke rs2 rs1 = (False, Just rs2, Just rs1, Just 31, \x y z -> encode cinvoke_raw x y)
 
 extract_cstore :: Integer -> Integer -> Integer -> ExtractedRegs
 extract_cstore rs2 rs1 mop = (False, Just rs2, Just rs1, Nothing, \x y z -> encode cstore_raw x y mop)
@@ -369,10 +337,6 @@ rv32_xcheri_extract = [ gcperm_raw                      --> extract_1op gcperm_r
                       , scbndsi_raw                     --> extract_imm scbndsi_raw
                       , cspecialrw_raw                  --> extract_cspecialrw
                       , cmv_raw                         --> extract_cmv
-                      , jalr_cap_raw                       --> extract_1op jalr_cap_raw
-                      , cinvoke_raw                     --> extract_cinvoke
-                      , ctestsubset_raw                 --> extract_2op ctestsubset_raw
-                      , croundrepresentablelength_raw   --> extract_1op croundrepresentablelength_raw
                       , crepresentablealignmentmask_raw --> extract_1op crepresentablealignmentmask_raw
                       , cload_raw                       --> extract_imm cload_raw
                       , cstore_raw                      --> extract_cstore
@@ -423,9 +387,6 @@ shrink_capint rs cs cd = shrink_cap cs cd
 shrink_capimm :: Integer -> Integer -> Integer -> [Instruction]
 shrink_capimm imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
 
-shrink_cinvoke :: Integer -> Integer -> [Instruction]
-shrink_cinvoke cs2 cs1 = shrink_capcap cs2 cs1 31
-
 shrink_ctestsubset cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
 
 shrink_cload :: Integer -> Integer -> Integer -> [Instruction]
@@ -454,10 +415,7 @@ rv32_xcheri_shrink = [ gcperm_raw                      --> shrink_gcperm
                      , scbndsi_raw                     --> shrink_capimm
 --                   , cspecialrw_raw                  --> noshrink
 --                   , cmv_raw                         --> noshrink
---                   , jalr_cap_raw                       --> noshrink
-                     , cinvoke_raw                     --> shrink_cinvoke
                      , ctestsubset_raw                 --> shrink_ctestsubset
---                   , croundrepresentablelength_raw   --> noshrink
 --                   , crepresentablealignmentmask_raw --> noshrink
                      , cload_raw                       --> shrink_cload
                      , cstore_raw                      --> shrink_cstore
@@ -475,7 +433,6 @@ rv32_xcheri_inspection src dest = [ gcperm                      dest src
                                   , gctag                       dest src
                                   , gchigh                      dest src
                                   , gcmode                      dest src
-                                  , croundrepresentablelength   dest src
                                   , crepresentablealignmentmask dest src]
 
 -- | List of cheri arithmetic instructions
@@ -501,9 +458,7 @@ rv32_xcheri_misc src1 src2 srcScr imm dest =
 
 -- | List of cheri control instructions
 rv32_xcheri_control :: Integer -> Integer -> Integer -> [Instruction]
-rv32_xcheri_control src1 src2 dest = [ jalr_cap dest src1
-                                     , cinvoke  src2 src1
-                                     , modeswcap
+rv32_xcheri_control src1 src2 dest = [ modeswcap
                                      , modeswint]
 
 -- | List of cheri memory instructions

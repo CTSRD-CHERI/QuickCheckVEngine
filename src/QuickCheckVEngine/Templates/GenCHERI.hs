@@ -34,8 +34,6 @@
 
 module QuickCheckVEngine.Templates.GenCHERI (
   capDecodeTest,
-  gen_simple_cclear,
-  gen_simple_fpclear,
   randomCHERITest,
   randomCHERIRVCTest
 ) where
@@ -117,7 +115,6 @@ genRandomCHERITest = readParams $ \param -> random $ do
                 , (5, csrr dest srcCsrRO)
                 , (10, switchEncodingMode)
                 , (10, cspecialRWChain)
-                , (10, randomCInvoke srcAddr srcData tmpReg tmpReg2)
                 , (10, makeShortCap)
                 , (5, clearASR tmpReg tmpReg2)
                 , (5, boundPCC tmpReg tmpReg2 imm longImm)
@@ -132,28 +129,6 @@ randomCHERIRVCTest = random $ do
                    , uniform [inst $ MkInstruction rvcInst, gen_rv_c]
                    , repeatN 5 genCHERIinspection
                    ]
-
-gen_simple_cclear :: Template
-gen_simple_cclear = random $ do
-  mask <- bits 8
-  quarter <- bits 2
-  imm  <- bits 12
-  src1 <- src
-  src2 <- src
-  dest <- dest
-  return $ dist [ (4, prepReg64 dest)
-                , (8, gen_rv32_i_arithmetic)
-                , (8, instUniform $ rv64_i_arith src1 src2 dest imm)
-                , (2, inst $ cclear quarter mask)
-                ]
-
-gen_simple_fpclear :: Template
-gen_simple_fpclear = random $ do
-  mask <- bits 8
-  quarter <- bits 2
-  return $ dist [ (8, gen_rv64_fd)
-                , (2, inst $ fpclear quarter mask)
-                ]
 
 randomCHERITest :: Template
 randomCHERITest = fp_prologue $ repeatTillEnd genRandomCHERITest
