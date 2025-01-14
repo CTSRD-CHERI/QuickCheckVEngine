@@ -79,12 +79,14 @@ module RISCV.RV32_Zcheri (
 , scss
 , cspecialrw
 , cram
-, cload
-, cstore
-, lq
-, sq
-, lr_q
-, sc_q
+, lc
+, sc
+, lr_b
+, sc_b
+, lr_h
+, sc_h
+, lr_c
+, sc_c
 , amoswap_q
 -- * RISC-V CHERI, others
 , rv32_xcheri_disass
@@ -153,98 +155,38 @@ cspecialrw cd cSP cs1      = encode cspecialrw_raw               cSP      cs1   
 
 
 -- Control Flow
-modeswcap_raw                      =                     "0001001 00000 00000 001 00000 0110011"
-modeswcap                          = encode modeswcap_raw
-modeswint_raw                      =                     "0001010 00000 00000 001 00000 0110011"
-modeswint                          = encode modeswint_raw
+modeswcap_raw              =                            "0001001 00000 00000 001 00000 0110011"
+modeswcap                  = encode modeswcap_raw
+modeswint_raw              =                            "0001010 00000 00000 001 00000 0110011"
+modeswint                  = encode modeswint_raw
 
 -- Assertion
-scss_raw                           =                     "0000110 cs2[4:0] cs1[4:0] 110 rd[4:0] 0110011"
-scss rd cs1 cs2                    = encode scss_raw              cs2      cs1          rd
+scss_raw                   =                            "0000110 cs2[4:0] cs1[4:0] 110 rd[4:0] 0110011"
+scss rd cs1 cs2            = encode scss_raw                     cs2      cs1          rd
 
 -- Adjusting to Compressed Capability Precision
-cram_raw    =                                            "0001000 00111 rs1[4:0] 000 rd[4:0] 0110011"
-cram rd rs1 = encode cram_raw                                           rs1          rd
+cram_raw    =                                           "0001000 00111 rs1[4:0] 000 rd[4:0] 0110011"
+cram rd rs1 = encode cram_raw                                          rs1          rd
 
 -- Memory -- Needs further refinement
-cload_raw                  =                             "1111101 mop[4:0] cb[4:0] 000 cd[4:0] 1011011"
-cload cd cb mop            = encode cload_raw                     mop      cb          cd
-cstore_raw                 =                             "1111100 rs2[4:0] cs1[4:0] 000 mop[4:0] 1011011"
-cstore rs2 cs1 mop         = encode cstore_raw                    rs2      cs1          mop
-lq_raw                     =                             "imm[11:0] rs1[4:0] 010 cd[4:0] 0001111"
-lq cd rs1 imm              = encode lq_raw                imm       rs1          cd
-sq_raw                     =                             "imm[11:5] cs2[4:0] rs1[4:0] 100 imm[4:0] 0100011"
-sq rs1 cs2 imm             = encode sq_raw                imm       cs2      rs1
-lr_q_raw                   =                             "00010 aq[0] rl[0]    00000 rs1[4:0] 100 rd[4:0] 0101111"
-lr_q rd rs1 aq rl          = encode lr_q_raw                    aq    rl             rs1          rd
-sc_q_raw                   =                             "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
-sc_q rd rs1 rs2 aq rl      = encode sc_q_raw                    aq    rl    rs2      rs1          rd
+lc_raw                     =                             "imm[11:0] rs1[4:0] 100 cd[4:0] 0001111"
+lc cd rs1 imm              = encode lc_raw                imm       rs1          cd
+sc_raw                     =                             "imm[11:5] cs2[4:0] rs1[4:0] 100 imm[4:0] 0100011"
+sc rs1 cs2 imm             = encode sc_raw                imm       cs2      rs1
+lr_b_raw                   =                             "00010 aq[0] rl[0]    00000 rs1[4:0] 000 rd[4:0] 0101111"
+lr_b rd rs1 aq rl          = encode lr_b_raw                    aq    rl             rs1          rd
+sc_b_raw                   =                             "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 000 rd[4:0] 0101111"
+sc_b rd rs1 rs2 aq rl      = encode sc_h_raw                    aq    rl    rs2      rs1          rd
+lr_h_raw                   =                             "00010 aq[0] rl[0]    00000 rs1[4:0] 001 rd[4:0] 0101111"
+lr_h rd rs1 aq rl          = encode lr_b_raw                    aq    rl             rs1          rd
+sc_h_raw                   =                             "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 001 rd[4:0] 0101111"
+sc_h rd rs1 rs2 aq rl      = encode sc_h_raw                    aq    rl    rs2      rs1          rd
+lr_c_raw                   =                             "00010 aq[0] rl[0]    00000 rs1[4:0] 100 rd[4:0] 0101111"
+lr_c rd rs1 aq rl          = encode lr_c_raw                    aq    rl             rs1          rd
+sc_c_raw                   =                             "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
+sc_c rd rs1 rs2 aq rl      = encode sc_c_raw                    aq    rl    rs2      rs1          rd
 amoswap_q_raw              =                             "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
 amoswap_q rd rs1 rs2 aq rl = encode amoswap_q_raw               aq    rl    rs2      rs1          rd
-
--- | Pretty-print a capability load instruction
-prettyCLoad :: Integer -> Integer -> Integer -> String
-prettyCLoad mop rs1 rd =
-  concat [instr, " ", reg rd, ", ", reg rs1, "[0]"]
-    where instr = case mop of 0x00 -> "lb.ddc"
-                              0x01 -> "lh.ddc"
-                              0x02 -> "lw.ddc"
-                              0x03 -> "ld.ddc"
-                              0x04 -> "lbu.ddc"
-                              0x05 -> "lhu.ddc"
-                              0x06 -> "lwu.ddc"
-                              0x07 -> "ldu.ddc"  -- TODO clarify meaning...
-                              0x08 -> "lb.cap"
-                              0x09 -> "lh.cap"
-                              0x0a -> "lw.cap"
-                              0x0b -> "ld.cap"
-                              0x0c -> "lbu.cap"
-                              0x0d -> "lhu.cap"
-                              0x0e -> "lwu.cap"
-                              0x0f -> "ldu.cap"  -- TODO clarify meaning...
-                              0x10 -> "lr.b.ddc"
-                              0x11 -> "lr.h.ddc"
-                              0x12 -> "lr.w.ddc"
-                              0x13 -> "lr.d.ddc"
-                              0x14 -> "lr.q.ddc" -- TODO only valid in rv64
-                              0x15 -> "INVALID"
-                              0x16 -> "INVALID"
-                              0x17 -> "lq.ddc"   -- TODO only valid in rv64
-                              0x18 -> "lr.b.cap"
-                              0x19 -> "lr.h.cap"
-                              0x1a -> "lr.w.cap"
-                              0x1b -> "lr.d.cap"
-                              0x1c -> "lr.q.cap" -- TODO only valid in rv64
-                              0x1d -> "INVALID"
-                              0x1e -> "INVALID"
-                              0x1f -> "lq.cap"   -- TODO only valid in rv64
-                              _    -> "INVALID"
-
--- | Pretty-print a capability store instruction
-prettyCStore :: Integer -> Integer -> Integer -> String
-prettyCStore rs2 rs1 mop =
-  concat [instr, " ", reg rs2, ", ", reg rs1, "[0]"]
-    where instr = case mop of 0x00 -> "sb.ddc"
-                              0x01 -> "sh.ddc"
-                              0x02 -> "sw.ddc"
-                              0x03 -> "sd.ddc"
-                              0x04 -> "sq.ddc"   -- TODO only valid in rv64
-                              0x08 -> "sb.cap"
-                              0x09 -> "sh.cap"
-                              0x0a -> "sw.cap"
-                              0x0b -> "sd.cap"
-                              0x0c -> "sq.cap"   -- TODO only valid in rv64
-                              0x10 -> "sc.b.ddc"
-                              0x11 -> "sc.h.ddc"
-                              0x12 -> "sc.w.ddc"
-                              0x13 -> "sc.d.ddc"
-                              0x14 -> "sc.q.ddc" -- TODO only valid in rv64
-                              0x18 -> "sc.b.cap"
-                              0x19 -> "sc.h.cap"
-                              0x1a -> "sc.w.cap"
-                              0x1b -> "sc.d.cap"
-                              0x1c -> "sc.q.cap" -- TODO only valid in rv64
-                              _ -> "INVALID"
 
 -- | Pretty-print a 2 sources instruction
 pretty_2src instr src2 src1 = concat [instr, " ", reg src1, ", ", reg src2]
@@ -277,45 +219,44 @@ pretty_scbndsi instr s imm cs1 cd =
 
 -- | Dissassembly of CHERI instructions
 rv32_xcheri_disass :: [DecodeBranch String]
-rv32_xcheri_disass = [ gcperm_raw                      --> prettyR_2op "gcperm"
-                     , gctype_raw                      --> prettyR_2op "gctype"
-                     , gcbase_raw                      --> prettyR_2op "gcbase"
-                     , gclen_raw                       --> prettyR_2op "gclen"
-                     , gctag_raw                       --> prettyR_2op "gctag"
-                     , gchigh_raw                      --> prettyR_2op "gchigh"
-                     , gcmode_raw                      --> prettyR_2op "gcmode"
-                     , acperm_raw                      --> prettyR "acperm"
-                     , scaddr_raw                      --> prettyR "csetaddr"
-                     , schi_raw                        --> prettyR "schi"
-                     , cadd_raw                        --> prettyR "cadd"
-                     , scbndsr_raw                     --> prettyR "scbndsr"
-                     , scbnds_raw                      --> prettyR "scbnds"
-                     , cbld_raw                        --> prettyR "cbld"
-                     , sentry_raw                      --> prettyR_2op "sentry"
-                     , caddi_raw                       --> prettyI "caddi"
-                     , scbndsi_raw                     --> pretty_scbndsi "scbndsi"
-                     , cspecialrw_raw                  --> pretty_cspecialrw "cspecialrw"
-                     , cmv_raw                         --> prettyR_2op "cmv"
-                     , modeswcap_raw                   --> "modesw.cap"
-                     , modeswint_raw                   --> "modesw.int"
-                     , scss_raw                        --> prettyR "scss"
-                     , cram_raw                        --> prettyR_2op "cram"
-                     , cload_raw                       --> prettyCLoad
-                     , cstore_raw                      --> prettyCStore
-                     , scmode_raw                      --> prettyR "scmode"
-                     , sq_raw                          --> prettyS "sq"
-                     , lq_raw                          --> prettyL "lq"
-                     , lr_q_raw                        --> prettyR_A_1op "lr.q"
-                     , sc_q_raw                        --> prettyR_A "sc.q" ]
+rv32_xcheri_disass = [ gcperm_raw     --> prettyR_2op "gcperm"
+                     , gctype_raw     --> prettyR_2op "gctype"
+                     , gcbase_raw     --> prettyR_2op "gcbase"
+                     , gclen_raw      --> prettyR_2op "gclen"
+                     , gctag_raw      --> prettyR_2op "gctag"
+                     , gchigh_raw     --> prettyR_2op "gchigh"
+                     , gcmode_raw     --> prettyR_2op "gcmode"
+                     , acperm_raw     --> prettyR "acperm"
+                     , scaddr_raw     --> prettyR "csetaddr"
+                     , schi_raw       --> prettyR "schi"
+                     , cadd_raw       --> prettyR "cadd"
+                     , scbndsr_raw    --> prettyR "scbndsr"
+                     , scbnds_raw     --> prettyR "scbnds"
+                     , cbld_raw       --> prettyR "cbld"
+                     , sentry_raw     --> prettyR_2op "sentry"
+                     , caddi_raw      --> prettyI "caddi"
+                     , scbndsi_raw    --> pretty_scbndsi "scbndsi"
+                     , cspecialrw_raw --> pretty_cspecialrw "cspecialrw"
+                     , cmv_raw        --> prettyR_2op "cmv"
+                     , modeswcap_raw  --> "modesw.cap"
+                     , modeswint_raw  --> "modesw.int"
+                     , scss_raw       --> prettyR "scss"
+                     , cram_raw       --> prettyR_2op "cram"
+                     , scmode_raw     --> prettyR "scmode"
+                     , sc_raw         --> prettyS "sc"
+                     , lc_raw         --> prettyL "lc"
+                     , lr_b_raw       --> prettyR_A_1op "lr.b"
+                     , sc_b_raw       --> prettyR_A "sc.b"
+                     , lr_h_raw       --> prettyR_A_1op "lr.h"
+                     , sc_h_raw       --> prettyR_A "sc.h"
+                     , lr_c_raw       --> prettyR_A_1op "lr.c"
+                     , sc_c_raw       --> prettyR_A "sc.c" ]
 
 extract_cspecialrw :: Integer -> Integer -> Integer -> ExtractedRegs
 extract_cspecialrw idx rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode cspecialrw_raw idx y z)
 
 extract_cmv :: Integer -> Integer -> ExtractedRegs
 extract_cmv rs1 rd = (True, Nothing, Just rs1, Just rd, \x y z -> encode cmv_raw y z)
-
-extract_cstore :: Integer -> Integer -> Integer -> ExtractedRegs
-extract_cstore rs2 rs1 mop = (False, Just rs2, Just rs1, Nothing, \x y z -> encode cstore_raw x y mop)
 
 rv32_xcheri_extract :: [DecodeBranch ExtractedRegs]
 rv32_xcheri_extract = [ gcperm_raw      --> extract_1op gcperm_raw
@@ -338,11 +279,9 @@ rv32_xcheri_extract = [ gcperm_raw      --> extract_1op gcperm_raw
                       , cspecialrw_raw  --> extract_cspecialrw
                       , cmv_raw         --> extract_cmv
                       , cram_raw        --> extract_1op cram_raw
-                      , cload_raw       --> extract_imm cload_raw
-                      , cstore_raw      --> extract_cstore
                       , scmode_raw      --> extract_2op scmode_raw
-                      , sq_raw          --> extract_nodst sq_raw
-                      , lq_raw          --> extract_imm lq_raw
+                      , sc_raw          --> extract_nodst sc_raw
+                      , lc_raw          --> extract_imm lc_raw
                       ]
 
 shrink_gcperm :: Integer -> Integer -> [Instruction]
@@ -389,12 +328,6 @@ shrink_capimm imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
 
 shrink_scss cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
 
-shrink_cload :: Integer -> Integer -> Integer -> [Instruction]
-shrink_cload cb cd mop = [addi 0 0 0];
-
-shrink_cstore :: Integer -> Integer -> Integer -> [Instruction]
-shrink_cstore rs2 cs1 mop = [addi 0 0 0];
-
 rv32_xcheri_shrink :: [DecodeBranch [Instruction]]
 rv32_xcheri_shrink = [ gcperm_raw       --> shrink_gcperm
                      , gctype_raw       --> shrink_gctype
@@ -417,11 +350,9 @@ rv32_xcheri_shrink = [ gcperm_raw       --> shrink_gcperm
 --                   , cmv_raw          --> noshrink
                      , scss_raw         --> shrink_scss
 --                   , cram_raw         --> noshrink
-                     , cload_raw        --> shrink_cload
-                     , cstore_raw       --> shrink_cstore
                      , scmode_raw       --> shrink_capcap
---                   , sq_raw           --> noshrink
---                   , lq_raw           --> noshrink
+--                   , sc_raw           --> noshrink
+--                   , lc_raw           --> noshrink
                      ]
 
 -- | List of cheri inspection instructions
@@ -462,48 +393,30 @@ rv32_xcheri_control src1 src2 dest = [ modeswcap
                                      , modeswint]
 
 -- | List of cheri memory instructions
-rv32_xcheri_mem :: ArchDesc -> Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
-rv32_xcheri_mem    arch srcAddr srcData imm mop dest =
-  [ cload  dest    srcAddr         mop
-  , cstore         srcData srcAddr mop
-  --, ld     dest srcAddr dest        imm
-  --, sd          srcAddr srcData     imm
-  --, lq     dest srcAddr dest        imm
-  --, sq          srcAddr srcData     imm
+rv32_xcheri_mem :: ArchDesc -> Integer -> Integer -> Integer -> Integer -> [Instruction]
+rv32_xcheri_mem    arch srcAddr srcData imm dest =
+  [ lc dest srcAddr         imm
+  , sc      srcAddr srcData imm
   ]
-  ++ [cload dest srcAddr mop
-  ,   gctag dest dest]
+  ++ [ lc    dest srcAddr      imm
+  ,    gctag dest dest ]
 
 -- | List of cheri memory instructions
-rv32_a_xcheri :: Integer -> Integer -> Integer -> [Instruction]
-rv32_a_xcheri      srcAddr srcData dest =
-  [ cload  dest    srcAddr         0x10 -- lr.b.ddc
-  , cload  dest    srcAddr         0x11 -- lr.h.ddc
-  , cload  dest    srcAddr         0x12 -- lr.w.ddc
-  , cload  dest    srcAddr         0x13 -- lr.d.ddc
-  , cload  dest    srcAddr         0x14 -- lr.q.ddc
-  , cload  dest    srcAddr         0x18 -- lr.b.cap
-  , cload  dest    srcAddr         0x19 -- lr.h.cap
-  , cload  dest    srcAddr         0x1a -- lr.w.cap
-  , cload  dest    srcAddr         0x1b -- lr.d.cap
-  , cload  dest    srcAddr         0x1c -- lr.q.cap
-  , cstore         srcData srcAddr 0x10 -- sc.b.ddc
-  , cstore         srcData srcAddr 0x11 -- sc.h.ddc
-  , cstore         srcData srcAddr 0x12 -- sc.w.ddc
-  , cstore         srcData srcAddr 0x13 -- sc.d.ddc
-  , cstore         srcData srcAddr 0x14 -- sc.q.ddc
-  , cstore         srcData srcAddr 0x18 -- sc.b.cap
-  , cstore         srcData srcAddr 0x19 -- sc.h.cap
-  , cstore         srcData srcAddr 0x1a -- sc.w.cap
-  , cstore         srcData srcAddr 0x1b -- sc.d.cap
-  , cstore         srcData srcAddr 0x1c -- sc.q.cap
+rv32_a_xcheri :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
+rv32_a_xcheri      srcAddr srcData dest aq rl =
+  [ lr_b dest srcAddr aq rl
+  , sc_b dest srcAddr srcData aq rl
+  , lr_h dest srcAddr aq rl
+  , sc_h dest srcAddr srcData aq rl
+  , lr_c dest srcAddr aq rl
+  , sc_c dest srcAddr srcData aq rl
   ]
 
 -- | List of cheri instructions
-rv32_xcheri :: ArchDesc -> Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
-rv32_xcheri arch src1 src2 srcScr imm mop dest =
+rv32_xcheri :: ArchDesc -> Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
+rv32_xcheri arch src1 src2 srcScr imm dest =
      rv32_xcheri_inspection src1 dest
   ++ rv32_xcheri_arithmetic src1 src2 imm dest
   ++ rv32_xcheri_misc src1 src2 srcScr imm dest
   ++ rv32_xcheri_control src1 src2 dest
-  ++ rv32_xcheri_mem arch src1 src2 imm mop dest
+  ++ rv32_xcheri_mem arch src1 src2 imm dest

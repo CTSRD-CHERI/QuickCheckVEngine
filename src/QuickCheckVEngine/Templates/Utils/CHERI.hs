@@ -109,7 +109,7 @@ legalCapLoad addrReg targetReg = random $ do
                    , lui tmpReg 0x40004
                    , slli tmpReg tmpReg 1
                    , add addrReg tmpReg addrReg
-                   , cload targetReg addrReg 0x17 ]
+                   , lc targetReg addrReg 0 ]
 
 legalCapStore :: Integer -> Template
 legalCapStore addrReg = random $ do
@@ -119,13 +119,13 @@ legalCapStore addrReg = random $ do
                    , lui tmpReg 0x40004
                    , slli tmpReg tmpReg 1
                    , add addrReg tmpReg addrReg
-                   , cstore dataReg addrReg 0x4 ]
+                   , sc dataReg addrReg 0 ]
 
 loadRegion ::  Integer -> Integer -> Integer -> Integer -> Template -> Template
 loadRegion numLines capReg cacheLSize tmpReg insts =
    if numLines == 0 then insts
-   else if numLines == 1 then mconcat [insts, inst (cload tmpReg capReg 0x0)]
-   else loadRegion (numLines - 1) capReg cacheLSize tmpReg (mconcat [insts, inst (cload tmpReg capReg 0x0), inst (caddi capReg capReg cacheLSize)])
+   else if numLines == 1 then mconcat [insts, inst (lc tmpReg capReg 0)]
+   else loadRegion (numLines - 1) capReg cacheLSize tmpReg (mconcat [insts, inst (lc tmpReg capReg 0), inst (caddi capReg capReg cacheLSize)])
 
 switchEncodingMode :: Template
 switchEncodingMode = random $ do

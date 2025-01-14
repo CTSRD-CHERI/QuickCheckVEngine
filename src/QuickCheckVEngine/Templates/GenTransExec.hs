@@ -88,7 +88,7 @@ genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
                      , instUniform $ rv32_xcheri_inspection src1 dest
                      , inst $ modeswcap
                      , inst $ jalr src2 src1 0
-                     , inst $ cload tmpReg tmpReg 0x08
+                     , inst $ lc tmpReg tmpReg 0
                      ])
 
 
@@ -117,7 +117,7 @@ genBSC_Cond_1_Torture = random $ do
                    , instUniform $ rv64_i_mem addrReg srcData dest imm
                    , instUniform $ rv32_i_mem addrReg srcData dest imm fenceOp1 fenceOp2
                    , inst $ jal zeroReg longImm
-                   , readParams $ \p -> instUniform $ rv32_xcheri_mem (archDesc p) capsrc1 capsrc2 imm 0xb tmpReg
+                   , readParams $ \p -> instUniform $ rv32_xcheri_mem (archDesc p) capsrc1 capsrc2 imm tmpReg
                    ]
 
 genBSC_Jumps_Torture :: Template
@@ -161,7 +161,7 @@ genBSC_Excps_Torture tmpReg = random $ do
                    , instUniform $ rv32_i_mem src1 src2 dest imm fenceOp1 fenceOp2
                    , instUniform $ rv32_i_exc
                    , instUniform $ rv32_i_ctrl src1 src2 dest imm longImm
-                   , readParams $ \p -> instUniform $ rv32_xcheri_mem (archDesc p) src1 src2 imm 0xb tmpReg
+                   , readParams $ \p -> instUniform $ rv32_xcheri_mem (archDesc p) src1 src2 imm tmpReg
                    , instUniform $ rv32_xcheri_arithmetic src1 src2 imm dest
                    , instUniform $ rv32_xcheri_inspection src1 dest
                    , instUniform $ rv32_xcheri_misc src1 src2 srcSCr imm dest
@@ -333,7 +333,7 @@ genCSCInst memReg reg0 reg1 reg2 = random $ do
   let czero = 0
   return $ instDist [ (1, jalr czero reg0 0)
                     , (2, add 29 29 29)
-                    , (1, cload reg1 reg2 0x8)
+                    , (1, lc reg1 reg2 0x0)
                     , (1, auipc reg2 0)
                     , (1, modeswcap)
                     ]
@@ -372,22 +372,22 @@ gen_csc_inst_verify = random $ do
                        , makeCap_core memReg authReg2 tmpReg 0x80007000
                        , makeCap_core memReg2 authReg2 tmpReg 0x80007100
                        , inst $ cmv startReg jumpReg
-                       , inst $ cstore jumpReg memReg 0x0c
+                       , inst $ sc jumpReg memReg 0
                        , inst $ caddi tmpReg jumpReg 0x100
                        , inst $ cbld tmpReg 0 tmpReg -- clear tag
-                       , inst $ cstore tmpReg memReg2 0x0c
-                       , inst $ cload tmpReg memReg2 0x1f
+                       , inst $ sc tmpReg memReg2 0
+                       , inst $ lc tmpReg memReg2 0
                        , startSeq
                        , trainSeq
-                       , inst $ cload tmpReg jumpReg 0x8
+                       , inst $ lc tmpReg jumpReg 0x0
                        , inst $ caddi tmpReg jumpReg 0x40
-                       , inst $ cload tmpReg tmpReg 0x8
+                       , inst $ lc tmpReg tmpReg 0x0
                        , inst $ caddi tmpReg jumpReg 0x80
-                       , inst $ cload tmpReg tmpReg 0x8
+                       , inst $ lc tmpReg tmpReg 0x0
                        , inst $ caddi tmpReg jumpReg 0xc0
-                       , inst $ cload tmpReg tmpReg 0x8
+                       , inst $ lc tmpReg tmpReg 0x0
                        , inst $ caddi tmpReg jumpReg 0x100
-                       , inst $ cload tmpReg tmpReg 0x8
+                       , inst $ lc tmpReg tmpReg 0x0
                        , inst $ add pccReg zeroReg zeroReg
                        , inst $ cmv jumpReg startReg
                        -- zero out all sbcRegs

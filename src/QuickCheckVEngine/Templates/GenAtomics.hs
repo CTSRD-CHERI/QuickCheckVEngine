@@ -61,7 +61,7 @@ genAtomics has_xlen_64 has_cap = random $ do
   dest <- dest
   let insts = rv32_a src1 src2 dest aq rl
               ++ if has_xlen_64 then rv64_a src1 src2 dest aq rl else []
-              ++ if has_cap then rv32_a_xcheri src1 src2 dest else []
+              ++ if has_cap then rv32_a_xcheri src1 src2 dest aq rl else []
   return $ instUniform insts
 
 gen_cheri_a :: Template
@@ -73,9 +73,9 @@ gen_cheri_a = random $ do
                          <>
                          mconcat [ switchEncodingMode
                                  , noShrink . inst $ fence_i -- fence
-                                 --, inst $ cload dataReg addrReg 0x14 -- lr.q.ddc
-                                 --, inst $ cstore dataReg addrReg 0x14 -- sc.q.ddc
-                                 , inst $ lr_q dataReg addrReg 0 0
-                                 , inst $ sc_q dataReg addrReg dataReg 0 0
+                                 , inst $ lr_c dataReg addrReg 0 0
+                                 , inst $ sc_c dataReg addrReg dataReg 0 0
                                  , noShrink . inst $ fence_i -- fence
-                                 , inst $ cload dataReg addrReg 0x17 ] -- lq.ddc
+                                 , inst $ modeswint
+                                 , inst $ lc dataReg addrReg 0 -- lc via ddc
+                                 , inst $ modeswcap ]
