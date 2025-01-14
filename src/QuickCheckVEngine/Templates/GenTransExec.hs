@@ -86,7 +86,8 @@ genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
   return $  (uniform [ instUniform $ rv32_xcheri_arithmetic src1 src2 imm tmpReg
                      , instUniform $ rv32_xcheri_misc_alt src1 src2 imm dest
                      , instUniform $ rv32_xcheri_inspection src1 dest
-                     , inst $ cinvoke src2 src1
+                     , inst $ modeswcap
+                     , inst $ jalr src2 src1 0
                      , inst $ cload tmpReg tmpReg 0x08
                      ])
 
@@ -322,17 +323,19 @@ genJump :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Tem
 genJump memReg reg0 reg1 reg2 imm offset = random $ do
   let czero = 0
   let ra = 1
-  return $ instSeq [ jalr_cap ra reg1
-                   , jalr_cap czero ra
+  return $ instSeq [ modeswcap
+                   , jalr ra reg1 0
+                   , jalr czero ra 0
                    ]
 
 genCSCInst :: Integer -> Integer -> Integer -> Integer -> Template
 genCSCInst memReg reg0 reg1 reg2 = random $ do
   let czero = 0
-  return $ instDist [ (1, jalr_cap czero reg0)
+  return $ instDist [ (1, jalr czero reg0 0)
                     , (2, add 29 29 29)
                     , (1, cload reg1 reg2 0x8)
                     , (1, auipc reg2 0)
+                    , (1, modeswcap)
                     ]
 
 -- | Verify instruction Capability Speculation Constraint (CSC)
@@ -357,7 +360,8 @@ gen_csc_inst_verify = random $ do
   let reg1 = 24
   let reg2 = 25
   let mtcc = 28
-  let startSeq = inst $ jalr_cap zeroReg startReg
+  let startSeq = instUniform [ modeswcap
+                             , jalr zeroReg startReg 0 ]
   let trainSeq = repeatN (18) (genJump memReg tmpReg pccReg loadReg 0x20 0x0)
   let leakSeq = repeatN (1) (genJump memReg2 tmpReg pccReg loadReg 0x20 0x100)
   let tortSeq = startSeq <> leakSeq
