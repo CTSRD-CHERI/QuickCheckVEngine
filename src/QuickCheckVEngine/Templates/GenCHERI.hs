@@ -68,7 +68,7 @@ capDecodeTest = random $ do
                     inst $ sw 1 2 8,
                     li32 2 ((shift cap (-96)) Data.Bits..&. 0xffffffff),
                     inst $ sw 1 2 12,
-                    inst $ lq 2 1 0,
+                    inst $ lc 2 1 0,
                     inst $ gclen 6 2,
                     inst $ gcbase 6 2,
                     inst $ gchigh 6 2,
@@ -109,7 +109,7 @@ genRandomCHERITest = readParams $ \param -> random $ do
                 , (5, legalCapLoad srcAddr dest)
                 , (5, legalCapStore srcAddr)
                 , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2)
-                , (10, instUniform $ rv32_xcheri arch srcAddr srcData srcScr imm mop dest)
+                , (10, instUniform $ rv32_xcheri arch srcAddr srcData srcScr imm dest)
                 , (10, inst $ cspecialrw dest srcScr srcAddr)
                 , (5, maybe mempty (\idx -> instUniform $ rv32_zicsr srcData dest idx mop) srcCsr)
                 , (5, csrr dest srcCsrRO)

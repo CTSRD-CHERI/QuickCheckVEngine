@@ -56,10 +56,6 @@ genAll = readParams $ \params -> random $ do
   aq      <- bits 1
   rl      <- bits 1
   rm      <- roundingMode
-  mop       <- elements [ 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,
-                          0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf,
-                          -- Skip LR,SC since these have non-determinism which is problematic for TestRIG
-                          0x17,0x1f]
   uimm    <- bits 5
   offset  <- memOffset
   srcScr  <- elements [28, 29, 30, 31]
@@ -92,6 +88,6 @@ genAll = readParams $ \params -> random $ do
                ] | has_ifencei desc]
            ++ [[ (8, maybe mempty (\idx -> instUniform (rv32_zicsr src1 dest idx uimm)) csrIdx)
                ] | has_icsr desc]
-           ++ [[ (8, instUniform (rv32_xcheri desc src1 src2 srcScr imm mop dest))
+           ++ [[ (8, instUniform (rv32_xcheri desc src1 src2 srcScr imm dest))
                ] | has_cheri desc]
   return $ fp_prologue $ repeatTillEnd (dist $ concat insts)
