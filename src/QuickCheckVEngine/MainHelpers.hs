@@ -250,8 +250,8 @@ doRVFIDII connA m_connB alive delay verbosity saveDir test = do
       m_traceAB <- maybe (return . Just $ emptyTrace traceA) (receive "implementation B" traceA) m_connB
       --
       when (isNothing m_traceA || isNothing m_traceAB) $ writeIORef alive False
-      when (isNothing m_traceA) $ putStrLn "Error: implementation A timeout. Forcing all future tests to report 'SUCCESS'"
-      when (isNothing m_traceAB) $ putStrLn "Error: implementation B timeout. Forcing all future tests to report 'SUCCESS'"
+      when (isNothing m_traceA) $ putStrLn "Error: implementation A timeout. Discarding all future tests."
+      when (isNothing m_traceAB) $ putStrLn "Error: implementation B timeout. Discarding all future tests."
       --
       case saveDir of
         Nothing -> do return ()
@@ -266,7 +266,7 @@ doRVFIDII connA m_connB alive delay verbosity saveDir test = do
       Right t -> return $ Just $ (\((x,y),z) -> (x,y,z)) <$> t
       Left (SomeException e) -> do
         writeIORef alive False
-        putStrLn ("Error: exception on IO with implementations. Forcing all future tests to report 'SUCCESS': " ++ show e)
+        putStrLn ("Error: exception on IO with implementations. Discarding all future tests: " ++ show e)
         return Nothing
   else do
      putStrLn "Warning: doRVFIDII called when both implementations are not alive"
