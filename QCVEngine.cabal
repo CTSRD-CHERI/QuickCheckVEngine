@@ -52,6 +52,7 @@ executable QCVEngine
                        QuickCheckVEngine.Templates.GenCHERI,
                        QuickCheckVEngine.Templates.GenAll,
                        QuickCheckVEngine.Templates.GenTransExec,
+                       QuickCheckVEngine.Templates.GenUnstructured,
                        QuickCheckVEngine.Templates.RandomTest
   other-extensions:    FlexibleInstances, MultiParamTypeClasses,
                        FunctionalDependencies, OverloadedStrings,
