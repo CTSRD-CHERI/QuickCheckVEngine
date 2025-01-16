@@ -75,6 +75,7 @@ import QuickCheckVEngine.Templates.GenFP
 import QuickCheckVEngine.Templates.GenCHERI
 import QuickCheckVEngine.Templates.GenHPM
 import QuickCheckVEngine.Templates.GenTransExec
+import QuickCheckVEngine.Templates.GenUnstructured
 
 -- command line arguments
 --------------------------------------------------------------------------------
