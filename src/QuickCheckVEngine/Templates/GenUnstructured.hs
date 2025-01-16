@@ -36,7 +36,7 @@ module QuickCheckVEngine.Templates.GenUnstructured (
 ) where
 
 import QuickCheckVEngine.Template
-import QuickCheckVEngine.Templates.Utils
+import QuickCheckVEngine.Templates.Utils.General
 import InstrCodec
 
 gen_unstructured :: Template
