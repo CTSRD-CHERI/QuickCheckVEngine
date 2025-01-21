@@ -136,13 +136,13 @@ cadd_raw                   =                            "0000110 rs2[4:0] cs1[4:
 cadd cd cs1 rs2            = encode cadd_raw                     rs2      cs1          cd
 caddi_raw                  =                            "imm[11:0] cs1[4:0] 010 cd[4:0] 0011011"
 caddi cd cs1 imm           = encode caddi_raw            imm        cs1          cd
-scbndsr_raw                =                            "0001000 rs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+scbndsr_raw                =                            "0000111 rs2[4:0] cs1[4:0] 001 cd[4:0] 0110011"
 scbndsr cd cs1 rs2         = encode scbndsr_raw                  rs2      cs1          cd
 scbnds_raw                 =                            "0000111 rs2[4:0] cs1[4:0] 000 cd[4:0] 0110011"
 scbnds cd cs1 rs2          = encode scbnds_raw                   rs2      cs1          cd
 scbndsi_raw                =                            "000001 s[0:0] imm[4:0] cs1[4:0] 101 cd[4:0] 0010011"
 scbndsi cd cs1 s imm       = encode scbndsi_raw                 s      imm      cs1          cd
-cbld_raw                   =                            "0011101 cs2[4:0] cs1[4:0] 000 cd[4:0] 1011011"
+cbld_raw                   =                            "0000110 cs2[4:0] cs1[4:0] 101 cd[4:0] 0110011"
 cbld cd cs1 cs2            = encode cbld_raw                     cs2      cs1          cd
 sentry_raw                 =                            "0001000 01000 cs1[4:0] 000 cd[4:0] 0110011"
 sentry cd cs1              = encode sentry_raw                         cs1          cd
@@ -390,6 +390,7 @@ rv32_xcheri_misc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Inst
 rv32_xcheri_misc src1 src2 srcScr imm dest =
   [ acperm      dest src1 src2
   , scmode      dest src1 src2
+  , cbld        dest src1 src2
   , sentry      dest src1
   , cmv         dest src1
   , cspecialrw  dest srcScr src1 ]
