@@ -232,6 +232,7 @@ rv32_xcheri_disass = [ gcperm_raw     --> prettyR_2op "gcperm"
                      , acperm_raw     --> prettyR "acperm"
                      , scaddr_raw     --> prettyR "csetaddr"
                      , schi_raw       --> prettyR "schi"
+                     , cmv_raw        --> prettyR_2op "cmv" -- Ensure this is above cadd
                      , cadd_raw       --> prettyR "cadd"
                      , scbndsr_raw    --> prettyR "scbndsr"
                      , scbnds_raw     --> prettyR "scbnds"
@@ -240,7 +241,6 @@ rv32_xcheri_disass = [ gcperm_raw     --> prettyR_2op "gcperm"
                      , caddi_raw      --> prettyI "caddi"
                      , scbndsi_raw    --> pretty_scbndsi "scbndsi"
                      , cspecialrw_raw --> pretty_cspecialrw "cspecialrw"
-                     , cmv_raw        --> prettyR_2op "cmv"
                      , modeswcap_raw  --> "modesw.cap"
                      , modeswint_raw  --> "modesw.int"
                      , sceq_raw       --> prettyR "sceq"
@@ -273,6 +273,7 @@ rv32_xcheri_extract = [ gcperm_raw      --> extract_1op gcperm_raw
                       , acperm_raw      --> extract_2op acperm_raw
                       , scaddr_raw      --> extract_2op scaddr_raw
                       , schi_raw        --> extract_2op schi_raw
+                      , cmv_raw         --> extract_cmv -- Ensure this is above cadd
                       , cadd_raw        --> extract_2op cadd_raw
                       , scbndsr_raw     --> extract_2op scbndsr_raw
                       , scbnds_raw      --> extract_2op scbnds_raw
@@ -281,7 +282,6 @@ rv32_xcheri_extract = [ gcperm_raw      --> extract_1op gcperm_raw
                       , caddi_raw       --> extract_imm caddi_raw
                       , scbndsi_raw     --> extract_imm scbndsi_raw
                       , cspecialrw_raw  --> extract_cspecialrw
-                      , cmv_raw         --> extract_cmv
                       , cram_raw        --> extract_1op cram_raw
                       , scmode_raw      --> extract_2op scmode_raw
                       , sc_raw          --> extract_nodst sc_raw
@@ -324,6 +324,9 @@ shrink_cap cs cd = [ecall,
 shrink_capcap :: Integer -> Integer -> Integer -> [Instruction]
 shrink_capcap cs2 cs1 cd = (shrink_cap cs2 cd) ++ (shrink_cap cs1 cd)
 
+noshrink_capcap :: Integer -> Integer -> Integer -> [Instruction]
+noshrink_capcap cs2 cs1 cd = []
+
 shrink_capint :: Integer -> Integer -> Integer -> [Instruction]
 shrink_capint rs cs cd = shrink_cap cs cd
 
@@ -344,6 +347,7 @@ rv32_xcheri_shrink = [ gcperm_raw       --> shrink_gcperm
                      , acperm_raw       --> shrink_capint
                      , scaddr_raw       --> shrink_capint
                      , schi_raw         --> shrink_capint
+                     , cmv_raw          --> noshrink_capcap -- Ensure this is above cadd
                      , cadd_raw         --> shrink_capint
                      , scbndsr_raw      --> shrink_capint
                      , scbnds_raw       --> shrink_capint
@@ -352,7 +356,6 @@ rv32_xcheri_shrink = [ gcperm_raw       --> shrink_gcperm
                      , caddi_raw        --> shrink_capimm
                      , scbndsi_raw      --> shrink_capimm
 --                   , cspecialrw_raw   --> noshrink
---                   , cmv_raw          --> noshrink
                      , sceq_raw         --> shrink_sceq
                      , scss_raw         --> shrink_scss
 --                   , cram_raw         --> noshrink
