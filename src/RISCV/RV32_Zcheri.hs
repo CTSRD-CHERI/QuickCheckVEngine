@@ -76,6 +76,7 @@ module RISCV.RV32_Zcheri (
 , cmv
 , modeswcap
 , modeswint
+, sceq
 , scss
 , cspecialrw
 , cram
@@ -161,6 +162,8 @@ modeswint_raw              =                            "0001010 00000 00000 001
 modeswint                  = encode modeswint_raw
 
 -- Assertion
+sceq_raw                   =                            "0000110 cs2[4:0] cs1[4:0] 100 rd[4:0] 0110011"
+sceq rd cs1 cs2            = encode sceq_raw                     cs2      cs1          rd
 scss_raw                   =                            "0000110 cs2[4:0] cs1[4:0] 110 rd[4:0] 0110011"
 scss rd cs1 cs2            = encode scss_raw                     cs2      cs1          rd
 
@@ -240,6 +243,7 @@ rv32_xcheri_disass = [ gcperm_raw     --> prettyR_2op "gcperm"
                      , cmv_raw        --> prettyR_2op "cmv"
                      , modeswcap_raw  --> "modesw.cap"
                      , modeswint_raw  --> "modesw.int"
+                     , sceq_raw       --> prettyR "sceq"
                      , scss_raw       --> prettyR "scss"
                      , cram_raw       --> prettyR_2op "cram"
                      , scmode_raw     --> prettyR "scmode"
@@ -326,6 +330,7 @@ shrink_capint rs cs cd = shrink_cap cs cd
 shrink_capimm :: Integer -> Integer -> Integer -> [Instruction]
 shrink_capimm imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
 
+shrink_sceq cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
 shrink_scss cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
 
 rv32_xcheri_shrink :: [DecodeBranch [Instruction]]
@@ -348,6 +353,7 @@ rv32_xcheri_shrink = [ gcperm_raw       --> shrink_gcperm
                      , scbndsi_raw      --> shrink_capimm
 --                   , cspecialrw_raw   --> noshrink
 --                   , cmv_raw          --> noshrink
+                     , sceq_raw         --> shrink_sceq
                      , scss_raw         --> shrink_scss
 --                   , cram_raw         --> noshrink
                      , scmode_raw       --> shrink_capcap
@@ -376,6 +382,7 @@ rv32_xcheri_arithmetic src1 src2 imm dest =
   , scbnds              dest src1 src2
   , scbndsi             dest src1 0 imm
   , caddi               dest src1 imm
+  , sceq                dest src1 src2
   , scss                dest src1 src2 ]
 
 -- | List of cheri miscellaneous instructions
