@@ -105,6 +105,7 @@ data Options = Options
     , optIgnoreAsserts :: Bool
     , csrIncludeRegex  :: Maybe String
     , csrExcludeRegex  :: Maybe String
+    , optForceRVFIv1   :: Bool
     } deriving Show
 
 defaultOptions :: Options
@@ -134,6 +135,7 @@ defaultOptions = Options
     , optSingleImp     = False
     , csrIncludeRegex  = Nothing
     , csrExcludeRegex  = Nothing
+    , optForceRVFIv1   = False
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -213,6 +215,9 @@ options =
   , Option []        ["csr-exclude-regex"]
       (ReqArg (\ f opts -> opts { csrExcludeRegex = Just f }) "REGEX")
         "Specify REGEX to exclude a subset of CSRs from tests"
+  , Option []        ["force-RVFI-v1"]
+      (NoArg (\ opts -> opts { optForceRVFIv1 = True }))
+        "Force implementations to use legacy v1 RVFI reporting"
   ]
 
 commandOpts :: [String] -> IO (Options, [String])
@@ -290,8 +295,8 @@ main = withSocketsDo $ do
   let testParams = T.TestParams { T.archDesc  = archDesc
                                 , T.csrFilter = csrFilter }
   -- initialize model and implementation sockets
-  implA <- rvfiDiiOpen (impAIP flags) (impAPort flags) verbosity "implementation-A"
-  m_implB <- if optSingleImp flags then return Nothing else Just <$> rvfiDiiOpen (impBIP flags) (impBPort flags) verbosity "implementation-B"
+  implA <- rvfiDiiOpen (impAIP flags) (impAPort flags) verbosity "implementation-A" (optForceRVFIv1 flags)
+  m_implB <- if optSingleImp flags then return Nothing else Just <$> rvfiDiiOpen (impBIP flags) (impBPort flags) verbosity "implementation-B" (optForceRVFIv1 flags)
 
   addrInstr <- mapM (resolve "127.0.0.1") (instrPort flags)
   instrSoc <- mapM (open "instruction-generator-port") addrInstr
@@ -409,9 +414,9 @@ main = withSocketsDo $ do
       connect sock (addrAddress addr)
       putStrLn ("connected to " ++ dest ++ " ...")
       return sock
-    rvfiDiiOpen ip port verb name = do
+    rvfiDiiOpen ip port verb name forceV1 = do
       addr <- resolve ip port
       soc <- open name addr
-      traceVer <- rvfiNegotiateVersion soc name verb
+      traceVer <- if forceV1 then pure 1 else rvfiNegotiateVersion soc name verb
       return $ RvfiDiiConnection soc traceVer name
     rvfiDiiClose (RvfiDiiConnection sock _ _) = close sock
