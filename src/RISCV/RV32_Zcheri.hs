@@ -230,7 +230,7 @@ rv32_xcheri_disass = [ gcperm_raw     --> prettyR_2op "gcperm"
                      , gchigh_raw     --> prettyR_2op "gchigh"
                      , gcmode_raw     --> prettyR_2op "gcmode"
                      , acperm_raw     --> prettyR "acperm"
-                     , scaddr_raw     --> prettyR "csetaddr"
+                     , scaddr_raw     --> prettyR "scaddr"
                      , schi_raw       --> prettyR "schi"
                      , cmv_raw        --> prettyR_2op "cmv" -- Ensure this is above cadd
                      , cadd_raw       --> prettyR "cadd"
