@@ -389,14 +389,14 @@ rv32_xcheri_arithmetic src1 src2 imm dest =
   , scss                dest src1 src2 ]
 
 -- | List of cheri miscellaneous instructions
-rv32_xcheri_misc :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
-rv32_xcheri_misc src1 src2 srcScr imm dest =
+rv32_xcheri_misc :: Integer -> Integer -> Integer -> Integer -> [Instruction]
+rv32_xcheri_misc src1 src2 imm dest =
   [ acperm      dest src1 src2
   , scmode      dest src1 src2
   , cbld        dest src1 src2
   , sentry      dest src1
   , cmv         dest src1
-  , cspecialrw  dest srcScr src1 ]
+  ]
 
 -- | List of cheri control instructions
 rv32_xcheri_control :: Integer -> Integer -> Integer -> [Instruction]
@@ -424,10 +424,10 @@ rv32_a_xcheri      srcAddr srcData dest aq rl =
   ]
 
 -- | List of cheri instructions
-rv32_xcheri :: ArchDesc -> Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
-rv32_xcheri arch src1 src2 srcScr imm dest =
+rv32_xcheri :: ArchDesc -> Integer -> Integer -> Integer -> Integer -> [Instruction]
+rv32_xcheri arch src1 src2 imm dest =
      rv32_xcheri_inspection src1 dest
   ++ rv32_xcheri_arithmetic src1 src2 imm dest
-  ++ rv32_xcheri_misc src1 src2 srcScr imm dest
+  ++ rv32_xcheri_misc src1 src2 imm dest
   ++ rv32_xcheri_control src1 src2 dest
   ++ rv32_xcheri_mem arch src1 src2 imm dest

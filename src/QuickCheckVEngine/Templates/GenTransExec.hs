@@ -164,7 +164,7 @@ genBSC_Excps_Torture tmpReg = random $ do
                    , readParams $ \p -> instUniform $ rv32_xcheri_mem (archDesc p) src1 src2 imm tmpReg
                    , instUniform $ rv32_xcheri_arithmetic src1 src2 imm dest
                    , instUniform $ rv32_xcheri_inspection src1 dest
-                   , instUniform $ rv32_xcheri_misc src1 src2 srcSCr imm dest
+                   , instUniform $ rv32_xcheri_misc src1 src2 imm dest
                    --, instUniform $ rv32_f_macc src1 src2 src3 dest rm
                    --, instUniform $ rv32_f_arith src1 src2 dest rm
                    ]
