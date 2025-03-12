@@ -42,7 +42,7 @@ module QuickCheckVEngine.Templates.Utils.CHERI (
 , legalCapStore
 , loadRegion
 , switchEncodingMode
-, cspecialRWChain
+, csrRWChain
 , tagCacheTest
 ) where
 
@@ -55,20 +55,20 @@ import QuickCheckVEngine.Templates.Utils.General
 
 boundPCC :: Integer -> Integer -> Integer -> Integer -> Template
 boundPCC tmp1 tmp2 offset size =
-  mconcat [ inst $ cspecialrw tmp1 0 0, -- Get PCC
+  mconcat [ inst $ modeswcap,
+            inst $ auipc tmp1 0, -- Get PCC
             li64 tmp2 offset,
             inst $ cadd tmp1 tmp1 tmp2, -- increment PCC
             li64 tmp2 size,
             inst $ scbndsr tmp1 tmp1 tmp2, -- reduce bounds
-            inst $ modeswcap,
             inst $ jalr tmp1 tmp1 0 ] -- jump to new PCC
 
 clearASR :: Integer -> Integer -> Template
-clearASR tmp1 tmp2 = instSeq [ cspecialrw tmp1 0 0, -- Get PCC
-                               addi tmp2 0 0xbff, -- Load immediate without ASR set
-                               acperm tmp1 tmp1 tmp2, -- Mask out ASR
-                               cspecialrw 0 28 tmp1, -- Clear ASR in trap vector
-                               modeswcap,
+clearASR tmp1 tmp2 = instSeq [ modeswcap,
+                               auipc tmp1 0 ] -- Get PCC
+                            <> li32 tmp2 0xfffeffff -- Load immediate without ASR set
+                  <> instSeq [ acperm tmp1 tmp1 tmp2, -- Mask out ASR
+                               csrrw 0 (unsafe_csrs_indexFromName "mtvec") tmp1,
                                jalr tmp1 0 0 ]
 
 makeCap :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
@@ -125,28 +125,22 @@ loadRegion numLines capReg cacheLSize tmpReg insts =
 
 switchEncodingMode :: Template
 switchEncodingMode = random $ do
-  tmpReg1 <- sbcRegs
-  let tmpReg2 = tmpReg1 + 1
   mode    <- elements [0, 1]
-  return $ instSeq [ cspecialrw tmpReg1 0 0
-                   , addi tmpReg2 0 mode
-                   , scmode tmpReg1 tmpReg1 tmpReg2
-                   , cspecialrw 0 28 tmpReg1 --Also write trap vector so we stay in cap mode
-                   , if mode == 1 then modeswint else modeswcap  ]
+  return $ inst $ if mode == 1 then modeswint else modeswcap
 
-cspecialRWChain :: Template
-cspecialRWChain = random $ do
+csrRWChain :: Integer -> Template
+csrRWChain csr = random $ do
   tmpReg1 <- src
   tmpReg2 <- src
   tmpReg3 <- src
   tmpReg4 <- src
   tmpReg5 <- src
   tmpReg6 <- src
-  return $ instSeq [ cspecialrw tmpReg2 30 tmpReg1
-                   , modeswcap
+  return $ switchEncodingMode <>
+           instSeq [ csrrw tmpReg2 csr tmpReg1
                    , jalr tmpReg2 0 0
-                   , cspecialrw tmpReg4 30 tmpReg3
-                   , cspecialrw tmpReg6 30 tmpReg5 ]
+                   , csrrw tmpReg4 csr tmpReg3
+                   , csrrw tmpReg6 csr tmpReg5 ]
 
 tagCacheTest :: Template
 tagCacheTest = random $ do

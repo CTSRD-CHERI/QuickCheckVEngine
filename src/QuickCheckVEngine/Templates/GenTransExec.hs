@@ -50,6 +50,7 @@ import RISCV.RV64_I
 import RISCV.RV32_Zcheri
 import RISCV.RV32_F
 import RISCV.RV32_D
+import RISCV.RV32_Zicsr
 import RISCV.RV_CSRs
 import RISCV.ArchDesc
 import QuickCheckVEngine.Template
@@ -82,7 +83,6 @@ genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
                         , (1, bits 12) ]
   src1     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
   src2     <- frequency [ (1, return capReg), (1, return tmpReg), (1, return bitsReg), (1, return sldReg) ]
---  let rv32_xcheri_misc_alt = filter (/= (cspecialrw tmpReg csrAddr src1)) (rv32_xcheri_misc src1 src2 csrAddr imm tmpReg)
   return $  (uniform [ instUniform $ rv32_xcheri_arithmetic src1 src2 imm tmpReg
                      , instUniform $ rv32_xcheri_misc_alt src1 src2 imm dest
                      , instUniform $ rv32_xcheri_inspection src1 dest
@@ -359,14 +359,14 @@ gen_csc_inst_verify = random $ do
   let reg0 = 23
   let reg1 = 24
   let reg2 = 25
-  let mtcc = 28
+  let mtcc = unsafe_csrs_indexFromName "mtvec"
   let startSeq = instUniform [ modeswcap
                              , jalr zeroReg startReg 0 ]
   let trainSeq = repeatN (18) (genJump memReg tmpReg pccReg loadReg 0x20 0x0)
   let leakSeq = repeatN (1) (genJump memReg2 tmpReg pccReg loadReg 0x20 0x100)
   let tortSeq = startSeq <> leakSeq
-  let prolog = mconcat [ switchEncodingMode
-                       , inst $ cspecialrw authReg2 0 0 -- read PCC
+  let prolog = mconcat [ inst $ modeswcap
+                       , inst $ auipc authReg2 0 -- read PCC
                        , makeCap_core jumpReg authReg2 tmpReg 0x80001000
                        , makeCap_core pccReg authReg2 tmpReg 0x80002000
                        , makeCap_core memReg authReg2 tmpReg 0x80007000
@@ -401,7 +401,7 @@ gen_csc_inst_verify = random $ do
                        , inst $ cmv 29 zeroReg
                        , inst $ scbndsi jumpReg jumpReg 1 16 -- 256
                        , inst $ scbndsi tmpReg startReg 1 16 -- 256
-                       , inst $ cspecialrw 0 mtcc jumpReg
+                       , inst $ csrrw 0 mtcc jumpReg
                        , startSeq
                        , inst $ fence 3 3 -- fence rw, rw
                        ]
@@ -461,7 +461,7 @@ gen_bsc_exceptions_verify = random $ do
   let prolog = mconcat [ prepareBSCExcpsGen
                        , makeCap capReg authReg tmpReg addr 0x100 0
                        , makeCap_core excReg authReg tmpReg 0x80000000
-                       , inst $ cspecialrw 0 28 excReg ]
+                       , inst $ csrrw 0 (unsafe_csrs_indexFromName "mtvec") excReg ]
   let body = surroundWithHPMAccess_core False hpmEventIdx_wild_excps (repeatTillEnd (genBSC_Excps_Torture tmpReg)) counterReg hpmCntIdx_wild_excps Nothing
   let epilog = instAssert (add counterReg counterReg zeroReg) 0
   return $ shrinkScope $ noShrink prolog <> body <> noShrink epilog
