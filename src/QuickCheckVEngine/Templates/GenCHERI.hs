@@ -103,6 +103,8 @@ genRandomCHERITest = readParams $ \param -> random $ do
   csrAddr   <- frequency [ (1, return (unsafe_csrs_indexFromName "mcause"))
                          , (1, return (unsafe_csrs_indexFromName "mseccfg"))
                          , (1, return (unsafe_csrs_indexFromName "scause"))
+                         , (1, return (unsafe_csrs_indexFromName "mtval"))
+                         , (1, return (unsafe_csrs_indexFromName "stval"))
                          , (1, return (unsafe_csrs_indexFromName "mseccfg"))
                          , (1, return (unsafe_csrs_indexFromName "menvcfg"))
                          , (1, return (unsafe_csrs_indexFromName "senvcfg"))
