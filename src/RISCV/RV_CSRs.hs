@@ -158,6 +158,8 @@ csrs_map = -- User Trap Setup
            , (0x104, "sie")
            , (0x105, "stvec")
            , (0x106, "scounteren") ]
+        ++ -- Supervisior Config
+           [ (0x10a, "senvcfg") ]
         ++ -- Supervisor Trap Handling
            [ (0x140, "sscratch")
            , (0x141, "sepc")
@@ -181,6 +183,11 @@ csrs_map = -- User Trap Setup
            , (0x305, "mtvec")
            , (0x306, "mcounteren")
            , (0x310, "mstatush") ]
+        ++ -- Machine Config
+           [ (0x30A, "menvcfg")
+           , (0x31A, "menvcfgh")
+           , (0x747, "mseccfg")
+           , (0x757, "mseccfgh") ]
         ++ -- Machine Trap Handling
            [ (0x340, "mscratch")
            , (0x341, "mepc")
