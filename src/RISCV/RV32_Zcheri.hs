@@ -78,7 +78,6 @@ module RISCV.RV32_Zcheri (
 , modeswint
 , sceq
 , scss
-, cspecialrw
 , cram
 , lc
 , sc
@@ -151,8 +150,6 @@ sentry cd cs1              = encode sentry_raw                         cs1      
 -- Capability Pointer Arithmetic
 cmv_raw                    =                            "0000110 00000 cs1[4:0] 000 cd[4:0] 0110011"
 cmv cd cs1                 = encode cmv_raw                            cs1          cd
-cspecialrw_raw             =                            "0000001 cSP[4:0] cs1[4:0] 000 cd[4:0] 1011011"
-cspecialrw cd cSP cs1      = encode cspecialrw_raw               cSP      cs1          cd
 
 
 -- Control Flow
@@ -194,28 +191,6 @@ amoswap_q rd rs1 rs2 aq rl = encode amoswap_q_raw               aq    rl    rs2 
 -- | Pretty-print a 2 sources instruction
 pretty_2src instr src2 src1 = concat [instr, " ", reg src1, ", ", reg src2]
 
--- | Pretty-print a special capability read/write instruction
-pretty_cspecialrw instr idx cs1 cd =
-  concat [instr, " ", reg cd, ", ", name_scr idx, ", ", reg cs1]
-  where name_scr 0 = "pcc"
-        name_scr 1 = "ddc"
-        name_scr 3 = "utidc"
-        name_scr 4 = "utcc"
-        name_scr 5 = "utdc"
-        name_scr 6 = "uscratchc"
-        name_scr 7 = "uepcc"
-        name_scr 11 = "stidc"
-        name_scr 12 = "stcc"
-        name_scr 13 = "stdc"
-        name_scr 14 = "sscratchc"
-        name_scr 15 = "sepcc"
-        name_scr 27 = "mtidc"
-        name_scr 28 = "mtcc"
-        name_scr 29 = "mtdc"
-        name_scr 30 = "mscratchc"
-        name_scr 31 = "mepcc"
-        name_scr idx = int idx
-
 -- | Scaled I-type instruction pretty printer
 pretty_scbndsi instr s imm cs1 cd =
   concat [instr, " ", reg cd, ", ", reg cs1, ", ", int s, ", ", int imm]
@@ -240,7 +215,6 @@ rv32_xcheri_disass = [ gcperm_raw     --> prettyR_2op "gcperm"
                      , sentry_raw     --> prettyR_2op "sentry"
                      , caddi_raw      --> prettyI "caddi"
                      , scbndsi_raw    --> pretty_scbndsi "scbndsi"
-                     , cspecialrw_raw --> pretty_cspecialrw "cspecialrw"
                      , modeswcap_raw  --> "modesw.cap"
                      , modeswint_raw  --> "modesw.int"
                      , sceq_raw       --> prettyR "sceq"
@@ -255,9 +229,6 @@ rv32_xcheri_disass = [ gcperm_raw     --> prettyR_2op "gcperm"
                      , sc_h_raw       --> prettyR_A "sc.h"
                      , lr_c_raw       --> prettyR_A_1op "lr.c"
                      , sc_c_raw       --> prettyR_A "sc.c" ]
-
-extract_cspecialrw :: Integer -> Integer -> Integer -> ExtractedRegs
-extract_cspecialrw idx rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode cspecialrw_raw idx y z)
 
 extract_cmv :: Integer -> Integer -> ExtractedRegs
 extract_cmv rs1 rd = (True, Nothing, Just rs1, Just rd, \x y z -> encode cmv_raw y z)
@@ -281,7 +252,6 @@ rv32_xcheri_extract = [ gcperm_raw      --> extract_1op gcperm_raw
                       , sentry_raw      --> extract_1op sentry_raw
                       , caddi_raw       --> extract_imm caddi_raw
                       , scbndsi_raw     --> extract_imm scbndsi_raw
-                      , cspecialrw_raw  --> extract_cspecialrw
                       , cram_raw        --> extract_1op cram_raw
                       , scmode_raw      --> extract_2op scmode_raw
                       , sc_raw          --> extract_nodst sc_raw
@@ -355,7 +325,6 @@ rv32_xcheri_shrink = [ gcperm_raw       --> shrink_gcperm
                      , sentry_raw       --> shrink_cap
                      , caddi_raw        --> shrink_capimm
                      , scbndsi_raw      --> shrink_capimm
---                   , cspecialrw_raw   --> noshrink
                      , sceq_raw         --> shrink_sceq
                      , scss_raw         --> shrink_scss
 --                   , cram_raw         --> noshrink
