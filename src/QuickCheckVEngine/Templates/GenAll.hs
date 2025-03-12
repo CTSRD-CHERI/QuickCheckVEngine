@@ -88,6 +88,6 @@ genAll = readParams $ \params -> random $ do
                ] | has_ifencei desc]
            ++ [[ (8, maybe mempty (\idx -> instUniform (rv32_zicsr src1 dest idx uimm)) csrIdx)
                ] | has_icsr desc]
-           ++ [[ (8, instUniform (rv32_xcheri desc src1 src2 srcScr imm dest))
+           ++ [[ (8, instUniform (rv32_xcheri desc src1 src2 imm dest))
                ] | has_cheri desc]
   return $ fp_prologue $ repeatTillEnd (dist $ concat insts)

@@ -99,24 +99,27 @@ genRandomCHERITest = readParams $ \param -> random $ do
   longImm   <- (bits 20)
   fenceOp1  <- (bits 4)
   fenceOp2  <- (bits 4)
-  csrAddr   <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
-                         , (1, return (unsafe_csrs_indexFromName "mcause")) ]
-  srcScr    <- elements $ [0, 1, 28, 29, 30, 31] ++ (if has_s arch then [12, 13, 14, 15] else []) ++ [2]
-  let allowedCsrs = filter (csrFilter param) [ unsafe_csrs_indexFromName "sepc"
-                                             , unsafe_csrs_indexFromName "mepc" ]
-  let allowedCsrsRO = [ unsafe_csrs_indexFromName "scause"
-                      , unsafe_csrs_indexFromName "mcause" ]
-  srcCsr    <- if null allowedCsrs then return Nothing else Just <$> elements allowedCsrs
-  srcCsrRO  <- elements allowedCsrsRO
+  uimm5     <- (bits 5)
+  csrAddr   <- frequency [ (1, return (unsafe_csrs_indexFromName "mcause"))
+                         , (1, return (unsafe_csrs_indexFromName "mseccfg"))
+                         , (1, return (unsafe_csrs_indexFromName "scause"))
+                         , (1, return (unsafe_csrs_indexFromName "mseccfg"))
+                         , (1, return (unsafe_csrs_indexFromName "menvcfg"))
+                         , (1, return (unsafe_csrs_indexFromName "senvcfg"))
+                         , (1, return (unsafe_csrs_indexFromName "mepc"))
+                         , (1, return (unsafe_csrs_indexFromName "sepc"))
+                         , (1, return (unsafe_csrs_indexFromName "mtvec"))
+                         , (1, return (unsafe_csrs_indexFromName "stvec"))
+                         , (1, return (unsafe_csrs_indexFromName "mscratch"))
+                         , (1, return (unsafe_csrs_indexFromName "sscratch"))
+                         ]
   return $ dist [ (5, legalLoad)
                 , (5, legalStore)
                 , (5, legalCapLoad srcAddr dest)
                 , (5, legalCapStore srcAddr)
                 , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2)
-                , (10, instUniform $ rv32_xcheri arch srcAddr srcData srcScr imm dest)
-                , (10, inst $ cspecialrw dest srcScr srcAddr)
-                , (5, maybe mempty (\idx -> instUniform $ rv32_zicsr srcData dest idx mop) srcCsr)
-                , (5, csrr dest srcCsrRO)
+                , (10, instUniform $ rv32_xcheri arch srcAddr srcData imm dest)
+                , (5, instUniform $ rv32_zicsr srcData dest csrAddr uimm5)
                 , (10, switchEncodingMode)
                 , (10, cspecialRWChain)
                 , (10, makeShortCap)
@@ -180,7 +183,7 @@ genCHERImisc = random $ do
   csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
                         , (1, return (unsafe_csrs_indexFromName "mcause"))
                         , (1, bits 12) ]
-  return $ dist [ (1, instUniform $ rv32_xcheri_misc srcAddr srcData srcScr imm dest)
+  return $ dist [ (1, instUniform $ rv32_xcheri_misc srcAddr srcData imm dest)
                 , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
 
 genCHERIcontrol :: Template
