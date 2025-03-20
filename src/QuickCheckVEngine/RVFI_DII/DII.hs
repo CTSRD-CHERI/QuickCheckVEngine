@@ -95,7 +95,7 @@ data DII_Packet = DII_Packet { -- | the command (instruction/end packet)
                                -- | the timestamp
                              , dii_time :: DII_Time
                                -- | the instruction
-                             , dii_insn :: DII_Instruction }
+                             , dii_insn :: DII_Instruction } deriving (Eq, Ord)
 
 -- | A 'DII_Packet' is serialized to a 32-bit word with 8 bits of padding at
 --   the front

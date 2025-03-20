@@ -68,6 +68,7 @@ import Test.QuickCheck.Monadic
 import Control.Monad
 import Control.Exception (try, SomeException(..))
 import qualified Data.ByteString.Lazy as BS
+import qualified Data.Set as Set
 
 import qualified InstrCodec
 import RISCV hiding (and, or)
@@ -172,6 +173,11 @@ runImpls connA m_connB alive delay verbosity saveDir test onTrace onFirstDeath o
       _ -> onFirstDeath instTrace
   else onSubsequentDeaths instTrace
 
+data TestWithSeen = MkTestWithSeen { test :: Test TestResult, seen :: Set.Set (Test TestResult) }
+
+instance Show TestWithSeen where
+   show = show . test
+
 -- | The core QuickCheck property sending the 'Test' to the tested RISC-V
 --   implementations as 'DII_Packet's and checking the returned 'RVFI_Packet's
 --   for equivalence. It receives among other things a callback function
@@ -190,8 +196,11 @@ prop :: RvfiDiiConnection             -- ^ Implementation A connection
      -> Gen (Test TestResult)         -- ^ Test generator
      -> Property
 prop connA m_connB alive onFail arch delay verbosity saveDir ignoreAsserts strict gen =
-  forAllShrink gen shrinkTest mkProp
-  where mkProp test = whenFail (onFail test) (doProp test)
+  forAllShrink genDedup shrinkTestDedup mkPropDedup
+  where mkPropDedup t = mkProp (test t)
+        genDedup = (\t -> MkTestWithSeen t (Set.singleton t)) <$> gen
+        shrinkTestDedup t = map (\t' -> MkTestWithSeen t' (Set.insert t' (seen t))) (filter (flip Set.notMember (seen t)) (shrinkTest (test t)))
+        mkProp test = whenFail (onFail test) (doProp test)
         doProp test = monadicIO $ run $ runImpls connA m_connB alive delay verbosity saveDir test onTrace onFirstDeath onSubsequentDeaths
         colourGreen = "\ESC[32m"
         colourRed = "\ESC[31m"

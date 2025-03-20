@@ -123,7 +123,7 @@ data RVFI_Packet = RVFI_Packet {
 -- Modelling of Virtual Memory
 -- Modelling of Atomic Memory Operations
 -- Skipping instructions
-}
+} deriving (Eq, Ord)
 
 rvfiGetFromString :: [Char] -> Maybe (RVFI_Packet -> Integer)
 rvfiGetFromString "valid"     = Just $ toInteger . rvfi_valid
@@ -157,7 +157,7 @@ data RVFI_IntData = RVFI_IntData {
 , rvfi_rs2_rdata :: {-# UNPACK #-} !RV_WordXLEN
 , rvfi_rd_addr   :: {-# UNPACK #-} !RV_RegIdx
 , rvfi_rd_wdata  :: {-# UNPACK #-} !RV_WordXLEN
-}
+} deriving (Eq, Ord)
 
 instance Show RVFI_IntData where
   show tok =  (printf
@@ -175,7 +175,7 @@ data RVFI_MemAccessData = RVFI_MemAccessData {
 , rvfi_mem_wmask :: {-# UNPACK #-} !Word32
 , rvfi_mem_rdata :: {-# UNPACK #-} !Basement.Types.Word256.Word256
 , rvfi_mem_wdata :: {-# UNPACK #-} !Basement.Types.Word256.Word256
-}
+} deriving (Eq, Ord)
 
 hexStr :: BS.ByteString -> String
 hexStr msg = show (toLazyByteString (lazyByteStringHex msg))

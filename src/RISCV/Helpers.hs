@@ -116,7 +116,7 @@ import RISCV.RV_CSRs
 import Data.Bits
 import InstrCodec (Instruction)
 
-data PrivMode = PRV_U | PRV_S | PRV_Reserved | PRV_M deriving (Enum, Show, Eq)
+data PrivMode = PRV_U | PRV_S | PRV_Reserved | PRV_M deriving (Enum, Show, Eq, Ord)
 privString :: Maybe PrivMode -> String
 privString Nothing = "PRV_?"
 privString (Just x) = show x
