@@ -72,6 +72,21 @@ data Test t = TestEmpty
             | TestSequence (Test t) (Test t)
             | TestMeta (MetaInfo, Bool) (Test t)
 
+instance Eq t => Eq (Test t) where
+  TestEmpty == TestEmpty = True
+  TestSingle x == TestSingle y = x == y
+  TestSequence ax bx == TestSequence ay by = ax == ay && bx == by
+  TestMeta _ x == TestMeta _ y = x == y
+  _ == _ = False
+instance Ord t => Ord (Test t) where
+  TestMeta _ x <= TestMeta _ y = x <= y
+  TestEmpty <= _ = True
+  _ <= TestEmpty = False
+  TestSingle x <= TestSingle y = x <= y
+  TestSingle _ <= _ = True
+  _ <= TestSingle _ = False
+  TestSequence ax bx <= TestSequence ay by = ax <= ay || (ax == ay && bx <= by)
+
 instance Semigroup (Test t) where
   x <> y = TestSequence x y
 instance Monoid (Test t) where
