@@ -304,7 +304,7 @@ main = withSocketsDo $ do
   alive <- newIORef True -- Cleared when either implementation times out, since they will may not be able to respond to future queries
   let checkSingle :: Test TestResult -> Int -> Bool -> Int -> (Test TestResult -> IO ()) -> IO Result
       checkSingle test verbosity doShrink len onFail = do
-        quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 1000 else 0))
+        quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 100000 else 0))
                              (prop implA m_implB alive onFail archDesc (timeoutDelay flags) verbosity Nothing (optIgnoreAsserts flags) (optStrict flags) (return test))
   let check_mcause_on_trap :: Test TestResult -> Test TestResult
       check_mcause_on_trap (trace :: Test TestResult) = if or (hasTrap <$> trace) then filterTest p trace <> wrapTest testSuffix else trace
@@ -348,7 +348,7 @@ main = withSocketsDo $ do
   let checkTrapAndSave sourceFile test = saveOnFail sourceFile test (check_mcause_on_trap :: Test TestResult -> Test TestResult)
   let checkResult = if verbosity > 1 then verboseCheckWithResult else quickCheckWithResult
   let checkGen gen remainingTests =
-        checkResult (Args Nothing remainingTests 1 (testLen flags) (verbosity > 0) (if optShrink flags then 1000 else 0))
+        checkResult (Args Nothing remainingTests 1 (testLen flags) (verbosity > 0) (if optShrink flags then 100000 else 0))
                     (prop implA m_implB alive (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) verbosity (if (optSaveAll flags) then (saveDir flags) else Nothing) (optIgnoreAsserts flags) (optStrict flags) gen)
   failuresRef <- newIORef 0
   let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
