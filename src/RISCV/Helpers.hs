@@ -72,6 +72,7 @@ module RISCV.Helpers (
 , prettyR_IF_1op_rm
 , prettyR_FI_1op_rm
 , prettyR_rm
+, prettyR_nors2
 , prettyR4_rm
 , prettyS_F
 , prettyCR
@@ -324,6 +325,12 @@ prettyR_A_1op instr aq rl rs1 rd =
   concat $  [instr, " ", reg rd, ", ", reg rs1]
          ++ [if aq == 1 then " (aq)" else ""]
          ++ [if rl == 1 then " (rl)" else ""]
+
+-- | R-type where the rs2 selector is paved for mnemonic bits; used by the
+--   bitmanip extension, for example.
+prettyR_nors2 :: String -> Integer -> Integer -> String
+prettyR_nors2 instr rs1 rd =
+  concat [instr, " ", reg rd, ", ", reg rs1]
 
 -- ** Floating Point
 
