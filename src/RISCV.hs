@@ -50,6 +50,7 @@ module RISCV (
 , module RISCV.RV32_A
 , module RISCV.RV32_F
 , module RISCV.RV32_D
+, module RISCV.RV32_B
 , module RISCV.RV32_Zicsr
 , module RISCV.RV32_Zifencei
 , module RISCV.RV32_Xcheri
@@ -58,6 +59,7 @@ module RISCV (
 , module RISCV.RV64_A
 , module RISCV.RV64_F
 , module RISCV.RV64_D
+, module RISCV.RV64_B
 , module RISCV.RV_C
 , module RISCV.RV_CSRs
 , module RISCV.HPMEvents
@@ -74,6 +76,7 @@ import RISCV.RV32_M
 import RISCV.RV32_A
 import RISCV.RV32_F
 import RISCV.RV32_D
+import RISCV.RV32_B hiding (rori, bclri, bexti, binvi, bseti)
 import RISCV.RV32_Zicsr
 import RISCV.RV32_Zifencei
 import RISCV.RV32_Xcheri
@@ -82,6 +85,7 @@ import RISCV.RV64_M
 import RISCV.RV64_A
 import RISCV.RV64_F
 import RISCV.RV64_D
+import RISCV.RV64_B
 import RISCV.RV_C
 import RISCV.RV_CSRs
 import RISCV.HPMEvents
