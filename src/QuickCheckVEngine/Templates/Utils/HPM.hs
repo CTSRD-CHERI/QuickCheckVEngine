@@ -49,7 +49,16 @@ module QuickCheckVEngine.Templates.Utils.HPM (
 
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils.General
-import RISCV
+import RISCV ( HPMCounterIdx
+             , HPMEventIdx
+             , HPMEventSelCSRIdx
+             , hpmcounter_idx_to_counter_csr_idx
+             , hpmcounter_idx_to_mcounter_csr_idx
+             , hpmcounter_idx_to_mevent_sel_csr_idx
+             , hpmcounter_indices
+             , hpmevent_indices
+             , unsafe_csrs_indexFromName
+             )
 import Data.Bits
 import Test.QuickCheck
 
