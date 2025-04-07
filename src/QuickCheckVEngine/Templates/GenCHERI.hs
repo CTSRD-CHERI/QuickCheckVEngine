@@ -100,23 +100,10 @@ genRandomCHERITest = readParams $ \param -> random $ do
   fenceOp1  <- (bits 4)
   fenceOp2  <- (bits 4)
   uimm5     <- (bits 5)
-  csrAddr   <- frequency [ (1, return (unsafe_csrs_indexFromName "mcause"))
-                         , (1, return (unsafe_csrs_indexFromName "mseccfg"))
-                         , (1, return (unsafe_csrs_indexFromName "scause"))
-                         , (1, return (unsafe_csrs_indexFromName "mtval"))
-                         , (1, return (unsafe_csrs_indexFromName "mtval2"))
-                         , (1, return (unsafe_csrs_indexFromName "stval"))
-                         , (1, return (unsafe_csrs_indexFromName "stval2"))
-                         , (1, return (unsafe_csrs_indexFromName "mseccfg"))
-                         , (1, return (unsafe_csrs_indexFromName "menvcfg"))
-                         , (1, return (unsafe_csrs_indexFromName "senvcfg"))
-                         , (1, return (unsafe_csrs_indexFromName "mepc"))
-                         , (1, return (unsafe_csrs_indexFromName "sepc"))
-                         , (1, return (unsafe_csrs_indexFromName "mtvec"))
-                         , (1, return (unsafe_csrs_indexFromName "stvec"))
-                         , (1, return (unsafe_csrs_indexFromName "mscratch"))
-                         , (1, return (unsafe_csrs_indexFromName "sscratch"))
-                         ]
+  csrAddr   <- elements (unsafe_csrs_indexFromName <$>
+                 [ "mcause", "scause", "mtval", "mtval2", "stval", "stval2"
+                 , "mseccfg", "menvcfg", "senvcfg"
+                 , "mepc", "sepc", "mtvec", "stvec", "mscratch", "sscratch"])
   return $ dist [ (5, legalLoad)
                 , (5, legalStore)
                 , (5, legalCapLoad srcAddr dest)
