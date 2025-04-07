@@ -165,6 +165,7 @@ csrs_map = -- User Trap Setup
            , (0x141, "sepc")
            , (0x142, "scause")
            , (0x143, "stval")
+           , (0x14B, "stval2")
            , (0x144, "sip") ]
         ++ -- Supervisor Protection and Translation
            [ (0x180, "satp") ]
@@ -193,6 +194,7 @@ csrs_map = -- User Trap Setup
            , (0x341, "mepc")
            , (0x342, "mcause")
            , (0x343, "mtval")
+           , (0x34B, "mtval2")
            , (0x344, "mip") ]
         ++ -- Machine Memory Protection
            [ (0x3A0 + x, "pmpcfg" ++ show x) | x <- [0..3] ]
