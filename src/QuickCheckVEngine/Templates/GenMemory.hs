@@ -58,6 +58,7 @@ import RISCV.RV32_A
 import RISCV.RV32_Zifencei
 import RISCV.RV64_I
 import RISCV.RV32_Zcheri
+import RISCV.RV32_Zicsr
 import RISCV.RV_CSRs
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils.General
@@ -178,10 +179,13 @@ gen_cache conf has_caplen = random $
               <> repeatTillEnd (dist $ concat insts)
 
 gen_pte_perms = random $
-  do lperms <- bits 10
-     uperms <- bits 5
-     clg0 <- bits 2
-     clg1 <- bits 2
+  do lperms_rng <- bits 10
+     lperms <- choose (0x3ff, lperms_rng)
+     uperms_rng <- bits 5
+     uperms <- choose (0x3, uperms_rng)
+     let satp = unsafe_csrs_indexFromName "satp"
+     let sstatus = unsafe_csrs_indexFromName "sstatus"
+     let excCSRs = unsafe_csrs_indexFromName <$> ["mcause", "mtval", "mtval2"]
      return $ shrinkScope $ instSeq [ori 1 0 uperms, -- two cheri pte bits
                                      slli 1 1 16,
                                      ori 1 1 0x000, -- 11 msbs of PA
@@ -203,18 +207,19 @@ gen_pte_perms = random $
                                      slli 7 7 1,
                                      sd 7 1 0]
                                      <>
-                                     csrw (unsafe_csrs_indexFromName "satp") 5
+                                     csrw satp 5
                                      <>
-                                     csrwi (unsafe_csrs_indexFromName "sccsr") (clg0 * 4)
+                                     li64 8 0x2000000000000000
+                                     <>
+                                     uniform [csrs sstatus 8, csrc sstatus 8]
                                      <>
                                      (noShrink $ inst $ sfence 0 0)
                                      <> mconcat [
                                      inst sret,
-                                     instUniform [cmv 3 3],
                                      instUniform [sw 0 3 16, sc 0 3 16],
+                                     uniform [mconcat ((csrr 5) <$> excCSRs), mempty],
                                      instUniform [lw 4 0 16, lc 4 0 16],
-                                     csrwi (unsafe_csrs_indexFromName "sccsr") (clg1 * 4),
-                                     instUniform [lw 4 0 16, lc 4 0 16],
+                                     uniform [mconcat ((csrr 5) <$> excCSRs), mempty],
                                      inst $ gctag 5 4,
                                      inst ecall]
 
