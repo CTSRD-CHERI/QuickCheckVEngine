@@ -138,7 +138,7 @@ csrw csr_idx rs1 = guardCSR csr_idx $ inst $ csrrw 0 csr_idx rs1
 
 -- | 'csrwi' pseudo-instruction to write an immediate value to a CSR
 csrwi :: Integer -> Integer -> Template
-csrwi csr_idx uimm = guardCSR csr_idx $ inst $ csrrwi csr_idx 0 uimm
+csrwi csr_idx uimm = guardCSR csr_idx $ inst $ csrrwi 0 csr_idx uimm
 
 -- | 'csrs' pseudo-instruction to set the bits in a CSR corresponding to the
 --   set bits of a mask value in a general purpose register
