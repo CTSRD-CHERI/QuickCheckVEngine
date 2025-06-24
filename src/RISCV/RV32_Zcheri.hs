@@ -303,6 +303,9 @@ shrink_capint rs cs cd = shrink_cap cs cd
 shrink_capimm :: Integer -> Integer -> Integer -> [Instruction]
 shrink_capimm imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
 
+shrink_scbndsi :: Integer -> Integer -> Integer -> Integer -> [Instruction]
+shrink_scbndsi s imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
+
 shrink_sceq cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
 shrink_scss cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
 
@@ -324,7 +327,7 @@ rv32_xcheri_shrink = [ gcperm_raw       --> shrink_gcperm
                      , cbld_raw         --> shrink_capcap
                      , sentry_raw       --> shrink_cap
                      , caddi_raw        --> shrink_capimm
-                     , scbndsi_raw      --> shrink_capimm
+                     , scbndsi_raw      --> shrink_scbndsi
                      , sceq_raw         --> shrink_sceq
                      , scss_raw         --> shrink_scss
 --                   , cram_raw         --> noshrink
