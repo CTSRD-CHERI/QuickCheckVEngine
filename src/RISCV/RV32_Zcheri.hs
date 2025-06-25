@@ -60,7 +60,7 @@ module RISCV.RV32_Zcheri (
 , gcbase
 , gclen
 , gctag
-, gchigh
+, gchi
 , gcmode
 , acperm
 , scmode
@@ -117,8 +117,8 @@ gclen_raw                =                              "0001000 00110 cs1[4:0] 
 gclen rd cs1             = encode gclen_raw                            cs1          rd
 gctag_raw                =                              "0001000 00000 cs1[4:0] 000 rd[4:0] 0110011"
 gctag rd cs1             = encode gctag_raw                            cs1          rd
-gchigh_raw               =                              "0001000 00100 cs1[4:0] 000 rd[4:0] 0110011"
-gchigh rd cs1            = encode gchigh_raw                           cs1          rd
+gchi_raw                 =                              "0001000 00100 cs1[4:0] 000 rd[4:0] 0110011"
+gchi rd cs1              = encode gchi_raw                           cs1          rd
 gcmode_raw               =                              "0001000 00011 cs1[4:0] 000 rd[4:0] 0110011"
 gcmode rd cs1            = encode gcmode_raw                           cs1          rd
 
@@ -202,7 +202,7 @@ rv32_xcheri_disass = [ gcperm_raw     --> prettyR_2op "gcperm"
                      , gcbase_raw     --> prettyR_2op "gcbase"
                      , gclen_raw      --> prettyR_2op "gclen"
                      , gctag_raw      --> prettyR_2op "gctag"
-                     , gchigh_raw     --> prettyR_2op "gchigh"
+                     , gchi_raw     --> prettyR_2op "gchi"
                      , gcmode_raw     --> prettyR_2op "gcmode"
                      , acperm_raw     --> prettyR "acperm"
                      , scaddr_raw     --> prettyR "scaddr"
@@ -239,7 +239,7 @@ rv32_xcheri_extract = [ gcperm_raw      --> extract_1op gcperm_raw
                       , gcbase_raw      --> extract_1op gcbase_raw
                       , gclen_raw       --> extract_1op gclen_raw
                       , gctag_raw       --> extract_1op gctag_raw
-                      , gchigh_raw      --> extract_1op gchigh_raw
+                      , gchi_raw        --> extract_1op gchi_raw
                       , gcmode_raw      --> extract_1op gcmode_raw
                       , acperm_raw      --> extract_2op acperm_raw
                       , scaddr_raw      --> extract_2op scaddr_raw
@@ -273,8 +273,8 @@ shrink_gclen cs rd = [addi rd 0 0, addi rd 0 0xfff, gcbase rd cs]
 shrink_gctag :: Integer -> Integer -> [Instruction]
 shrink_gctag cs rd = [addi rd 0 1, addi rd 0 0]
 
-shrink_gchigh :: Integer -> Integer -> [Instruction]
-shrink_gchigh cs rd = [addi rd cs 0, addi rd cs 0xfff]
+shrink_gchi :: Integer -> Integer -> [Instruction]
+shrink_gchi cs rd = [addi rd cs 0, addi rd cs 0xfff]
 
 shrink_gcmode :: Integer -> Integer -> [Instruction]
 shrink_gcmode cs rd = [addi rd 0 1, addi rd 0 0]
@@ -282,7 +282,7 @@ shrink_gcmode cs rd = [addi rd 0 1, addi rd 0 0]
 shrink_cap :: Integer -> Integer -> [Instruction]
 shrink_cap cs cd = [ecall,
                     cmv cd cs,
-                    gchigh cd cs,
+                    gchi cd cs,
                     gcmode cd cs,
                     gcperm cd cs,
                     gctype cd cs,
@@ -315,7 +315,7 @@ rv32_xcheri_shrink = [ gcperm_raw       --> shrink_gcperm
                      , gcbase_raw       --> shrink_gcbase
                      , gclen_raw        --> shrink_gclen
                      , gctag_raw        --> shrink_gctag
-                     , gchigh_raw       --> shrink_gchigh
+                     , gchi_raw         --> shrink_gchi
                      , gcmode_raw       --> shrink_gcmode
                      , acperm_raw       --> shrink_capint
                      , scaddr_raw       --> shrink_capint
@@ -343,7 +343,7 @@ rv32_xcheri_inspection src dest = [ gcperm dest src
                                   , gcbase dest src
                                   , gclen  dest src
                                   , gctag  dest src
-                                  , gchigh dest src
+                                  , gchi dest src
                                   , gcmode dest src
                                   , cram   dest src]
 

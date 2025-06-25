@@ -75,7 +75,7 @@ capDecodeTest = random $ do
                     inst $ lc 2 1 0,
                     inst $ gclen 6 2,
                     inst $ gcbase 6 2,
-                    inst $ gchigh 6 2,
+                    inst $ gchi 6 2,
                     inst $ gctype 6 2,
                     inst $ gcperm 6 2,
                     inst $ cbld 2 3 2,
