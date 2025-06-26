@@ -294,8 +294,8 @@ shrink_cap cs cd = [ecall,
 shrink_capcap :: Integer -> Integer -> Integer -> [Instruction]
 shrink_capcap cs2 cs1 cd = (shrink_cap cs2 cd) ++ (shrink_cap cs1 cd)
 
-noshrink_capcap :: Integer -> Integer -> Integer -> [Instruction]
-noshrink_capcap cs2 cs1 cd = []
+noshrink_cap :: Integer -> Integer -> [Instruction]
+noshrink_cap cs1 cd = []
 
 shrink_capint :: Integer -> Integer -> Integer -> [Instruction]
 shrink_capint rs cs cd = shrink_cap cs cd
@@ -320,7 +320,7 @@ rv32_xcheri_shrink = [ gcperm_raw       --> shrink_gcperm
                      , acperm_raw       --> shrink_capint
                      , scaddr_raw       --> shrink_capint
                      , schi_raw         --> shrink_capint
-                     , cmv_raw          --> noshrink_capcap -- Ensure this is above cadd
+                     , cmv_raw          --> noshrink_cap -- Ensure this is above cadd
                      , cadd_raw         --> shrink_capint
                      , scbndsr_raw      --> shrink_capint
                      , scbnds_raw       --> shrink_capint
