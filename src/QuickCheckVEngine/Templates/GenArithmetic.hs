@@ -35,12 +35,14 @@
 module QuickCheckVEngine.Templates.GenArithmetic (
   gen_rv32_i_arithmetic
 , gen_rv64_i_arithmetic
+, gen_rv32_i_arithmetic_icond
 ) where
 
 import InstrCodec
 import Test.QuickCheck
 import RISCV.RV32_I
 import RISCV.RV64_I
+import RISCV.RV32_Zicond
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils.General
 
@@ -52,7 +54,8 @@ gen_rv32_i_arithmetic = random $ do
   dest <- dest
   lImm <- bits 20
   return $ dist [ (4, prepReg32 dest)
-                , (8, instUniform $ rv32_i_arith src1 src2 dest imm lImm) ]
+                , (8, instUniform $ rv32_i_arith src1 src2 dest imm lImm)
+                ]
 
 gen_rv64_i_arithmetic :: Template
 gen_rv64_i_arithmetic = random $ do
@@ -63,4 +66,15 @@ gen_rv64_i_arithmetic = random $ do
   return $ dist [ (4, prepReg64 dest)
                 , (8, gen_rv32_i_arithmetic)
                 , (8, instUniform $ rv64_i_arith src1 src2 dest imm)
+                ]
+
+gen_rv32_i_arithmetic_icond :: Template
+gen_rv32_i_arithmetic_icond = random $ do
+  imm  <- bits 12
+  src1 <- src
+  src2 <- src
+  dest <- dest
+  return $ dist [ (4, prepReg32 dest)
+                , (8, gen_rv32_i_arithmetic)
+                , (8, instUniform $ rv32_zicond src1 src2 dest)
                 ]

@@ -243,6 +243,7 @@ allTests = [
            , ("control",    "Control Flow Verification",                              const True,                               T.repeatTillEnd gen_rv32_i_controlflow)
            , ("cache",      "Cache Verification",                                     const True,                               T.repeatTillEnd gen_rv32_i_cache)
            , ("arith64",    "RV64 Arithmetic Verification",                           has_xlen_64,                              T.repeatTillEnd gen_rv64_i_arithmetic)
+           , ("arith_icond", "RV32 Integer conditional operations Verification",      has_icond,                                T.repeatTillEnd gen_rv32_i_arithmetic_icond)
            , ("mem64",      "RV64 Memory Verification",                               has_xlen_64,                              T.repeatTillEnd gen_rv64_i_memory)
            , ("cache64",    "RV64 Cache Verification",                                has_xlen_64,                              T.repeatTillEnd gen_rv64_i_cache)
            -- Note: no rv64 specific control flow instructions
