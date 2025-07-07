@@ -266,6 +266,7 @@ allTests = [
            , ("hpm",        "HPM Verification",                                       andPs [has_icsr, has_ihpm],               T.repeatTillEnd genHPM)
            , ("capinspect", "Xcheri Extension Capability Inspection Verification",    has_cheri,                                T.repeatTillEnd genCHERIinspection)
            , ("caparith",   "Xcheri Extension Capability Arithmetic Verification",    has_cheri,                                T.repeatTillEnd genCHERIarithmetic)
+           , ("caparith_icond", "Xcheri Extension Capability Arithmetic Verification", andPs [has_cheri, has_icond],             T.repeatTillEnd genCHERIarithmetic_icond)
            , ("capmisc",    "Xcheri Extension Capability Miscellaneous Verification", has_cheri,                                T.repeatTillEnd genCHERImisc)
            , ("capcontrol", "Xcheri Extension Capability Control Flow Verification",  has_cheri,                                T.repeatTillEnd genCHERIcontrol)
            , ("capcache",   "Xcheri Extension Cache Verification",                    has_cheri,                                T.repeatTillEnd gen_rv32_Xcheri_cache)
