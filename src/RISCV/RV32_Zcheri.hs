@@ -233,6 +233,9 @@ rv32_xcheri_disass = [ gcperm_raw     --> prettyR_2op "gcperm"
 extract_cmv :: Integer -> Integer -> ExtractedRegs
 extract_cmv rs1 rd = (True, Nothing, Just rs1, Just rd, \x y z -> encode cmv_raw y z)
 
+extract_scbndsi :: String -> Integer -> Integer -> Integer -> Integer -> ExtractedRegs
+extract_scbndsi instr s imm rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode instr s imm y z)
+
 rv32_xcheri_extract :: [DecodeBranch ExtractedRegs]
 rv32_xcheri_extract = [ gcperm_raw      --> extract_1op gcperm_raw
                       , gctype_raw      --> extract_1op gctype_raw
@@ -251,7 +254,7 @@ rv32_xcheri_extract = [ gcperm_raw      --> extract_1op gcperm_raw
                       , cbld_raw        --> extract_2op cbld_raw
                       , sentry_raw      --> extract_1op sentry_raw
                       , caddi_raw       --> extract_imm caddi_raw
-                      , scbndsi_raw     --> extract_imm scbndsi_raw
+                      , scbndsi_raw     --> extract_scbndsi scbndsi_raw
                       , cram_raw        --> extract_1op cram_raw
                       , scmode_raw      --> extract_2op scmode_raw
                       , sc_raw          --> extract_nodst sc_raw
