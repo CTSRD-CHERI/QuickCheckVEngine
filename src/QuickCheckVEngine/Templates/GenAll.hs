@@ -86,6 +86,8 @@ genAll = readParams $ \params -> random $ do
                ] | has_d desc && has_xlen_64 desc]
            ++ [[ (8, instUniform rv32_zifencei)
                ] | has_ifencei desc]
+           ++ [[ (8, instUniform (rv32_zicond src1 src2 dest))
+               ] | has_icond desc]
            ++ [[ (8, maybe mempty (\idx -> instUniform (rv32_zicsr src1 dest idx uimm)) csrIdx)
                ] | has_icsr desc]
            ++ [[ (8, instUniform (rv32_xcheri desc src1 src2 imm dest))

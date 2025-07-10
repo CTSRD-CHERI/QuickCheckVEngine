@@ -243,6 +243,7 @@ allTests = [
            , ("control",    "Control Flow Verification",                              const True,                               T.repeatTillEnd gen_rv32_i_controlflow)
            , ("cache",      "Cache Verification",                                     const True,                               T.repeatTillEnd gen_rv32_i_cache)
            , ("arith64",    "RV64 Arithmetic Verification",                           has_xlen_64,                              T.repeatTillEnd gen_rv64_i_arithmetic)
+           , ("arith_icond", "RV32 Integer conditional operations Verification",      has_icond,                                T.repeatTillEnd gen_rv32_i_arithmetic_icond)
            , ("mem64",      "RV64 Memory Verification",                               has_xlen_64,                              T.repeatTillEnd gen_rv64_i_memory)
            , ("cache64",    "RV64 Cache Verification",                                has_xlen_64,                              T.repeatTillEnd gen_rv64_i_cache)
            -- Note: no rv64 specific control flow instructions
@@ -265,6 +266,7 @@ allTests = [
            , ("hpm",        "HPM Verification",                                       andPs [has_icsr, has_ihpm],               T.repeatTillEnd genHPM)
            , ("capinspect", "Xcheri Extension Capability Inspection Verification",    has_cheri,                                T.repeatTillEnd genCHERIinspection)
            , ("caparith",   "Xcheri Extension Capability Arithmetic Verification",    has_cheri,                                T.repeatTillEnd genCHERIarithmetic)
+           , ("caparith_icond", "Xcheri Extension Capability Arithmetic Verification", andPs [has_cheri, has_icond],             T.repeatTillEnd genCHERIarithmetic_icond)
            , ("capmisc",    "Xcheri Extension Capability Miscellaneous Verification", has_cheri,                                T.repeatTillEnd genCHERImisc)
            , ("capcontrol", "Xcheri Extension Capability Control Flow Verification",  has_cheri,                                T.repeatTillEnd genCHERIcontrol)
            , ("capcache",   "Xcheri Extension Cache Verification",                    has_cheri,                                T.repeatTillEnd gen_rv32_Xcheri_cache)

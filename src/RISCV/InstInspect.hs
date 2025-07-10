@@ -62,6 +62,7 @@ import RISCV.RV32_F
 import RISCV.RV32_D
 import RISCV.RV32_Zicsr
 import RISCV.RV32_Zifencei
+import RISCV.RV32_Zicond
 import RISCV.RV32_Zcheri
 import RISCV.RV64_I
 import RISCV.RV64_M
@@ -85,6 +86,7 @@ rv_pretty instr ixl = case decode 32 instr instList of
                    ++ rv32_d_disass ++ rv64_d_disass
                    ++ rv32_zicsr_disass
                    ++ rv32_zifencei_disass
+                   ++ rv32_zicond_disass
                    ++ rv32_xcheri_disass
                    ++ rv_c_disass ixl
 

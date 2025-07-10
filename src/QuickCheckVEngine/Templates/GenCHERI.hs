@@ -38,6 +38,7 @@ module QuickCheckVEngine.Templates.GenCHERI (
   randomCHERIRVCTest,
   genCHERIinspection,
   genCHERIarithmetic,
+  genCHERIarithmetic_icond,
   genCHERImisc,
   genCHERIcontrol
 ) where
@@ -160,6 +161,25 @@ genCHERIarithmetic = random $ do
                         , (1, bits 12) ]
   return $ dist [ (1, instUniform $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
                 , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr
+
+
+
+genCHERIarithmetic_icond :: Template
+genCHERIarithmetic_icond = random $ do
+  srcAddr  <- src
+  srcData  <- src
+  dest     <- dest
+  imm      <- bits 12
+  longImm  <- bits 20
+  fenceOp1 <- bits 3
+  fenceOp2 <- bits 3
+  csrAddr  <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
+                        , (1, return (unsafe_csrs_indexFromName "mcause"))
+                        , (1, bits 12) ]
+  return $ dist [ (1, instUniform $ rv32_xcheri_arithmetic srcAddr srcData imm dest)
+                , (1, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2)
+                , (1, instUniform $ rv32_zicond srcAddr srcData dest)
+                ] -- TODO add csr
 
 genCHERImisc :: Template
 genCHERImisc = random $ do
