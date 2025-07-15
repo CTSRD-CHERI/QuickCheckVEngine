@@ -135,6 +135,7 @@ csrs_map = -- User Trap Setup
         ++ -- User Trap Handling
            [ (0x040, "uscratch")
            , (0x041, "uepc")
+           , (0x480, "utid")
            , (0x042, "ucause")
            , (0x043, "utval")
            , (0x044, "uip") ]
@@ -163,6 +164,7 @@ csrs_map = -- User Trap Setup
         ++ -- Supervisor Trap Handling
            [ (0x140, "sscratch")
            , (0x141, "sepc")
+           , (0x580, "stid")
            , (0x142, "scause")
            , (0x143, "stval")
            , (0x14B, "stval2")
@@ -192,6 +194,7 @@ csrs_map = -- User Trap Setup
         ++ -- Machine Trap Handling
            [ (0x340, "mscratch")
            , (0x341, "mepc")
+           , (0x780, "mtid")
            , (0x342, "mcause")
            , (0x343, "mtval")
            , (0x34B, "mtval2")

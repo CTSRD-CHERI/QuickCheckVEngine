@@ -103,7 +103,7 @@ genRandomCHERITest = readParams $ \param -> random $ do
   uimm5     <- (bits 5)
   csrAddr   <- elements (unsafe_csrs_indexFromName <$>
                  [ "mcause", "scause", "mtval", "mtval2", "stval", "stval2"
-                 , "mseccfg", "menvcfg", "senvcfg"
+                 , "mseccfg", "menvcfg", "senvcfg", "mtid", "stid", "utid"
                  , "mepc", "sepc", "mtvec", "stvec", "mscratch", "sscratch"])
   return $ dist [ (5, legalLoad)
                 , (5, legalStore)
