@@ -180,9 +180,11 @@ gen_cache conf has_caplen = random $
 
 gen_pte_perms = random $
   do lperms_rng <- bits 10
-     lperms <- choose (0x3ff, lperms_rng)
+     let lperms_all = 0x3ff
+     lperms <- choose (lperms_all, lperms_rng)
      uperms_rng <- bits 5
-     uperms <- choose (0x3, uperms_rng)
+     uperms_legal <- bits 2
+     uperms <- choose (uperms_legal, uperms_rng)
      let satp = unsafe_csrs_indexFromName "satp"
      let sstatus = unsafe_csrs_indexFromName "sstatus"
      let excCSRs = unsafe_csrs_indexFromName <$> ["mcause", "mtval", "mtval2"]

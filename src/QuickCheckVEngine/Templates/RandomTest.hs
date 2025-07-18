@@ -54,11 +54,12 @@ randomTest = fp_prologue go
           longImm   <- (bits 20)
           fenceOp1  <- (bits 4)
           fenceOp2  <- (bits 4)
-          csrAddr   <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
-                                 , (1, return (unsafe_csrs_indexFromName "mcause"))
-                                 , (1, bits 12) ]
+          uimm      <- (bits 5)
+          csrAddr   <- frequency (((\x -> (1, return (unsafe_csrs_indexFromName x))) <$> ["mcause", "mtval", "mtval2"])
+                                ) -- ++ [(1, bits 12)])
           let test = dist [ (if remaining > 10 then 1 else 0, legalLoad)
                           , (if remaining > 10 then 1 else 0, legalStore)
-                          , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) --TODO re-add csrs
+                          , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2)
+                          , (1, instUniform $ rv32_zicsr srcData dest csrAddr uimm)
                           , (if remaining > 10 then 1 else 0, surroundWithMemAccess go) ]
           return $ if remaining <= 0 then mempty else if remaining > 10 then test <> go else test
