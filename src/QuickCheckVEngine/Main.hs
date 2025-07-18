@@ -310,7 +310,7 @@ main = withSocketsDo $ do
         where hasTrap (_, a, b) = maybe False rvfiIsTrap a || maybe False rvfiIsTrap b
               testSuffix = noShrink $ singleSeq [ csrrs 1 (unsafe_csrs_indexFromName "mcause") 0
                                                 , csrrs 1 (unsafe_csrs_indexFromName "mtval" ) 0
-                                                , csrrs 1 (unsafe_csrs_indexFromName "mccsr" ) 0 ]
+                                                , csrrs 1 (unsafe_csrs_indexFromName "mtval2" ) 0 ]
               p (DII_End _, _, _) = False
               p _ = True
   let askAndSave sourceFile contents m_trace testTrans = do
