@@ -128,17 +128,8 @@ csrs_nameFromIndex idx = lookup idx csrs_map
 
 -- | List of CSRs' (index, name) tuples
 csrs_map :: [(CSRIdx, CSRName)]
-csrs_map = -- User Trap Setup
-           [ (0x000, "ustatus")
-           , (0x004, "uie")
-           , (0x005, "utvec") ]
-        ++ -- User Trap Handling
-           [ (0x040, "uscratch")
-           , (0x041, "uepc")
-           , (0x480, "utid")
-           , (0x042, "ucause")
-           , (0x043, "utval")
-           , (0x044, "uip") ]
+csrs_map = -- User Thread ID
+           [ (0x480, "utid")]
         ++ -- User Floating-Point CSRs
            [ (0x001, "fflags")
            , (0x002, "frm")
