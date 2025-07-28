@@ -167,7 +167,8 @@ csrs_map = -- User Thread ID
            [ (0xF11, "mvendorid")
            , (0xF12, "marchid")
            , (0xF13, "mimpid")
-           , (0xF14, "mhartid") ]
+           , (0xF14, "mhartid")
+           , (0xF15, "mconfigptr") ]
         ++ -- Machine Trap Setup
            [ (0x300, "mstatus")
            , (0x301, "misa")
