@@ -189,8 +189,8 @@ csrs_map = -- User Thread ID
            , (0x780, "mtid")
            , (0x342, "mcause")
            , (0x343, "mtval")
-           , (0x34B, "mtval2")
-           , (0x344, "mip") ]
+           , (0x344, "mip")
+           , (0x34B, "mtval2")]
         ++ -- Machine Memory Protection
            [ (0x3A0 + x, "pmpcfg" ++ show x) | x <- [0..3] ]
         ++ [ (0x3B0 + x, "pmpaddr" ++ show x) | x <- [0..15] ]
