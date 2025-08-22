@@ -74,6 +74,7 @@ module QuickCheckVEngine.Template (
 
 import Test.QuickCheck
 import Data.Semigroup (Semigroup(..))
+import Data.Set (Set)
 import RISCV (Instruction(..), CSRIdx)
 import RISCV.ArchDesc
 --import Data.Kind
@@ -91,7 +92,7 @@ import QuickCheckVEngine.RVFI_DII
 --   influence test generation, which should be passed
 --   recursively to sub-templates.
 data TestParams = TestParams { archDesc  :: ArchDesc
-                             , csrFilter :: CSRIdx -> Bool }
+                             , csrFilter :: Set(CSRIdx) }
 
 data Template = TemplateEmpty
               | TemplateSingle Instruction
