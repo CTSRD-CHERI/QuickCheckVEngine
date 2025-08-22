@@ -51,6 +51,7 @@ import System.Console.GetOpt
 import Data.IORef
 import Data.Maybe
 import Data.Time.Clock
+import Data.Set (member,Set,fromList)
 import Control.Monad
 import Network.Socket
 import Test.QuickCheck
@@ -292,8 +293,8 @@ main = withSocketsDo $ do
   let checkRegex incReg excReg str = (str =~ (fromMaybe ".*" incReg)) && (not $ str =~ fromMaybe "a^" excReg)
   let archDesc = arch flags
   let csrFilter idx = checkRegex (csrIncludeRegex flags) (csrExcludeRegex flags) (fromMaybe "reserved" $ csrs_nameFromIndex idx)
-  let testParams = T.TestParams { T.archDesc  = archDesc
-                                , T.csrFilter = csrFilter }
+  let testParams = T.TestParams { T.archDesc = archDesc
+                                , T.csrFilter = fromList $ filter csrFilter $ [0..4095] }
   -- initialize model and implementation sockets
   implA <- rvfiDiiOpen (impAIP flags) (impAPort flags) verbosity "implementation-A" (optForceRVFIv1 flags)
   m_implB <- if optSingleImp flags then return Nothing else Just <$> rvfiDiiOpen (impBIP flags) (impBPort flags) verbosity "implementation-B" (optForceRVFIv1 flags)

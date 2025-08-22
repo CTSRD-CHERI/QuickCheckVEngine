@@ -87,6 +87,7 @@ import Data.Bits
 import Data.Word
 import Data.List.Split
 import Data.List ((\\))
+import Data.Set (Set,toList,member)
 
 -- * RISCV pseudo-instructions
 --------------------------------------------------------------------------------
@@ -126,7 +127,7 @@ li64 reg imm = instSeq [ addi reg   0 (shiftAndMask imm 52 0xfff)
 
 -- | Guard csr instruction based on the CSR it accesses
 guardCSR :: CSRIdx -> Template -> Template
-guardCSR idx t = readParams $ \p -> if csrFilter p idx then t else mempty
+guardCSR idx t = readParams $ \p -> if member idx (csrFilter p) then t else mempty
 
 -- | 'csrr' pseudo-instruction to read a CSR
 csrr :: Integer -> Integer -> Template
@@ -190,13 +191,9 @@ sbcRegs :: Gen Integer
 sbcRegs = choose(22, 29)
 
 -- | 'csr' generates an arbitrary csr register index
-csr :: (CSRIdx -> Bool) -> Gen (Maybe CSRIdx)
-csr filt = do let allowed = filter filt $ map fst csrs_map
-              allowed_choice <- if null allowed then return [] else (\x -> [x]) <$> elements allowed
-              let reserved = filter filt $ [0..4095] \\ (map fst csrs_map)
-              reserved_choice <- if null reserved then return [] else (\x -> [x]) <$> elements reserved
-              let options = allowed_choice ++ reserved_choice
-              if null options then return Nothing else oneof $ (return . Just) <$> options
+csr :: Set(CSRIdx) -> Gen (Maybe CSRIdx)
+csr filt = do let csrs = toList filt
+              if null csrs then return Nothing else oneof $ (return . Just) <$> csrs
 
 -- | 'roundingMode' generates a random floating point rounding mode
 -- Modes 5 and 6 are reserved for future use in the RISV ISA.

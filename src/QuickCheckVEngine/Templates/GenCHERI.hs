@@ -57,6 +57,7 @@ import QuickCheckVEngine.Templates.GenArithmetic
 import QuickCheckVEngine.Templates.GenFP
 import QuickCheckVEngine.Templates.GenCompressed
 import Data.Bits
+import Data.Set(member)
 
 cLoadTagsTest :: Template
 cLoadTagsTest = loadTags 1 2
@@ -111,8 +112,8 @@ genRandomCHERITest = readParams $ \param -> random $ do
   csrAddr   <- frequency [ (1, return (unsafe_csrs_indexFromName "mccsr"))
                          , (1, return (unsafe_csrs_indexFromName "mcause")) ]
   srcScr    <- elements $ [0, 1, 28, 29, 30, 31] ++ (if has_s arch then [12, 13, 14, 15] else []) ++ [2]
-  let allowedCsrs = filter (csrFilter param) [ unsafe_csrs_indexFromName "sepc"
-                                             , unsafe_csrs_indexFromName "mepc" ]
+  let allowedCsrs = filter (flip member (csrFilter param)) [ unsafe_csrs_indexFromName "sepc"
+                                                           , unsafe_csrs_indexFromName "mepc" ]
   let allowedCsrsRO = [ unsafe_csrs_indexFromName "scause"
                       , unsafe_csrs_indexFromName "mcause" ]
   srcCsr    <- if null allowedCsrs then return Nothing else Just <$> elements allowedCsrs
