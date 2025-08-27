@@ -74,6 +74,7 @@ import qualified InstrCodec
 import RISCV hiding (and, or)
 import QuickCheckVEngine.RVFI_DII
 import QuickCheckVEngine.Test
+import QuickCheckVEngine.Stats
 import qualified QuickCheckVEngine.Template as T
 import QuickCheckVEngine.Templates.Utils.General
 
@@ -155,6 +156,7 @@ wrapTest = (<> single (diiEnd, Nothing, Nothing))
 runImpls :: RvfiDiiConnection         -- ^ Implementation A connection
          -> Maybe RvfiDiiConnection   -- ^ Implementation B connection
          -> IORef Bool                -- ^ Implementations still alive?
+         -> IORef Stats               -- ^ Accumulated coverage statistics
          -> Int                       -- ^ RVFI-DII delay
          -> Int                       -- ^ Verbosity
          -> Maybe FilePath            -- ^ Optional save directory for failed tests
@@ -163,11 +165,11 @@ runImpls :: RvfiDiiConnection         -- ^ Implementation A connection
          -> (Test DII_Packet -> IO a) -- ^ Callback: first implementation disconnect
          -> (Test DII_Packet -> IO a) -- ^ Callback: already disconnected implementations
          -> IO a
-runImpls connA m_connB alive delay verbosity saveDir test onTrace onFirstDeath onSubsequentDeaths = do
+runImpls connA m_connB alive stats delay verbosity saveDir test onTrace onFirstDeath onSubsequentDeaths = do
   let instTrace = (\(x, _, _) -> x) <$> test
   currentlyAlive <- readIORef alive
   if currentlyAlive then do
-    m_trace <- doRVFIDII connA m_connB alive delay verbosity saveDir test
+    m_trace <- doRVFIDII connA m_connB alive stats delay verbosity saveDir test
     case m_trace of
       Just trace -> onTrace trace
       _ -> onFirstDeath instTrace
@@ -186,6 +188,7 @@ instance Show TestWithSeen where
 prop :: RvfiDiiConnection             -- ^ Implementation A connection
      -> Maybe RvfiDiiConnection       -- ^ Implementation B connection
      -> IORef Bool                    -- ^ Implementations still alive?
+     -> IORef Stats                   -- ^ Accumulated coverage stats
      -> (Test TestResult -> IO ())    -- ^ Callback on falsification
      -> ArchDesc                      -- ^ Archictecture description
      -> Int                           -- ^ RVFI-DII Delay
@@ -195,13 +198,13 @@ prop :: RvfiDiiConnection             -- ^ Implementation A connection
      -> Bool                          -- ^ Strict RVFI response comparison
      -> Gen (Test TestResult)         -- ^ Test generator
      -> Property
-prop connA m_connB alive onFail arch delay verbosity saveDir ignoreAsserts strict gen =
+prop connA m_connB alive stats onFail arch delay verbosity saveDir ignoreAsserts strict gen =
   forAllShrink genDedup shrinkTestDedup mkPropDedup
   where mkPropDedup t = mkProp (test t)
         genDedup = (\t -> MkTestWithSeen t (Set.singleton t)) <$> gen
         shrinkTestDedup t = map (\t' -> MkTestWithSeen t' (Set.insert t' (seen t))) (filter (flip Set.notMember (seen t)) (shrinkTest (test t)))
         mkProp test = whenFail (onFail test) (doProp test)
-        doProp test = monadicIO $ run $ runImpls connA m_connB alive delay verbosity saveDir test onTrace onFirstDeath onSubsequentDeaths
+        doProp test = monadicIO $ run $ runImpls connA m_connB alive stats delay verbosity saveDir test onTrace onFirstDeath onSubsequentDeaths
         colourGreen = "\ESC[32m"
         colourRed = "\ESC[31m"
         colourEnd = "\ESC[0m"
@@ -232,12 +235,13 @@ prop connA m_connB alive onFail arch delay verbosity saveDir ignoreAsserts stric
 doRVFIDII :: RvfiDiiConnection        -- ^ Implementation A connection
           -> Maybe RvfiDiiConnection  -- ^ Implementation B connection
           -> IORef Bool               -- ^ Implementations still alive?
+          -> IORef Stats              -- ^ Coverage information
           -> Int                      -- ^ RVFI-DII delay
           -> Int                      -- ^ Verbosity
           -> Maybe FilePath           -- ^ Optional save directory for failed tests
           -> Test TestResult          -- ^ Input instruction sequence
           -> IO (Maybe (Test TestResult))
-doRVFIDII connA m_connB alive delay verbosity saveDir test = do
+doRVFIDII connA m_connB alive stats delay verbosity saveDir test = do
   let instTrace = (\(x, _, _) -> x) <$> test
   let insts = instTrace
   currentlyAlive <- readIORef alive
@@ -256,6 +260,7 @@ doRVFIDII connA m_connB alive delay verbosity saveDir test = do
                                       return res
       m_traceA <- receive "implementation A" insts connA
       let traceA = fromMaybe (emptyTrace insts) m_traceA
+      modifyIORef stats (statTrace (snd <$> traceA))
       m_traceAB <- maybe (return . Just $ emptyTrace traceA) (receive "implementation B" traceA) m_connB
       --
       when (isNothing m_traceA || isNothing m_traceAB) $ writeIORef alive False
