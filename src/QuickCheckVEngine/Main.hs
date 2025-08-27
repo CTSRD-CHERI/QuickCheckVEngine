@@ -63,6 +63,7 @@ import QuickCheckVEngine.MainHelpers
 import QuickCheckVEngine.RVFI_DII
 import qualified QuickCheckVEngine.Template as T
 import QuickCheckVEngine.Test
+import QuickCheckVEngine.Stats
 import QuickCheckVEngine.Templates.GenAll
 import QuickCheckVEngine.Templates.GenArithmetic
 import QuickCheckVEngine.Templates.GenMemory
@@ -107,6 +108,7 @@ data Options = Options
     , csrIncludeRegex  :: Maybe String
     , csrExcludeRegex  :: Maybe String
     , optForceRVFIv1   :: Bool
+    , statsFile        :: FilePath
     } deriving Show
 
 defaultOptions :: Options
@@ -137,6 +139,7 @@ defaultOptions = Options
     , csrIncludeRegex  = Nothing
     , csrExcludeRegex  = Nothing
     , optForceRVFIv1   = False
+    , statsFile        = "last_stats.txt"
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -219,6 +222,9 @@ options =
   , Option []        ["force-RVFI-v1"]
       (NoArg (\ opts -> opts { optForceRVFIv1 = True }))
         "Force implementations to use legacy v1 RVFI reporting"
+  , Option []        ["statsFile"]
+      (ReqArg (\f opts -> opts { statsFile = f }) "PATH")
+        "Specify where to save a stats file of coverage information"
   ]
 
 commandOpts :: [String] -> IO (Options, [String])
@@ -303,10 +309,11 @@ main = withSocketsDo $ do
   instrSoc <- mapM (open "instruction-generator-port") addrInstr
   --
   alive <- newIORef True -- Cleared when either implementation times out, since they will may not be able to respond to future queries
+  stats <- newIORef emptyStats -- Updated with information on the instructions run throughout the tests
   let checkSingle :: Test TestResult -> Int -> Bool -> Int -> (Test TestResult -> IO ()) -> IO Result
       checkSingle test verbosity doShrink len onFail = do
         quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 100000 else 0))
-                             (prop implA m_implB alive onFail archDesc (timeoutDelay flags) verbosity Nothing (optIgnoreAsserts flags) (optStrict flags) (return test))
+                             (prop implA m_implB alive stats onFail archDesc (timeoutDelay flags) verbosity Nothing (optIgnoreAsserts flags) (optStrict flags) (return test))
   let check_mcause_on_trap :: Test TestResult -> Test TestResult
       check_mcause_on_trap (trace :: Test TestResult) = if or (hasTrap <$> trace) then filterTest p trace <> wrapTest testSuffix else trace
         where hasTrap (_, a, b) = maybe False rvfiIsTrap a || maybe False rvfiIsTrap b
@@ -342,7 +349,7 @@ main = withSocketsDo $ do
               putStrLn $ "Writing counterexample file to: " ++ fname
               writeFile fname (prelude ++ contents)
   let saveOnFail :: Maybe FilePath -> Test TestResult -> (Test TestResult -> Test TestResult) -> IO ()
-      saveOnFail sourceFile test testTrans = runImpls implA m_implB alive (timeoutDelay flags) 0 Nothing test onTrace onDeath onDeath
+      saveOnFail sourceFile test testTrans = runImpls implA m_implB alive stats (timeoutDelay flags) 0 Nothing test onTrace onDeath onDeath
         where onDeath test = do putStrLn "Failure rerunning test"
                                 askAndSave sourceFile (show test) Nothing testTrans
               onTrace trace = askAndSave sourceFile (showAnnotatedTrace (isNothing m_implB) archDesc verbosity trace) (Just trace) testTrans
@@ -350,7 +357,7 @@ main = withSocketsDo $ do
   let checkResult = if verbosity > 1 then verboseCheckWithResult else quickCheckWithResult
   let checkGen gen remainingTests =
         checkResult (Args Nothing remainingTests 1 (testLen flags) (verbosity > 0) (if optShrink flags then 100000 else 0))
-                    (prop implA m_implB alive (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) verbosity (if (optSaveAll flags) then (saveDir flags) else Nothing) (optIgnoreAsserts flags) (optStrict flags) gen)
+                    (prop implA m_implB alive stats (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) verbosity (if (optSaveAll flags) then (saveDir flags) else Nothing) (optIgnoreAsserts flags) (optStrict flags) gen)
   failuresRef <- newIORef 0
   let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
         | skipped == 0 = do putStrLn $ "Reading trace from " ++ fileName
@@ -398,6 +405,10 @@ main = withSocketsDo $ do
               doCheck (liftM (wrapTest . singleSeq . (MkInstruction <$>)) $ listOf (genInstrServer sock)) (nTests flags)
               return ()
   --
+  finalStats <- readIORef stats
+  writeFile (statsFile flags) (show finalStats)
+  when (verbosity > 1) $ putStrLn (show finalStats)
+  putStrLn $ "Written coverage stats to " ++ (statsFile flags)
   rvfiDiiClose implA
   maybe (pure ()) rvfiDiiClose m_implB
   --
