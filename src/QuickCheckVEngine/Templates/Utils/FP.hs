@@ -33,22 +33,33 @@
 --
 
 module QuickCheckVEngine.Templates.Utils.FP (
-  fp_prologue
+   switch_fpu_on_off
+,  fp_prologue
 ) where
 
 import InstrCodec
 import RISCV
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils.General
+import Test.QuickCheck
 
-fp_prologue :: Template -> Template
-fp_prologue t = readParams $ \p ->
+switch_fpu_on_off :: Integer -> Template
+switch_fpu_on_off reg = random $ do
+  on <- frequency [ (1, return True), (1, return False) ]
+  let insts = if on then instSeq [ lui reg 2 ] <> csrs (unsafe_csrs_indexFromName "mstatus") reg
+              else instSeq [ lui reg 2 ] <> csrc (unsafe_csrs_indexFromName "mstatus") reg
+  return insts
+
+fp_prologue :: Template
+fp_prologue = readParams $ \p ->
     if has_f (archDesc p) || has_d (archDesc p)
-    then shrinkScope ((noShrink . mconcat) [ inst $ lui 1 2
+    then shrinkScope ((noShrink . mconcat) [ inst $ lui 1 2 
                                            , csrs (unsafe_csrs_indexFromName "mstatus") 1
                                            , csrs (unsafe_csrs_indexFromName "fcsr") 0
                                            , mconcat $ [li64 i 0x8309 | i <- [4..8]]
                                                     ++ [inst $ fmv_w_x i i | i <- [4..8]]
                                                     ++ [inst $ (if has_d (archDesc p) then fmv_d_x else fmv_w_x) i 0 | i <- [16..20]]
-                                           ] <> t)
-    else t
+                                           ])
+    else shrinkScope ((noShrink . mconcat) [ inst $ lui 1 2
+                                           , csrs (unsafe_csrs_indexFromName "mstatus") 1
+                                            ])
