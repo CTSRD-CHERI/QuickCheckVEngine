@@ -92,4 +92,4 @@ genAll = readParams $ \params -> random $ do
                ] | has_icsr desc]
            ++ [[ (8, instUniform (rv32_xcheri desc src1 src2 imm dest))
                ] | has_cheri desc]
-  return $ fp_prologue $ repeatTillEnd (dist $ concat insts)
+  return $ fp_prologue <> repeatTillEnd (dist $ concat insts)

@@ -130,7 +130,7 @@ randomCHERIRVCTest = random $ do
                    ]
 
 randomCHERITest :: Template
-randomCHERITest = fp_prologue $ repeatTillEnd genRandomCHERITest
+randomCHERITest = fp_prologue <> repeatTillEnd genRandomCHERITest
 
 genCHERIinspection :: Template
 genCHERIinspection = random $ do

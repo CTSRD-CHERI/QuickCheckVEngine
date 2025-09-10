@@ -44,7 +44,7 @@ import QuickCheckVEngine.Templates.Utils.General
 
 -- | 'randomTest' provides a 'Template' for a random test
 randomTest :: Template
-randomTest = fp_prologue go
+randomTest = fp_prologue <> go
   where go = random $ do
           remaining <- getSize
           srcAddr   <- src

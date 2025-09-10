@@ -43,9 +43,9 @@ import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils.General
 import Test.QuickCheck
 
-switch_fpu_on_off :: Integer -> Template
-switch_fpu_on_off reg = random $ do
-  on <- frequency [ (1, return True), (1, return False) ]
+switch_fpu_on_off :: Bool -> Integer -> Template
+switch_fpu_on_off on reg = random $ do
+  --on <- frequency [ (1, return True), (1, return False) ]
   let insts = if on then instSeq [ lui reg 2 ] <> csrs (unsafe_csrs_indexFromName "mstatus") reg
               else instSeq [ lui reg 2 ] <> csrc (unsafe_csrs_indexFromName "mstatus") reg
   return insts

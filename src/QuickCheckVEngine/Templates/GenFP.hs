@@ -68,22 +68,23 @@ gen_rv64_fd = genFP True True True
 
 genFP :: Bool -> Bool -> Bool -> Template
 genFP has_f has_d has_xlen_64 = random $ do
-  src1 <- src
-  src2 <- src
-  src3 <- src
-  dest <- dest
-  rm   <- roundingMode
-  imm  <- bits 12
-  on <- frequency [ (1, return True), (1, return False) ]
-  let insts =    [ rv32_f src1 src2 src3 dest rm imm | has_f ]
-              ++ [ rv32_d src1 src2 src3 dest rm imm | has_d ]
-              ++ [ rv64_f src1 dest rm | has_f && has_xlen_64 ]
-              ++ [ rv64_d src1 dest rm | has_d && has_xlen_64 ]
-  let epilogue = csrr dest (unsafe_csrs_indexFromName "fcsr")
-  return $ fp_prologue <> (repeatTillEnd (dist $ [
-      (50, (instUniform $ (concat insts)))
-    , (5, (switch_fpu_on_off src1))
-    , (5, legalLoad)
-    , (5, legalStore)
-    ])
-    <> noShrink epilogue)
+  dest1 <- dest
+  let epilogue = csrr dest1 (unsafe_csrs_indexFromName "fcsr")
+  return $ fp_prologue <> (repeatTillEnd $ random $ do
+      rm   <- roundingMode
+      src1 <- src
+      src2 <- src
+      src3 <- src
+      dest <- dest
+      imm  <- bits 12
+      on <- frequency [ (1, return True), (1, return False) ]
+      let insts =    [ rv32_f src1 src2 src3 dest rm imm | has_f ]
+                  ++ [ rv32_d src1 src2 src3 dest rm imm | has_d ]
+                  ++ [ rv64_f src1 dest rm | has_f && has_xlen_64 ]
+                  ++ [ rv64_d src1 dest rm | has_d && has_xlen_64 ]
+      return (dist $ [
+          (50, (instUniform $ (concat insts)))
+        , (5, (switch_fpu_on_off on src1))
+        , (5, legalLoad)
+        , (5, legalStore)
+        ])) <> noShrink epilogue
