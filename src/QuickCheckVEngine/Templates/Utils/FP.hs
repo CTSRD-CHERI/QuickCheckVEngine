@@ -47,7 +47,8 @@ fp_prologue t = readParams $ \p ->
     then shrinkScope ((noShrink . mconcat) [ inst $ lui 1 2
                                            , csrs (unsafe_csrs_indexFromName "mstatus") 1
                                            , csrs (unsafe_csrs_indexFromName "fcsr") 0
-                                           , mconcat $ [inst $ fmv_w_x i 0 | i <- [0..4]]
+                                           , mconcat $ [li64 i 0x8309 | i <- [4..8]]
+                                                    ++ [inst $ fmv_w_x i i | i <- [4..8]]
                                                     ++ [inst $ (if has_d (archDesc p) then fmv_d_x else fmv_w_x) i 0 | i <- [16..20]]
                                            ] <> t)
     else t
