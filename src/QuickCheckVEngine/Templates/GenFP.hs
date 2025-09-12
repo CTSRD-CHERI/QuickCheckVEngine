@@ -46,6 +46,7 @@ import RISCV
 import QuickCheckVEngine.Template
 import QuickCheckVEngine.Templates.Utils.FP
 import QuickCheckVEngine.Templates.Utils.General
+import QuickCheckVEngine.Templates.GenArithmetic
 import Test.QuickCheck
 
 gen_rv32_f :: Template
@@ -84,7 +85,8 @@ genFP has_f has_d has_xlen_64 = random $ do
                   ++ [ rv64_d src1 dest rm | has_d && has_xlen_64 ]
       return (dist $ [
           (50, (instUniform $ (concat insts)))
-        , (5, (switch_fpu_on_off on src1))
-        , (5, legalLoad)
-        , (5, legalStore)
+        , (2, (switch_fpu_on_off on src1))
+        , (10, legalLoad)
+        , (10, legalStore)
+        , (20, gen_rv32_i_arithmetic)
         ])) <> noShrink epilogue
