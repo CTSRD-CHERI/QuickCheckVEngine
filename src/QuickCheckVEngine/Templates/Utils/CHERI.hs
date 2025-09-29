@@ -123,6 +123,9 @@ loadRegion numLines capReg cacheLSize tmpReg insts =
    else if numLines == 1 then mconcat [insts, inst (lc tmpReg capReg 0)]
    else loadRegion (numLines - 1) capReg cacheLSize tmpReg (mconcat [insts, inst (lc tmpReg capReg 0), inst (caddi capReg capReg cacheLSize)])
 
+-- This should probably be renamed as it does not necessarily switch the encoding mode
+-- If the random `mode` variable ends up to be the same as the mode was before, no
+-- switch takes place
 switchEncodingMode :: Template
 switchEncodingMode = random $ do
   mode    <- elements [0, 1]

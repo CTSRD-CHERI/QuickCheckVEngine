@@ -57,19 +57,16 @@ gen_rv32_i_zicsr = readParams $ \param -> random $
      return $ instUniform insts
 -}
 
-{-
-gen_rv32_i_zicsr :: Template
-gen_rv32_i_zicsr = readParams $ \param -> random $
+gen_rand_csr :: Template
+gen_rand_csr = readParams $ \param -> random $
   do any_csr   <- bits 12
-     --valid_csr <- csr
      uimm      <- bits 5
      src1      <- src
      dest      <- dest
      -- TODO mix csr instructions with some i instructions
      let insts = maybe mempty (\idx -> rv32_zicsr src1 dest idx uimm) (Just any_csr)
-                 ++ rv32_i_exc
+--                 ++ rv32_i_exc
      return $ instUniform insts
--}
 
 {-
 gen_rv32_i_zicsr :: Template
@@ -91,14 +88,13 @@ gen_hpm_violation :: Template
 gen_hpm_violation = random $ do
   let a0 = 10
   let t0 = 6
-  let mepc = unsafe_csrs_indexFromName "mepc"
   return $ mconcat [ li64 a0 0xEFFFF
                    , inst $ modeswcap
                    , inst $ auipc t0 0
                    , inst $ acperm t0 t0 a0
-                   , inst $ csrrw 11 mepc t0
+                   , inst $ csrrw 11 (unsafe_csrs_indexFromName "mepc") t0
                    , inst $ jalr 0 t0 0
-                   , inst $ csrrs 1 (unsafe_csrs_indexFromName "hpmcounter3") 0
+                   , gen_rand_csr
                    ]
 
 setUpPageTable :: Template
