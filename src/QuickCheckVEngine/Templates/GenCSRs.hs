@@ -83,7 +83,7 @@ gen_rv32_i_zicsr =
                                       ])
 -}
 
-
+{-
 gen_hpm_violation :: Template
 gen_hpm_violation = random $ do
   let a0 = 10
@@ -95,6 +95,15 @@ gen_hpm_violation = random $ do
                    , inst $ csrrw 11 (unsafe_csrs_indexFromName "mepc") t0
                    , inst $ jalr 0 t0 0
                    , gen_rand_csr
+                   ]
+-}
+
+gen_hpm_violation :: Template
+gen_hpm_violation = random $ do
+  let a0 = 10
+  let t0 = 6
+  return $ mconcat [ changePrivMode
+                   , inst $ add 1 2 3
                    ]
 
 setUpPageTable :: Template

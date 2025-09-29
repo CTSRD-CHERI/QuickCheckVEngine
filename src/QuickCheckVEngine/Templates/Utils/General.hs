@@ -76,6 +76,7 @@ module QuickCheckVEngine.Templates.Utils.General (
 , prepReg
 , prepReg32
 , prepReg64
+, changePrivMode
 ) where
 
 import qualified Data.Bits.Bitwise as BW
@@ -365,3 +366,16 @@ prepReg64 dst = repeatN 6 $ random $ do
   val <- bits 12
   return $ instSeq [ slli dst dst 12
                    , xori dst dst val ]
+
+changePrivMode :: Template
+changePrivMode = random $ do
+  s_or_u <- elements[0,1]
+  tmp <- src
+  msret <- elements[mret, sret]
+  return $ instSeq [ addi tmp 0 s_or_u
+                   , slli tmp tmp 11
+                   , csrrs 0 (unsafe_csrs_indexFromName "mstatus") tmp
+                   , auipc tmp 0
+                   , csrrw 0 (unsafe_csrs_indexFromName "mepc") tmp
+                   , csrrw 0 (unsafe_csrs_indexFromName "sepc") tmp
+                   , msret]
