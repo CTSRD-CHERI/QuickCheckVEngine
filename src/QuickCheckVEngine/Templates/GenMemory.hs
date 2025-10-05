@@ -119,7 +119,7 @@ gen_memory has_a has_zifencei has_xlen_64 has_caplen = random $
      offset   <- geomBits 11 0
      let insts = [[(8,  inst $ addi dest src1 offset)
                  , (8,  inst $ ori dest src1 offset)
-                 , (16, instSeq [ lui 0x40004 dest
+                 , (16, instSeq [ lui dest 0x40004
                                 , slli dest dest 1 ])
                  , (8, instUniform $ rv32_i_load  src1 dest offset)
                  , (8, instUniform $ rv32_i_store src1 src2 offset)
