@@ -51,6 +51,8 @@ module QuickCheckVEngine.MainHelpers (
 , showTraceInput
 , showAnnotatedTrace
 , prop
+, propExhaust
+, PropType (..)
 ) where
 
 import Numeric
@@ -180,6 +182,27 @@ data TestWithSeen = MkTestWithSeen { test :: Test TestResult, seen :: Set.Set (T
 instance Show TestWithSeen where
    show = show . test
 
+data PropType = PropTrue | PropFalse | PropDiscard
+-- 
+-- propWrapper :: RvfiDiiConnection             -- ^ Implementation A connection
+--             -> Maybe RvfiDiiConnection       -- ^ Implementation B connection
+--             -> IORef Bool                    -- ^ Implementations still alive?
+--             -> IORef Stats                   -- ^ Accumulated coverage stats
+--             -> (Test TestResult -> IO ())    -- ^ Callback on falsification
+--             -> ArchDesc                      -- ^ Archictecture description
+--             -> Int                           -- ^ RVFI-DII Delay
+--             -> Int                           -- ^ Verbosity
+--             -> Maybe FilePath                -- ^ Optional save directory for failed tests
+--             -> Bool                          -- ^ Ignore embedded asserts in tests
+--             -> Bool                          -- ^ Strict RVFI response comparison
+--             -> Gen (Test TestResult)         -- ^ Test generator
+--             -> Property
+-- propWrapper connA m_connB alive stats onFail arch delay verbosity saveDir ignoreAsserts strict gen =
+--   case (prop connA m_connB alive stats onFail arch delay verbosity saveDir ignoreAsserts strict gen) of
+--     PropTrue -> Property True
+--     PropFalse -> Property False
+--     PropDiscard -> Property Discard
+
 -- | The core QuickCheck property sending the 'Test' to the tested RISC-V
 --   implementations as 'DII_Packet's and checking the returned 'RVFI_Packet's
 --   for equivalence. It receives among other things a callback function
@@ -225,6 +248,48 @@ prop connA m_connB alive stats onFail arch delay verbosity saveDir ignoreAsserts
         -- so always return that the property is true
         onSubsequentDeaths _ = do
           return $ property Discard
+
+propExhaust :: RvfiDiiConnection             -- ^ Implementation A connection
+     -> Maybe RvfiDiiConnection       -- ^ Implementation B connection
+     -> IORef Bool                    -- ^ Implementations still alive?
+     -> IORef Stats                   -- ^ Accumulated coverage stats
+     -- -> (Test TestResult -> IO ())    -- ^ Callback on falsification
+     -> ArchDesc                      -- ^ Archictecture description
+     -> Int                           -- ^ RVFI-DII Delay
+     -> Int                           -- ^ Verbosity
+     -> Maybe FilePath                -- ^ Optional save directory for failed tests
+     -> Bool                          -- ^ Ignore embedded asserts in tests
+     -> Bool                          -- ^ Strict RVFI response comparison
+     -> Test TestResult         -- ^ Test generator
+     -> IO PropType
+propExhaust connA m_connB alive stats arch delay verbosity saveDir ignoreAsserts strict gen =
+  doProp gen
+  where --mkPropDedup t = mkProp (test t)
+        --genDedup = (\t -> MkTestWithSeen t (Set.singleton t)) <$> gen
+        --shrinkTestDedup t = map (\t' -> MkTestWithSeen t' (Set.insert t' (seen t))) (filter (flip Set.notMember (seen t)) (shrinkTest (test t)))
+        --mkProp test = whenFail (onFail test) (doProp test)
+        --doProp test = monadicIO $ run $ runImpls connA m_connB alive stats delay verbosity saveDir test onTrace onFirstDeath onSubsequentDeaths
+        doProp test = runImpls connA m_connB alive stats delay verbosity saveDir test onTrace onFirstDeath onSubsequentDeaths
+        colourGreen = "\ESC[32m"
+        colourRed = "\ESC[31m"
+        colourEnd = "\ESC[0m"
+        colourise (b, s) = (b, (if b then colourGreen else colourRed) ++ s ++ colourEnd)
+        diffFunc asserts (DII_Instruction _ _, a, b) = colourise $ rvfiCheckAndShow strict (isNothing m_connB) (has_xlen_64 arch) verbosity a b asserts
+        diffFunc _ (DII_End _, _, _) = (True, "Test end")
+        diffFunc _ _ = (True, "")
+        handleAsserts (ReportAssert False s, _) = do putStrLn $ "Failed assert: " ++ s
+                                                     return True
+        handleAsserts                         _ = return False
+        onTrace trace = do
+          let diff = mapWithAssertLastVal diffFunc trace
+          when (verbosity > 1) $ mapM_ (putStrLn . snd) diff
+          assertsFailed <- forM (gatherReports $ runAssertCompounds trace) handleAsserts
+          return $ if (and (fst <$> diff) && (ignoreAsserts || not(or assertsFailed))) then PropTrue else PropFalse
+        onFirstDeath _ = return $ PropFalse
+        -- We don't want to shrink once one of the implementations has died,
+        -- so always return that the property is true
+        onSubsequentDeaths _ = do
+          return $ PropDiscard
 
 -- | Send a sequence of instructions ('[DII_Packet]') to the implementations
 --   running behind the two provided 'Sockets's and recieve their respective

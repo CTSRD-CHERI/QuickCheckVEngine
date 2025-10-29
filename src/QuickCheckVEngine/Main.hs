@@ -62,6 +62,7 @@ import QuickCheckVEngine.MainHelpers
 import QuickCheckVEngine.RVFI_DII
 import qualified QuickCheckVEngine.Template as T
 import QuickCheckVEngine.Test
+import QuickCheckVEngine.TestTypes
 import QuickCheckVEngine.Stats
 import QuickCheckVEngine.Templates.GenAll
 import QuickCheckVEngine.Templates.GenArithmetic
@@ -107,6 +108,7 @@ data Options = Options
     , csrIncludeRegex  :: Maybe String
     , csrExcludeRegex  :: Maybe String
     , optForceRVFIv1   :: Bool
+    , optExhaustive    :: Bool
     , statsFile        :: FilePath
     } deriving Show
 
@@ -138,6 +140,7 @@ defaultOptions = Options
     , csrIncludeRegex  = Nothing
     , csrExcludeRegex  = Nothing
     , optForceRVFIv1   = False
+    , optExhaustive    = False
     , statsFile        = "last_stats.txt"
     }
 
@@ -221,6 +224,9 @@ options =
   , Option []        ["force-RVFI-v1"]
       (NoArg (\ opts -> opts { optForceRVFIv1 = True }))
         "Force implementations to use legacy v1 RVFI reporting"
+  , Option []        ["exhaustive"]
+      (NoArg (\ opts -> opts { optExhaustive = True }))
+        "Test space exhaustively"
   , Option []        ["statsFile"]
       (ReqArg (\f opts -> opts { statsFile = f }) "PATH")
         "Specify where to save a stats file of coverage information"
@@ -308,6 +314,22 @@ main = withSocketsDo $ do
   --
   alive <- newIORef True -- Cleared when either implementation times out, since they will may not be able to respond to future queries
   stats <- newIORef emptyStats -- Updated with information on the instructions run throughout the tests
+  failuresRef <- newIORef 0
+
+  let genNTest :: Int -> Test TestResult
+      genNTest n = TestEmpty
+
+  let checkExhaust :: Int -> IO PropType
+      checkExhaust n = propExhaust implA m_implB alive stats archDesc (timeoutDelay flags) verbosity Nothing (optIgnoreAsserts flags) (optStrict flags) (genNTest n)
+      
+  let runExhaust :: IO ()
+      runExhaust = do
+        pt <- checkExhaust 0
+        case pt of
+          --PropTrue -> (Success)
+          PropTrue -> return ()
+          _ -> modifyIORef failuresRef (1 +)
+
   let checkSingle :: Test TestResult -> Int -> Bool -> Int -> (Test TestResult -> IO ()) -> IO Result
       checkSingle test verbosity doShrink len onFail = do
         quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 100000 else 0))
@@ -356,7 +378,6 @@ main = withSocketsDo $ do
   let checkGen gen remainingTests =
         checkResult (Args Nothing remainingTests 1 (testLen flags) (verbosity > 0) (if optShrink flags then 100000 else 0))
                     (prop implA m_implB alive stats (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) verbosity (if (optSaveAll flags) then (saveDir flags) else Nothing) (optIgnoreAsserts flags) (optStrict flags) gen)
-  failuresRef <- newIORef 0
   let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
         | skipped == 0 = do putStrLn $ "Reading trace from " ++ fileName
                             trace <- read <$> readFile fileName
@@ -391,7 +412,7 @@ main = withSocketsDo $ do
             Nothing -> do let tests = [ template | template@(label,_,_,_) <- allTests
                                       , checkRegex (testIncludeRegex flags) (testExcludeRegex flags) label ]
                           when (null tests) $ putStrLn "Warning: no tests selected"
-                          mapM_ attemptTest tests
+                          if optExhaustive flags then runExhaust else mapM_ attemptTest tests
               where attemptTest (label, description, archReqs, template) =
                       if archReqs archDesc then do
                         putStrLn $ label ++ " -- " ++ description ++ ":"
