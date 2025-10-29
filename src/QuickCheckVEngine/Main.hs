@@ -317,7 +317,7 @@ main = withSocketsDo $ do
   failuresRef <- newIORef 0
 
   let genNTest :: Int -> Test TestResult
-      genNTest n = TestEmpty
+      genNTest n = wrapTest $ (TestSingle $ MkInstruction 0)
 
   let checkExhaust :: Int -> IO PropType
       checkExhaust n = propExhaust implA m_implB alive stats archDesc (timeoutDelay flags) verbosity Nothing (optIgnoreAsserts flags) (optStrict flags) (genNTest n)
