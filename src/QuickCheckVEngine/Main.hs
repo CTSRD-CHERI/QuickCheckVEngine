@@ -55,6 +55,7 @@ import Control.Monad
 import Network.Socket
 import Test.QuickCheck
 import Text.Regex.TDFA
+import qualified Data.Bits as DB
 
 import RISCV hiding (or)
 import InstrCodec
@@ -316,19 +317,34 @@ main = withSocketsDo $ do
   stats <- newIORef emptyStats -- Updated with information on the instructions run throughout the tests
   failuresRef <- newIORef 0
 
-  let genNTest :: Int -> Test TestResult
-      genNTest n = wrapTest $ (TestSingle $ MkInstruction 0)
+  let genNTest :: Integer -> Test TestResult
+      genNTest n = wrapTest (TestSingle $ MkInstruction n)
 
-  let checkExhaust :: Int -> IO PropType
+  let checkExhaust :: Integer -> IO PropType
       checkExhaust n = propExhaust implA m_implB alive stats archDesc (timeoutDelay flags) verbosity Nothing (optIgnoreAsserts flags) (optStrict flags) (genNTest n)
-      
+
+  let testExhaust :: [IO PropType] -> IO ()
+      testExhaust pt = do
+        --p <- pt
+        case pt of
+          (x:xs) -> do xu <- x
+                       case xu of
+                        PropTrue -> return ()
+                        _ -> do modifyIORef failuresRef (1 +)
+                                putStrLn "Failure."
+                       testExhaust xs
+          _ -> return ()
+          --PropTrue -> return ()
+          --_ -> modifyIORef failuresRef (1 +)
+  
+  let filterNum :: Integer -> Bool
+      filterNum n = ((DB.shiftR n 7) DB..&. 31) == 0 && ((DB.shiftR n 15) DB..&. 1023) == 0
+
   let runExhaust :: IO ()
       runExhaust = do
-        pt <- checkExhaust 0
-        case pt of
-          --PropTrue -> (Success)
-          PropTrue -> return ()
-          _ -> modifyIORef failuresRef (1 +)
+        let pts = checkExhaust <$> [ x | x <- [0..4294967296], filterNum x]
+        testExhaust pts
+        --foldr testExhaust () pts
 
   let checkSingle :: Test TestResult -> Int -> Bool -> Int -> (Test TestResult -> IO ()) -> IO Result
       checkSingle test verbosity doShrink len onFail = do
