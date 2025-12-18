@@ -338,7 +338,8 @@ main = withSocketsDo $ do
           --_ -> modifyIORef failuresRef (1 +)
   
   let filterNum :: Integer -> Bool
-      filterNum n = ((DB.shiftR n 7) DB..&. 31) == 0 && ((DB.shiftR n 15) DB..&. 1023) == 0
+      filterNum n = ((DB.shiftR n 7) DB..&. 31) == 1 && ((DB.shiftR n 15) DB..&. 31) == 2
+-- filterNum n = ((DB.shiftR n 7) DB..&. 31) == 0 && ((DB.shiftR n 15) DB..&. 1023) == 0
 
   let runExhaust :: IO ()
       runExhaust = do
