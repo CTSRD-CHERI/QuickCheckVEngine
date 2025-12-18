@@ -49,6 +49,7 @@ module QuickCheckVEngine.Templates.GenMemory (
 , gen_pte39_trans_core
 , gen_pte48_trans_core
 , gen_pte_trans
+, genLocalGlobal
 ) where
 
 import InstrCodec
@@ -312,3 +313,20 @@ gen_pte_trans = random $
                                                                  (1, inst $ fence 0 0)]))
                             <>
                             (noShrink $ inst ecall)
+
+genLocalGlobal :: Template
+genLocalGlobal = random $ do
+  let reg0 = 10
+  let reg1 = 11
+  let reg2 = 12
+  let tmp  = 13
+  return $ mconcat [ li64 reg0 0x80000000
+                   , li64 reg1 0x80000100
+                   , li64 reg2 0x80000200
+                   , inst $ sc reg1 reg2 0
+                   , li64 tmp 0xffffffef -- make cap in reg2 local
+                   , inst $ acperm reg2 reg2 tmp
+                   , li64 tmp 0xfffffff7 -- make cap in reg1 store local
+                   , inst $ acperm reg1 reg1 tmp
+                   , inst $ sc reg1 reg2 0
+                   ]

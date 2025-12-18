@@ -283,6 +283,7 @@ allTests = [
            , ("all",        "All Verification",                                       const True,                               genAll)
            , ("random",     "Random Template",                                        const True,                               randomTest)
            , ("unstructured", "Unstructured random instruction bit Template",         const True,                               T.repeatTillEnd gen_unstructured)
+           , ("localglobal", "Unstructured random instruction bit Template",          andPs [has_cheri, has_xlen_64],           T.repeatTillEnd genLocalGlobal)
            ]
   where andPs = foldl (\k p x -> p x && k x) (const True)
 
