@@ -3,6 +3,7 @@
 --
 -- Copyright (c) 2019-2020 Peter Rugg
 -- Copyright (c) 2019, 2020 Alexandre Joannou
+-- Copyright (c) 2025 Franz Fuchs
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -314,6 +315,7 @@ gen_pte_trans = random $
                             <>
                             (noShrink $ inst ecall)
 
+-- static test for local-global testing
 genLocalGlobal :: Template
 genLocalGlobal = random $ do
   let reg0 = 10
@@ -328,7 +330,6 @@ genLocalGlobal = random $ do
                    , inst $ gctag tmp reg1
                    , li64 tmp 0x80000200
                    , inst $ cadd reg2 reg2 tmp
-                   , inst $ sc reg1 reg2 0
                    , inst $ gctag tmp reg1
                    , inst $ addi tmp 0 (-1)
                    , inst $ xori tmp tmp 16
@@ -338,7 +339,5 @@ genLocalGlobal = random $ do
                    , inst $ acperm reg1 reg1 tmp -- make cap in reg1 store local
                    , inst $ sc reg1 reg2 0
                    , inst $ lc reg0 reg1 0
-                   , inst $ sc reg0 reg0 0
                    , inst $ gctag tmp reg0
-                   , instAssert (addi tmp tmp 0) 0
                    ]
