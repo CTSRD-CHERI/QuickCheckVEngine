@@ -3,6 +3,7 @@
 --
 -- Copyright (c) 2019-2020 Peter Rugg
 -- Copyright (c) 2019, 2020 Alexandre Joannou
+-- Copyright (c) 2025 Franz Fuchs
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -49,6 +50,7 @@ module QuickCheckVEngine.Templates.GenMemory (
 , gen_pte39_trans_core
 , gen_pte48_trans_core
 , gen_pte_trans
+, genLocalGlobal
 ) where
 
 import InstrCodec
@@ -312,3 +314,30 @@ gen_pte_trans = random $
                                                                  (1, inst $ fence 0 0)]))
                             <>
                             (noShrink $ inst ecall)
+
+-- static test for local-global testing
+genLocalGlobal :: Template
+genLocalGlobal = random $ do
+  let reg0 = 10
+  let reg1 = 11
+  let reg2 = 12
+  let tmp  = 13
+  return $ mconcat [ inst $ modeswcap
+                   , li64 tmp 0x80000000
+                   , inst $ cadd reg0 reg0 tmp
+                   , li64 tmp 0x80000100
+                   , inst $ cadd reg1 reg1 tmp
+                   , inst $ gctag tmp reg1
+                   , li64 tmp 0x80000200
+                   , inst $ cadd reg2 reg2 tmp
+                   , inst $ gctag tmp reg1
+                   , inst $ addi tmp 0 (-1)
+                   , inst $ xori tmp tmp 16
+                   , inst $ acperm reg2 reg2 tmp -- make cap in reg2 local
+                   , inst $ addi tmp 0 (-1)
+                   , inst $ xori tmp tmp 8
+                   , inst $ acperm reg1 reg1 tmp -- make cap in reg1 store local
+                   , inst $ sc reg1 reg2 0
+                   , inst $ lc reg0 reg1 0
+                   , inst $ gctag tmp reg0
+                   ]
