@@ -321,12 +321,13 @@ genLocalGlobal = random $ do
   let reg2 = 12
   let tmp  = 13
   return $ mconcat [ inst $ modeswcap
-                   , li64 reg0 0x80000000
-                   , li64 reg1 0x80000100
-                   , li64 reg2 0x80000200
-                   , inst $ cbld reg0 tmp reg0
-                   , inst $ cbld reg1 tmp reg1
-                   , inst $ cbld reg2 tmp reg2
+                   , li64 tmp 0x80000000
+                   , inst $ cadd reg0 reg0 tmp
+                   , li64 tmp 0x80000100
+                   , inst $ cadd reg1 reg1 tmp
+                   , inst $ gctag tmp reg1
+                   , li64 tmp 0x80000200
+                   , inst $ cadd reg2 reg2 tmp
                    , inst $ sc reg1 reg2 0
                    , inst $ gctag tmp reg1
                    , inst $ addi tmp 0 (-1)
