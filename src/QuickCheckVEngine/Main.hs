@@ -5,6 +5,7 @@
 -- Copyright (c) 2018 Jonathan Woodruff
 -- Copyright (c) 2018-2021 Alexandre Joannou
 -- Copyright (c) 2018-2020 Peter Rugg
+-- Copyright (c) 2025 Franz Fuchs
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of

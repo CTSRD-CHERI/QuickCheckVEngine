@@ -7,6 +7,7 @@
 -- Copyright (c) 2018 Jonathan Woodruff
 -- Copyright (c) 2018-2020 Alexandre Joannou
 -- Copyright (c) 2020 Peter Rugg
+-- Copyright (c) 2025 Franz Fuchs
 -- All rights reserved.
 --
 -- This software was developed by SRI International and the University of
@@ -183,25 +184,6 @@ instance Show TestWithSeen where
    show = show . test
 
 data PropType = PropTrue | PropFalse | PropDiscard
--- 
--- propWrapper :: RvfiDiiConnection             -- ^ Implementation A connection
---             -> Maybe RvfiDiiConnection       -- ^ Implementation B connection
---             -> IORef Bool                    -- ^ Implementations still alive?
---             -> IORef Stats                   -- ^ Accumulated coverage stats
---             -> (Test TestResult -> IO ())    -- ^ Callback on falsification
---             -> ArchDesc                      -- ^ Archictecture description
---             -> Int                           -- ^ RVFI-DII Delay
---             -> Int                           -- ^ Verbosity
---             -> Maybe FilePath                -- ^ Optional save directory for failed tests
---             -> Bool                          -- ^ Ignore embedded asserts in tests
---             -> Bool                          -- ^ Strict RVFI response comparison
---             -> Gen (Test TestResult)         -- ^ Test generator
---             -> Property
--- propWrapper connA m_connB alive stats onFail arch delay verbosity saveDir ignoreAsserts strict gen =
---   case (prop connA m_connB alive stats onFail arch delay verbosity saveDir ignoreAsserts strict gen) of
---     PropTrue -> Property True
---     PropFalse -> Property False
---     PropDiscard -> Property Discard
 
 -- | The core QuickCheck property sending the 'Test' to the tested RISC-V
 --   implementations as 'DII_Packet's and checking the returned 'RVFI_Packet's
@@ -249,26 +231,22 @@ prop connA m_connB alive stats onFail arch delay verbosity saveDir ignoreAsserts
         onSubsequentDeaths _ = do
           return $ property Discard
 
-propExhaust :: RvfiDiiConnection             -- ^ Implementation A connection
+-- Exhaustive testing
+propExhaust :: RvfiDiiConnection      -- ^ Implementation A connection
      -> Maybe RvfiDiiConnection       -- ^ Implementation B connection
      -> IORef Bool                    -- ^ Implementations still alive?
      -> IORef Stats                   -- ^ Accumulated coverage stats
-     -- -> (Test TestResult -> IO ())    -- ^ Callback on falsification
      -> ArchDesc                      -- ^ Archictecture description
      -> Int                           -- ^ RVFI-DII Delay
      -> Int                           -- ^ Verbosity
      -> Maybe FilePath                -- ^ Optional save directory for failed tests
      -> Bool                          -- ^ Ignore embedded asserts in tests
      -> Bool                          -- ^ Strict RVFI response comparison
-     -> Test TestResult         -- ^ Test generator
+     -> Test TestResult               -- ^ Test generator
      -> IO PropType
 propExhaust connA m_connB alive stats arch delay verbosity saveDir ignoreAsserts strict gen =
   doProp gen
-  where --mkPropDedup t = mkProp (test t)
-        --genDedup = (\t -> MkTestWithSeen t (Set.singleton t)) <$> gen
-        --shrinkTestDedup t = map (\t' -> MkTestWithSeen t' (Set.insert t' (seen t))) (filter (flip Set.notMember (seen t)) (shrinkTest (test t)))
-        --mkProp test = whenFail (onFail test) (doProp test)
-        --doProp test = monadicIO $ run $ runImpls connA m_connB alive stats delay verbosity saveDir test onTrace onFirstDeath onSubsequentDeaths
+  where onSubsequentDeaths
         doProp test = runImpls connA m_connB alive stats delay verbosity saveDir test onTrace onFirstDeath onSubsequentDeaths
         colourGreen = "\ESC[32m"
         colourRed = "\ESC[31m"
