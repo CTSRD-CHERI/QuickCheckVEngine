@@ -48,6 +48,8 @@ import System.Exit
 import System.Environment
 import System.FilePath.Find
 import System.Console.GetOpt
+import System.IO.Temp
+import System.Directory
 import Data.IORef
 import Data.Maybe
 import Data.Time.Clock
@@ -56,6 +58,8 @@ import Control.Monad
 import Network.Socket
 import Test.QuickCheck
 import Text.Regex.TDFA
+import qualified Data.Serialize as Cereal
+import qualified Data.ByteString as BSStrict
 
 import RISCV hiding (or)
 import InstrCodec
@@ -309,11 +313,12 @@ main = withSocketsDo $ do
   instrSoc <- mapM (open "instruction-generator-port") addrInstr
   --
   alive <- newIORef True -- Cleared when either implementation times out, since they will may not be able to respond to future queries
-  stats <- newIORef emptyStats -- Updated with information on the instructions run throughout the tests
+  statsTmp <- emptySystemTempFile "StatsFile" -- Updated with information on the instructions run throughout the tests
+  BSStrict.writeFile statsTmp (Cereal.encode emptyStats)
   let checkSingle :: Test TestResult -> Int -> Bool -> Int -> (Test TestResult -> IO ()) -> IO Result
       checkSingle test verbosity doShrink len onFail = do
         quickCheckWithResult (Args Nothing 1 1 len (verbosity > 0) (if doShrink then 100000 else 0))
-                             (prop implA m_implB alive stats onFail archDesc (timeoutDelay flags) verbosity Nothing (optIgnoreAsserts flags) (optStrict flags) (return test))
+                             (prop implA m_implB alive statsTmp onFail archDesc (timeoutDelay flags) verbosity Nothing (optIgnoreAsserts flags) (optStrict flags) (return test))
   let check_mcause_on_trap :: Test TestResult -> Test TestResult
       check_mcause_on_trap (trace :: Test TestResult) = if or (hasTrap <$> trace) then filterTest p trace <> wrapTest testSuffix else trace
         where hasTrap (_, a, b) = maybe False rvfiIsTrap a || maybe False rvfiIsTrap b
@@ -349,7 +354,7 @@ main = withSocketsDo $ do
               putStrLn $ "Writing counterexample file to: " ++ fname
               writeFile fname (prelude ++ contents)
   let saveOnFail :: Maybe FilePath -> Test TestResult -> (Test TestResult -> Test TestResult) -> IO ()
-      saveOnFail sourceFile test testTrans = runImpls implA m_implB alive stats (timeoutDelay flags) 0 Nothing test onTrace onDeath onDeath
+      saveOnFail sourceFile test testTrans = runImpls implA m_implB alive statsTmp (timeoutDelay flags) 0 Nothing test onTrace onDeath onDeath
         where onDeath test = do putStrLn "Failure rerunning test"
                                 askAndSave sourceFile (show test) Nothing testTrans
               onTrace trace = askAndSave sourceFile (showAnnotatedTrace (isNothing m_implB) archDesc verbosity trace) (Just trace) testTrans
@@ -357,7 +362,7 @@ main = withSocketsDo $ do
   let checkResult = if verbosity > 1 then verboseCheckWithResult else quickCheckWithResult
   let checkGen gen remainingTests =
         checkResult (Args Nothing remainingTests 1 (testLen flags) (verbosity > 0) (if optShrink flags then 100000 else 0))
-                    (prop implA m_implB alive stats (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) verbosity (if (optSaveAll flags) then (saveDir flags) else Nothing) (optIgnoreAsserts flags) (optStrict flags) gen)
+                    (prop implA m_implB alive statsTmp (checkTrapAndSave Nothing) archDesc (timeoutDelay flags) verbosity (if (optSaveAll flags) then (saveDir flags) else Nothing) (optIgnoreAsserts flags) (optStrict flags) gen)
   failuresRef <- newIORef 0
   let checkFile (memoryInitFile :: Maybe FilePath) (skipped :: Int) (fileName :: FilePath)
         | skipped == 0 = do putStrLn $ "Reading trace from " ++ fileName
@@ -405,12 +410,15 @@ main = withSocketsDo $ do
               doCheck (liftM (wrapTest . singleSeq . (MkInstruction <$>)) $ listOf (genInstrServer sock)) (nTests flags)
               return ()
   --
-  finalStats <- readIORef stats
-  writeFile (statsFile flags) (show finalStats)
-  when (verbosity > 1) $ putStrLn (show finalStats)
+  (finalStats :: Either String Stats) <- Cereal.decode <$> (BSStrict.readFile statsTmp)
+  let fs = case finalStats of Left err -> err
+                              Right s  -> show s
+  writeFile (statsFile flags) fs
+  when (verbosity > 1) $ putStrLn fs
   putStrLn $ "Written coverage stats to " ++ (statsFile flags)
   rvfiDiiClose implA
   maybe (pure ()) rvfiDiiClose m_implB
+  removeFile statsTmp
   --
   failures <- readIORef failuresRef
   if failures == 0 then exitSuccess else exitWith $ ExitFailure failures
