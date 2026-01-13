@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 --
 -- SPDX-License-Identifier: BSD-2-Clause
 --
@@ -49,8 +50,10 @@ import InstrCodec
 import QuickCheckVEngine.TestTypes
 import QuickCheckVEngine.RVFI_DII
 import Text.Layout.Table
+import Data.Serialize as Cereal
+import GHC.Generics
 
-data Stats = MkStats (Map String (Int, Int))
+data Stats = MkStats (Map String (Int, Int)) deriving Generic
 
 emptyStats = MkStats empty
 
@@ -72,3 +75,5 @@ instance Show Stats where
                            columnSpec =          [column expand left def def, numCol  , numCol]
                            sortRows = reverse . sortOn sortKey
                            sortKey (_, (a, b)) = a+b
+
+instance Serialize Stats
