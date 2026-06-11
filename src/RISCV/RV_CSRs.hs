@@ -207,7 +207,8 @@ csrs_map = -- User Thread ID
         ++ -- CHERI CSRs
            [ (0x8C0, "uccsr")
            , (0x9C0, "sccsr")
-           , (0xBC0, "mccsr") ]
+           , (0xBC0, "mccsr")
+           , (0x416, "ddc"  ) ]
         ++ map (\x -> (x, "mhpmevent" ++ show (x - (head mhpmevent_csr_indices) + 3)))
                mhpmevent_csr_indices
         -- TODO Debug/Trace Registers (shared with Debug Mode)

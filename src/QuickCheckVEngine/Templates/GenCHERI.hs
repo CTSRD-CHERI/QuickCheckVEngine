@@ -104,7 +104,8 @@ genRandomCHERITest = readParams $ \param -> random $ do
   csrAddr   <- elements (unsafe_csrs_indexFromName <$>
                  [ "mcause", "scause", "mtval", "mtval2", "stval", "stval2"
                  , "mseccfg", "menvcfg", "senvcfg", "mtid", "stid", "utid"
-                 , "mepc", "sepc", "mtvec", "stvec", "mscratch", "sscratch"])
+                 , "mepc", "sepc", "mtvec", "stvec", "mscratch", "sscratch"
+                 , "ddc"])
   return $ dist [ (5, legalLoad)
                 , (5, legalStore)
                 , (5, legalCapLoad srcAddr dest)
