@@ -45,6 +45,7 @@ module RISCV.RV64_A (
   lr_d
 , sc_d
 , amoswap_d
+, amoswap_c
 , amoadd_d
 , amoxor_d
 , amoand_d
@@ -56,9 +57,13 @@ module RISCV.RV64_A (
 -- * RV64 atomic, others
 , rv64_a_disass
 , rv64_a
+, rv64_a_shrink
 ) where
 
 import RISCV.Helpers (prettyR_A_1op, prettyR_A)
+import RISCV.RV64_I
+import RISCV.RV32_I
+import RISCV.RV32_Zcheri
 import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 lr_d_raw                   =                      "00010 aq[0] rl[0]    00000 rs1[4:0] 011 rd[4:0] 0101111"
@@ -67,6 +72,8 @@ sc_d_raw                   =                      "00011 aq[0] rl[0] rs2[4:0] rs
 sc_d rd rs1 rs2 aq rl      = encode sc_d_raw             aq    rl    rs2      rs1          rd
 amoswap_d_raw              =                      "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 011 rd[4:0] 0101111"
 amoswap_d rd rs1 rs2 aq rl = encode amoswap_d_raw        aq    rl    rs2      rs1          rd
+amoswap_c_raw              =                      "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
+amoswap_c rd rs1 rs2 aq rl = encode amoswap_c_raw        aq    rl    rs2      rs1          rd
 amoadd_d_raw               =                      "00000 aq[0] rl[0] rs2[4:0] rs1[4:0] 011 rd[4:0] 0101111"
 amoadd_d rd rs1 rs2 aq rl  = encode amoadd_d_raw         aq    rl    rs2      rs1          rd
 amoxor_d_raw               =                      "00100 aq[0] rl[0] rs2[4:0] rs1[4:0] 011 rd[4:0] 0101111"
@@ -84,11 +91,39 @@ amominu_d rd rs1 rs2 aq rl = encode amominu_d_raw        aq    rl    rs2      rs
 amomaxu_d_raw              =                      "11100 aq[0] rl[0] rs2[4:0] rs1[4:0] 011 rd[4:0] 0101111"
 amomaxu_d rd rs1 rs2 aq rl = encode amomaxu_d_raw        aq    rl    rs2      rs1          rd
 
+shrink_lr_d :: Integer -> Integer -> Integer -> Integer -> [Instruction]
+shrink_lr_d aq rl rs1 rd = [ld rd rs1 0, lr_d rd rs1 0 0]
+
+shrink_sc_d :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
+shrink_sc_d aq rl rs2 rs1 rd = [addi rd 0 0, addi rd 0 1, sd rs1 0 0, sc_d rd rs1 rs2 0 0]
+
+shrink_amo_d :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
+shrink_amo_d aq rl rs2 rs1 rd = [ld rd rs1 0, sd rs1 rs2 0]
+
+shrink_amo_c :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
+shrink_amo_c aq rl rs2 rs1 rd = [lc rd rs1 0, sc rs1 rs2 0]
+
+rv64_a_shrink :: [DecodeBranch [Instruction]]
+rv64_a_shrink = [ lr_d_raw       --> shrink_lr_d
+                , sc_d_raw       --> shrink_sc_d
+                , amoswap_d_raw  --> shrink_amo_d
+                , amoswap_c_raw  --> shrink_amo_c
+                , amoadd_d_raw   --> shrink_amo_d
+                , amoxor_d_raw   --> shrink_amo_d
+                , amoand_d_raw   --> shrink_amo_d
+                , amoor_d_raw    --> shrink_amo_d
+                , amomin_d_raw   --> shrink_amo_d
+                , amomax_d_raw   --> shrink_amo_d
+                , amominu_d_raw  --> shrink_amo_d
+                , amomaxu_d_raw  --> shrink_amo_d
+                ]
+
 -- | Dissassembly of RV64 atomic instructions
 rv64_a_disass :: [DecodeBranch String]
 rv64_a_disass = [ lr_d_raw      --> prettyR_A_1op "lr.d"
                 , sc_d_raw      --> prettyR_A     "sc.d"
                 , amoswap_d_raw --> prettyR_A     "amoswap.d"
+                , amoswap_c_raw --> prettyR_A     "amoswap.c"
                 , amoadd_d_raw  --> prettyR_A     "amoadd.d"
                 , amoxor_d_raw  --> prettyR_A     "amoxor.d"
                 , amoand_d_raw  --> prettyR_A     "amoand.d"
@@ -103,6 +138,7 @@ rv64_a :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv64_a src1 src2 dest aq rl = [ lr_d      dest src1 src2 aq rl
                               , sc_d      dest src1 src2 aq rl
                               , amoswap_d dest src1 src2 aq rl
+                              , amoswap_c dest src1 src2 aq rl
                               , amoadd_d  dest src1 src2 aq rl
                               , amoxor_d  dest src1 src2 aq rl
                               , amoand_d  dest src1 src2 aq rl

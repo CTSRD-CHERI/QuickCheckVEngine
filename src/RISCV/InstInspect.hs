@@ -103,4 +103,4 @@ rv_shrink :: Instruction -> [Instruction]
 rv_shrink instr = case decode 32 instr shrinkList of
   Nothing -> []
   Just i -> i
-  where shrinkList = rv32_i_shrink ++ rv32_xcheri_shrink
+  where shrinkList = rv32_i_shrink ++ rv32_xcheri_shrink ++ rv32_a_shrink ++ rv64_a_shrink

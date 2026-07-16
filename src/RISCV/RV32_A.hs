@@ -56,15 +56,25 @@ module RISCV.RV32_A (
 -- * RV32 atomic, others
 , rv32_a
 , rv32_a_disass
+, rv32_a_shrink
 ) where
 
 import RISCV.Helpers (prettyR_A_1op, prettyR_A)
+import RISCV.RV32_I
 import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 
 lr_w_raw                   =                      "00010 aq[0] rl[0]    00000 rs1[4:0] 010 rd[4:0] 0101111"
 lr_w rd rs1 aq rl          = encode lr_w_raw             aq    rl             rs1          rd
 sc_w_raw                   =                      "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
 sc_w rd rs1 rs2 aq rl      = encode sc_w_raw             aq    rl    rs2      rs1          rd
+lr_h_raw                   =                      "00010 aq[0] rl[0]    00000 rs1[4:0] 001 rd[4:0] 0101111"
+lr_h rd rs1 aq rl          = encode lr_h_raw             aq    rl             rs1          rd
+sc_h_raw                   =                      "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 001 rd[4:0] 0101111"
+sc_h rd rs1 rs2 aq rl      = encode sc_h_raw             aq    rl    rs2      rs1          rd
+lr_b_raw                   =                      "00010 aq[0] rl[0]    00000 rs1[4:0] 000 rd[4:0] 0101111"
+lr_b rd rs1 aq rl          = encode lr_b_raw             aq    rl             rs1          rd
+sc_b_raw                   =                      "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 000 rd[4:0] 0101111"
+sc_b rd rs1 rs2 aq rl      = encode sc_b_raw             aq    rl    rs2      rs1          rd
 amoswap_w_raw              =                      "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
 amoswap_w rd rs1 rs2 aq rl = encode amoswap_w_raw        aq    rl    rs2      rs1          rd
 amoadd_w_raw               =                      "00000 aq[0] rl[0] rs2[4:0] rs1[4:0] 010 rd[4:0] 0101111"
@@ -98,10 +108,37 @@ rv32_a_disass = [ lr_w_raw      --> prettyR_A_1op "lr.w"
                 , amominu_w_raw --> prettyR_A     "amominu.w"
                 , amomaxu_w_raw --> prettyR_A     "amomaxu.w" ]
 
+shrink_lr_w :: Integer -> Integer -> Integer -> Integer -> [Instruction]
+shrink_lr_w aq rl rs1 rd = [lw rd rs1 0, lr_w rd rs1 0 0]
+
+shrink_sc_w :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
+shrink_sc_w aq rl rs2 rs1 rd = [addi rd 0 0, addi rd 0 1, sw rs1 0 0, sc_w rd rs1 rs2 0 0]
+
+shrink_amo_w :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
+shrink_amo_w aq rl rs2 rs1 rd = [lw rd rs1 0, sw rs1 rs2 0]
+
+rv32_a_shrink :: [DecodeBranch [Instruction]]
+rv32_a_shrink = [ lr_w_raw       --> shrink_lr_w
+                , sc_w_raw       --> shrink_sc_w
+                , amoswap_w_raw  --> shrink_amo_w
+                , amoadd_w_raw   --> shrink_amo_w
+                , amoxor_w_raw   --> shrink_amo_w
+                , amoand_w_raw   --> shrink_amo_w
+                , amoor_w_raw    --> shrink_amo_w
+                , amomin_w_raw   --> shrink_amo_w
+                , amomax_w_raw   --> shrink_amo_w
+                , amominu_w_raw  --> shrink_amo_w
+                , amomaxu_w_raw  --> shrink_amo_w
+                ]
+
 -- | List of RV32 atomic instructions
 rv32_a :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_a src1 src2 dest aq rl = [ lr_w      dest src1      aq rl
                               , sc_w      dest src1 src2 aq rl
+                              , lr_h      dest src1      aq rl
+                              , sc_h      dest src1 src2 aq rl
+                              , lr_b      dest src1      aq rl
+                              , sc_b      dest src1 src2 aq rl
                               , amoswap_w dest src1 src2 aq rl
                               , amoadd_w  dest src1 src2 aq rl
                               , amoxor_w  dest src1 src2 aq rl

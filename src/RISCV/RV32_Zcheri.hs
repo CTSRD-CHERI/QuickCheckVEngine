@@ -271,7 +271,7 @@ shrink_gcbase :: Integer -> Integer -> [Instruction]
 shrink_gcbase cs rd = [addi rd 0 0]
 
 shrink_gclen :: Integer -> Integer -> [Instruction]
-shrink_gclen cs rd = [addi rd 0 0, addi rd 0 0xfff, gcbase rd cs]
+shrink_gclen cs rd = [addi rd 0 0, addi rd 0 0xfff, gcbase rd cs, gchi rd cs]
 
 shrink_gctag :: Integer -> Integer -> [Instruction]
 shrink_gctag cs rd = [addi rd 0 1, addi rd 0 0]
