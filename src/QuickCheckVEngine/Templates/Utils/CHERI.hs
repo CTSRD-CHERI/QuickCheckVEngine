@@ -55,19 +55,19 @@ import QuickCheckVEngine.Templates.Utils.General
 
 boundPCC :: Integer -> Integer -> Integer -> Integer -> Template
 boundPCC tmp1 tmp2 offset size =
-  mconcat [ inst $ modeswcap,
+  mconcat [ inst $ ymodeswy,
             inst $ auipc tmp1 0, -- Get PCC
             li64 tmp2 offset,
-            inst $ cadd tmp1 tmp1 tmp2, -- increment PCC
+            inst $ yadd tmp1 tmp1 tmp2, -- increment PCC
             li64 tmp2 size,
-            inst $ scbndsr tmp1 tmp1 tmp2, -- reduce bounds
+            inst $ ybndsrw tmp1 tmp1 tmp2, -- reduce bounds
             inst $ jalr tmp1 tmp1 0 ] -- jump to new PCC
 
 clearASR :: Integer -> Integer -> Template
-clearASR tmp1 tmp2 = instSeq [ modeswcap,
+clearASR tmp1 tmp2 = instSeq [ ymodeswy,
                                auipc tmp1 0 ] -- Get PCC
                             <> li32 tmp2 0xfffeffff -- Load immediate without ASR set
-                  <> instSeq [ acperm tmp1 tmp1 tmp2, -- Mask out ASR
+                  <> instSeq [ ypermc tmp1 tmp1 tmp2, -- Mask out ASR
                                csrrw 0 (unsafe_csrs_indexFromName "mtvec") tmp1,
                                jalr tmp1 0 0 ]
 
@@ -75,14 +75,14 @@ makeCap :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Tem
 makeCap dst source tmp base len offset =
   mconcat [ makeCap_core dst source tmp base
           , li64 tmp len
-          , inst $ scbndsr dst dst tmp
+          , inst $ ybndsrw dst dst tmp
           , li64 tmp offset
-          , inst $ cadd dst dst tmp ]
+          , inst $ yadd dst dst tmp ]
 
 makeCap_core :: Integer -> Integer -> Integer -> Integer -> Template
 makeCap_core dst source tmp base =
   mconcat [ li64 tmp base
-          , inst $ scaddr dst source tmp]
+          , inst $ yaddrw dst source tmp]
 
 makeShortCap :: Template
 makeShortCap = random $ do
@@ -91,12 +91,12 @@ makeShortCap = random $ do
   tmp <- src
   len <- choose (0, 31)
   offset <- oneof [choose (0,32), bits 14]
-  return $ instSeq [ scbndsi dst source 0 len,
+  return $ instSeq [ ybndswi dst source 0 len,
                      addi tmp 0 (Data.Bits.shift offset (-12)),
-                     gcbase dst tmp,
+                     ybaser dst tmp,
                      addi dst dst 12,
-                     scaddr dst tmp dst,
-                     caddi dst dst (offset Data.Bits..&. 0xfff)]
+                     yaddrw dst tmp dst,
+                     yaddi dst dst (offset Data.Bits..&. 0xfff)]
 
 legalCapLoad :: Integer -> Integer -> Template
 legalCapLoad addrReg targetReg = random $ do
@@ -105,7 +105,7 @@ legalCapLoad addrReg targetReg = random $ do
                    , lui tmpReg 0x40004
                    , slli tmpReg tmpReg 1
                    , add addrReg tmpReg addrReg
-                   , lc targetReg addrReg 0 ]
+                   , ly targetReg addrReg 0 ]
 
 legalCapStore :: Integer -> Template
 legalCapStore addrReg = random $ do
@@ -115,18 +115,18 @@ legalCapStore addrReg = random $ do
                    , lui tmpReg 0x40004
                    , slli tmpReg tmpReg 1
                    , add addrReg tmpReg addrReg
-                   , sc dataReg addrReg 0 ]
+                   , sy dataReg addrReg 0 ]
 
 loadRegion ::  Integer -> Integer -> Integer -> Integer -> Template -> Template
 loadRegion numLines capReg cacheLSize tmpReg insts =
    if numLines == 0 then insts
-   else if numLines == 1 then mconcat [insts, inst (lc tmpReg capReg 0)]
-   else loadRegion (numLines - 1) capReg cacheLSize tmpReg (mconcat [insts, inst (lc tmpReg capReg 0), inst (caddi capReg capReg cacheLSize)])
+   else if numLines == 1 then mconcat [insts, inst (ly tmpReg capReg 0)]
+   else loadRegion (numLines - 1) capReg cacheLSize tmpReg (mconcat [insts, inst (ly tmpReg capReg 0), inst (yaddi capReg capReg cacheLSize)])
 
 switchEncodingMode :: Template
 switchEncodingMode = random $ do
   mode    <- elements [0, 1]
-  return $ inst $ if mode == 1 then modeswint else modeswcap
+  return $ inst $ if mode == 1 then ymodeswi else ymodeswy
 
 csrRWChain :: Integer -> Template
 csrRWChain csr = random $ do
@@ -148,4 +148,4 @@ tagCacheTest = random $ do
   targetReg <- dest
   return $     legalCapStore addrReg
             <> legalCapLoad addrReg targetReg
-            <> inst (gctag targetReg targetReg)
+            <> inst (ytagr targetReg targetReg)

@@ -64,10 +64,11 @@ import Data.Bits
 
 rv32_xcheri_misc_alt :: Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_misc_alt src1 src2 imm dest =
-  [ acperm    dest src1 src2
-  , cbld      dest src1 src2
-  , scmode    dest src1 src2
-  , sentry    dest src1]
+  [ ypermc    dest src1 src2
+  , ybld      dest src1 src2
+  , ysunseal  dest src1 src2
+  , ymodew    dest src1 src2
+  , ysentry     dest src1]
 
 genCSCDataTorture :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
 genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
@@ -86,9 +87,9 @@ genCSCDataTorture capReg tmpReg bitsReg sldReg nopermReg authReg = random $ do
   return $  (uniform [ instUniform $ rv32_xcheri_arithmetic src1 src2 imm tmpReg
                      , instUniform $ rv32_xcheri_misc_alt src1 src2 imm dest
                      , instUniform $ rv32_xcheri_inspection src1 dest
-                     , inst $ modeswcap
+                     , inst $ ymodeswy
                      , inst $ jalr src2 src1 0
-                     , inst $ lc tmpReg tmpReg 0
+                     , inst $ ly tmpReg tmpReg 0
                      ])
 
 
@@ -308,9 +309,9 @@ gen_csc_data_verify = random $ do
   let hpmCntIdx = 3
   let prolog = mconcat [ makeCap capReg  authReg tmpReg1 0x80010000     8 0
                        , makeCap bitsReg authReg tmpReg1 0x80014000 0x100 0
-                       , inst $ sentry sldReg bitsReg
-                       , inst $ acperm nopermReg bitsReg 0
-                       , inst $ cbld bitsReg 0 bitsReg -- clear tag
+                       , inst $ ysentry sldReg bitsReg
+                       , inst $ ypermc nopermReg bitsReg 0
+                       , inst $ ybld bitsReg 0 bitsReg -- clear tag
                        , inst $ lw tmpReg1 capReg 0
                        ]
   let body = surroundWithHPMAccess_core False hpmEventIdx_dcache_miss (repeatTillEnd (genCSCDataTorture capReg tmpReg1 bitsReg sldReg nopermReg authReg)) tmpReg0 hpmCntIdx Nothing
@@ -323,7 +324,7 @@ genJump :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Tem
 genJump memReg reg0 reg1 reg2 imm offset = random $ do
   let czero = 0
   let ra = 1
-  return $ instSeq [ modeswcap
+  return $ instSeq [ ymodeswy
                    , jalr ra reg1 0
                    , jalr czero ra 0
                    ]
@@ -333,9 +334,9 @@ genCSCInst memReg reg0 reg1 reg2 = random $ do
   let czero = 0
   return $ instDist [ (1, jalr czero reg0 0)
                     , (2, add 29 29 29)
-                    , (1, lc reg1 reg2 0x0)
+                    , (1, ly reg1 reg2 0x0)
                     , (1, auipc reg2 0)
-                    , (1, modeswcap)
+                    , (1, ymodeswy)
                     ]
 
 -- | Verify instruction Capability Speculation Constraint (CSC)
@@ -360,47 +361,47 @@ gen_csc_inst_verify = random $ do
   let reg1 = 24
   let reg2 = 25
   let mtcc = unsafe_csrs_indexFromName "mtvec"
-  let startSeq = instUniform [ modeswcap
+  let startSeq = instUniform [ ymodeswy
                              , jalr zeroReg startReg 0 ]
   let trainSeq = repeatN (18) (genJump memReg tmpReg pccReg loadReg 0x20 0x0)
   let leakSeq = repeatN (1) (genJump memReg2 tmpReg pccReg loadReg 0x20 0x100)
   let tortSeq = startSeq <> leakSeq
-  let prolog = mconcat [ inst $ modeswcap
+  let prolog = mconcat [ inst $ ymodeswy
                        , inst $ auipc authReg2 0 -- read PCC
                        , makeCap_core jumpReg authReg2 tmpReg 0x80001000
                        , makeCap_core pccReg authReg2 tmpReg 0x80002000
                        , makeCap_core memReg authReg2 tmpReg 0x80007000
                        , makeCap_core memReg2 authReg2 tmpReg 0x80007100
-                       , inst $ cmv startReg jumpReg
-                       , inst $ sc jumpReg memReg 0
-                       , inst $ caddi tmpReg jumpReg 0x100
-                       , inst $ cbld tmpReg 0 tmpReg -- clear tag
-                       , inst $ sc tmpReg memReg2 0
-                       , inst $ lc tmpReg memReg2 0
+                       , inst $ ymv startReg jumpReg
+                       , inst $ sy jumpReg memReg 0
+                       , inst $ yaddi tmpReg jumpReg 0x100
+                       , inst $ ybld tmpReg 0 tmpReg -- clear tag
+                       , inst $ sy tmpReg memReg2 0
+                       , inst $ ly tmpReg memReg2 0
                        , startSeq
                        , trainSeq
-                       , inst $ lc tmpReg jumpReg 0x0
-                       , inst $ caddi tmpReg jumpReg 0x40
-                       , inst $ lc tmpReg tmpReg 0x0
-                       , inst $ caddi tmpReg jumpReg 0x80
-                       , inst $ lc tmpReg tmpReg 0x0
-                       , inst $ caddi tmpReg jumpReg 0xc0
-                       , inst $ lc tmpReg tmpReg 0x0
-                       , inst $ caddi tmpReg jumpReg 0x100
-                       , inst $ lc tmpReg tmpReg 0x0
+                       , inst $ ly tmpReg jumpReg 0x0
+                       , inst $ yaddi tmpReg jumpReg 0x40
+                       , inst $ ly tmpReg tmpReg 0x0
+                       , inst $ yaddi tmpReg jumpReg 0x80
+                       , inst $ ly tmpReg tmpReg 0x0
+                       , inst $ yaddi tmpReg jumpReg 0xc0
+                       , inst $ ly tmpReg tmpReg 0x0
+                       , inst $ yaddi tmpReg jumpReg 0x100
+                       , inst $ ly tmpReg tmpReg 0x0
                        , inst $ add pccReg zeroReg zeroReg
-                       , inst $ cmv jumpReg startReg
+                       , inst $ ymv jumpReg startReg
                        -- zero out all sbcRegs
-                       , inst $ cmv 22 zeroReg
-                       , inst $ cmv 23 zeroReg
-                       , inst $ cmv 24 zeroReg
-                       , inst $ cmv 25 zeroReg
-                       , inst $ cmv 26 zeroReg
-                       , inst $ cmv 27 zeroReg
-                       , inst $ cmv 28 zeroReg
-                       , inst $ cmv 29 zeroReg
-                       , inst $ scbndsi jumpReg jumpReg 1 16 -- 256
-                       , inst $ scbndsi tmpReg startReg 1 16 -- 256
+                       , inst $ ymv 22 zeroReg
+                       , inst $ ymv 23 zeroReg
+                       , inst $ ymv 24 zeroReg
+                       , inst $ ymv 25 zeroReg
+                       , inst $ ymv 26 zeroReg
+                       , inst $ ymv 27 zeroReg
+                       , inst $ ymv 28 zeroReg
+                       , inst $ ymv 29 zeroReg
+                       , inst $ ybndswi jumpReg jumpReg 1 16 -- 256
+                       , inst $ ybndswi tmpReg startReg 1 16 -- 256
                        , inst $ csrrw 0 mtcc jumpReg
                        , startSeq
                        , inst $ fence 3 3 -- fence rw, rw

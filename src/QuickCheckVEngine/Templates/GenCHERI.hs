@@ -73,15 +73,15 @@ capDecodeTest = random $ do
                     inst $ sw 1 2 8,
                     li32 2 ((shift cap (-96)) Data.Bits..&. 0xffffffff),
                     inst $ sw 1 2 12,
-                    inst $ lc 2 1 0,
-                    inst $ gclen 6 2,
-                    inst $ gcbase 6 2,
-                    inst $ gchi 6 2,
-                    inst $ gctype 6 2,
-                    inst $ gcperm 6 2,
-                    inst $ cbld 2 3 2,
-                    inst $ gctype 4 2,
-                    inst $ gctag 5 2]
+                    inst $ ly 2 1 0,
+                    inst $ ylenr 6 2,
+                    inst $ ybaser 6 2,
+                    inst $ ytyper 6 2,
+                    inst $ ypermr 6 2,
+                    inst $ ybld 2 3 2,
+                    inst $ ysunseal 2 3 2,
+                    inst $ ytyper 4 2,
+                    inst $ ytagr 5 2]
 
 
 genRandomCHERITest :: Template
@@ -118,7 +118,7 @@ genRandomCHERITest = readParams $ \param -> random $ do
                 , (10, makeShortCap)
                 , (5, clearASR tmpReg tmpReg2)
                 , (5, boundPCC tmpReg tmpReg2 imm longImm)
-                , (20, inst $ gctag dest dest)
+                , (20, inst $ ytagr dest dest)
                 ]
 
 randomCHERIRVCTest :: Template
@@ -211,5 +211,5 @@ genCHERIcontrol = random $ do
                         , (1, return (unsafe_csrs_indexFromName "mcause"))
                         , (1, bits 12) ]
   return $ dist [ (2, instUniform $ rv32_xcheri_control srcAddr srcData dest)
-                , (1, inst (scbndsr dest srcData srcAddr))
+                , (1, inst (ybndsrw dest srcData srcAddr))
                 , (2, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2) ] -- TODO add csr

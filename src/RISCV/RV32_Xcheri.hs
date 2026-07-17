@@ -102,7 +102,7 @@ module RISCV.RV32_Xcheri (
 , sq
 , lr_q
 , sc_q
-, amoswap_q
+, amoswap_y
 -- * RISC-V CHERI, others
 , rv32_xcheri_disass
 , rv32_xcheri_extract
@@ -232,8 +232,8 @@ lr_q_raw                           =                                        "000
 lr_q rd rs1 aq rl                  = encode lr_q_raw                               aq    rl             rs1          rd
 sc_q_raw                           =                                        "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
 sc_q rd rs1 rs2 aq rl              = encode sc_q_raw                               aq    rl    rs2      rs1          rd
-amoswap_q_raw                      =                                        "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
-amoswap_q rd rs1 rs2 aq rl         = encode amoswap_q_raw                               aq    rl    rs2      rs1          rd
+amoswap_y_raw                      =                                        "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
+amoswap_y rd rs1 rs2 aq rl         = encode amoswap_y_raw                               aq    rl    rs2      rs1          rd
 
 -- | Pretty-print a capability load instruction
 prettyCLoad :: Integer -> Integer -> Integer -> String

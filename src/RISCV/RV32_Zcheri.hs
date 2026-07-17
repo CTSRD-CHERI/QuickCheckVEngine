@@ -55,39 +55,42 @@
 
 module RISCV.RV32_Zcheri (
 -- * RISC-V CHERI, instruction definitions
-  gcperm
-, gctype
-, gcbase
-, gclen
-, gctag
-, gchi
-, gcmode
-, acperm
-, scmode
-, scaddr
-, schi
-, cadd
-, caddi
-, scbndsr
-, scbnds
-, scbndsi
-, cbld
-, sentry
-, cmv
-, modeswcap
-, modeswint
-, sceq
-, scss
-, cram
-, lc
-, sc
+  ypermr
+, ytyper
+, ybaser
+, ylenr
+, ytopr -- new
+, ytagr
+, srliy
+, ymoder
+, ypermc
+, ymodew
+, yaddrw
+, packy -- new
+, yhiw
+, yadd
+, yaddi
+, ybndsrw
+, ybndsw
+, ybndswi
+, ybld
+, ysunseal -- new
+, ysentry
+, ymv
+, ymodeswy
+, ymodeswi
+, yeq
+, yss
+, yamask
+, ly
+, sy
 , lr_b
 , sc_b
 , lr_h
 , sc_h
-, lr_c
-, sc_c
-, amoswap_q
+, lr_y
+, sc_y
+, amoswap_y
 -- * RISC-V CHERI, others
 , rv32_xcheri_disass
 , rv32_xcheri_extract
@@ -106,73 +109,79 @@ import InstrCodec (DecodeBranch, (-->), encode, Instruction)
 import RISCV.RV32_I
 import RISCV.ArchDesc
 
--- Capability Inspection
-gcperm_raw               =                              "0001000 00001 cs1[4:0] 000 rd[4:0] 0110011"
-gcperm rd cs1            = encode gcperm_raw                           cs1          rd
-gctype_raw               =                              "0001000 00010 cs1[4:0] 000 rd[4:0] 0110011"
-gctype rd cs1            = encode gctype_raw                           cs1          rd
-gcbase_raw               =                              "0001000 00101 cs1[4:0] 000 rd[4:0] 0110011"
-gcbase rd cs1            = encode gcbase_raw                           cs1          rd
-gclen_raw                =                              "0001000 00110 cs1[4:0] 000 rd[4:0] 0110011"
-gclen rd cs1             = encode gclen_raw                            cs1          rd
-gctag_raw                =                              "0001000 00000 cs1[4:0] 000 rd[4:0] 0110011"
-gctag rd cs1             = encode gctag_raw                            cs1          rd
-gchi_raw                 =                              "0001000 00100 cs1[4:0] 000 rd[4:0] 0110011"
-gchi rd cs1              = encode gchi_raw                           cs1          rd
-gcmode_raw               =                              "0001000 00011 cs1[4:0] 000 rd[4:0] 0110011"
-gcmode rd cs1            = encode gcmode_raw                           cs1          rd
+    -- Capability Inspection
+ypermr_raw               =                              "1111010 00001 cs1[4:0] 000 rd[4:0] 1111011"
+ypermr rd cs1            = encode ypermr_raw                           cs1          rd
+ytyper_raw               =                              "1111010 00101 cs1[4:0] 000 rd[4:0] 1111011"
+ytyper rd cs1            = encode ytyper_raw                           cs1          rd
+ybaser_raw               =                              "1111010 00000 cs1[4:0] 000 rd[4:0] 1111011"
+ybaser rd cs1            = encode ybaser_raw                           cs1          rd
+ylenr_raw                =                              "1111010 00011 cs1[4:0] 000 rd[4:0] 1111011"
+ylenr rd cs1             = encode ylenr_raw                            cs1          rd
+ytopr_raw                =                              "1111010 00010 cs1[4:0] 000 rd[4:0] 1111011"
+ytopr rd cs1             = encode ytopr_raw                            cs1          rd
+ytagr_raw                =                              "1111010 00100 cs1[4:0] 000 rd[4:0] 1111011"
+ytagr rd cs1             = encode ytagr_raw                            cs1          rd
+srliy_raw                =                              "00000 shamt[6:0] cs1[4:0] 101 rd[4:0] 1111011"
+srliy rd cs1 shamt       = encode srliy_raw                    shamt      cs1          rd
+ymoder_raw               =                              "1111010 00110 cs1[4:0] 000 rd[4:0] 1111011"
+ymoder rd cs1            = encode ymoder_raw                           cs1          rd
 
 -- Capability Modification
-acperm_raw                 =                            "0000110 rs2[4:0] cs1[4:0] 010 cd[4:0] 0110011"
-acperm cd cs1 rs2          = encode acperm_raw                   rs2      cs1          cd
-scmode_raw                 =                            "0000110 rs2[4:0] cs1[4:0] 111 cd[4:0] 0110011"
-scmode cd cs1 rs2          = encode scmode_raw                   rs2      cs1          cd
-scaddr_raw                 =                            "0000110 rs2[4:0] cs1[4:0] 001 cd[4:0] 0110011"
-scaddr cd cs1 rs2          = encode scaddr_raw                   rs2      cs1          cd
-schi_raw                   =                            "0000110 rs2[4:0] cs1[4:0] 011 cd[4:0] 0110011"
-schi cd cs1 rs2            = encode schi_raw                     rs2      cs1          cd
-cadd_raw                   =                            "0000110 rs2[4:0] cs1[4:0] 000 cd[4:0] 0110011"
-cadd cd cs1 rs2            = encode cadd_raw                     rs2      cs1          cd
-caddi_raw                  =                            "imm[11:0] cs1[4:0] 010 cd[4:0] 0011011"
-caddi cd cs1 imm           = encode caddi_raw            imm        cs1          cd
-scbndsr_raw                =                            "0000111 rs2[4:0] cs1[4:0] 001 cd[4:0] 0110011"
-scbndsr cd cs1 rs2         = encode scbndsr_raw                  rs2      cs1          cd
-scbnds_raw                 =                            "0000111 rs2[4:0] cs1[4:0] 000 cd[4:0] 0110011"
-scbnds cd cs1 rs2          = encode scbnds_raw                   rs2      cs1          cd
-scbndsi_raw                =                            "000001 s[0:0] imm[4:0] cs1[4:0] 101 cd[4:0] 0010011"
-scbndsi cd cs1 s imm       = encode scbndsi_raw                 s      imm      cs1          cd
-cbld_raw                   =                            "0000110 cs2[4:0] cs1[4:0] 101 cd[4:0] 0110011"
-cbld cd cs1 cs2            = encode cbld_raw                     cs2      cs1          cd
-sentry_raw                 =                            "0001000 01000 cs1[4:0] 000 cd[4:0] 0110011"
-sentry cd cs1              = encode sentry_raw                         cs1          cd
+ypermc_raw                 =                            "0010011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
+ypermc cd cs1 rs2          = encode ypermc_raw                   rs2      cs1          cd
+ymodew_raw                 =                            "0101011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
+ymodew cd cs1 rs2          = encode ymodew_raw                   rs2      cs1          cd
+yaddrw_raw                 =                            "0001011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
+yaddrw cd cs1 rs2          = encode yaddrw_raw                   rs2      cs1          cd
+packy_raw                  =                            "0000001 rs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
+packy cd cs1 rs2           = encode packy_raw                    rs2      cs1          cd
+yhiw_raw                   =                            "00000 1000000 cs1[4:0] 101 rd[4:0] 1111011"
+yhiw rd cs1                = encode yhiw_raw                           cs1          rd
+yadd_raw                   =                            "0000011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
+yadd cd cs1 rs2            = encode yadd_raw                     rs2      cs1          cd
+yaddi_raw                  =                            "imm[11:0] cs1[4:0] 100 cd[4:0] 1111011"
+yaddi cd cs1 imm           = encode yaddi_raw            imm        cs1          cd
+ybndsrw_raw                =                            "0100011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
+ybndsrw cd cs1 rs2         = encode ybndsrw_raw                  rs2      cs1          cd
+ybndsw_raw                 =                            "0011011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
+ybndsw cd cs1 rs2          = encode ybndsw_raw                   rs2      cs1          cd
+ybndswi_raw                =                            "111 imm[8:0] cs1[4:0] 101 cd[4:0] 1111011"
+ybndswi cd cs1 imm         = encode ybndswi_raw              imm      cs1          cd
+ybld_raw                   =                            "0001111 cs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
+ybld cd cs1 cs2            = encode ybld_raw                     cs2      cs1          cd
+ysunseal_raw               =                            "0000111 cs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
+ysunseal cd cs1 cs2        = encode ysunseal_raw                 cs2      cs1          cd
+ysentry_raw                =                            "1111011 00000 cs1[4:0] 000 cd[4:0] 1111011"
+ysentry cd cs1             = encode ysentry_raw                        cs1          cd
 
 
 -- Capability Pointer Arithmetic
-cmv_raw                    =                            "0000110 00000 cs1[4:0] 000 cd[4:0] 0110011"
-cmv cd cs1                 = encode cmv_raw                            cs1          cd
+ymv_raw                    =                            "0000011 00000 cs1[4:0] 000 cd[4:0] 1111011"
+ymv cd cs1                 = encode ymv_raw                            cs1          cd
 
 
 -- Control Flow
-modeswcap_raw              =                            "0001001 00000 00000 001 00000 0110011"
-modeswcap                  = encode modeswcap_raw
-modeswint_raw              =                            "0001010 00000 00000 001 00000 0110011"
-modeswint                  = encode modeswint_raw
+ymodeswy_raw              =                            "0101011 00000 00000 000 00000 1111011"
+ymodeswy                  = encode ymodeswy_raw
+ymodeswi_raw              =                            "0101011 00001 00000 000 00000 1111011"
+ymodeswi                  = encode ymodeswi_raw
 
 -- Assertion
-sceq_raw                   =                            "0000110 cs2[4:0] cs1[4:0] 100 rd[4:0] 0110011"
-sceq rd cs1 cs2            = encode sceq_raw                     cs2      cs1          rd
-scss_raw                   =                            "0000110 cs2[4:0] cs1[4:0] 110 rd[4:0] 0110011"
-scss rd cs1 cs2            = encode scss_raw                     cs2      cs1          rd
+yeq_raw                   =                            "0000110 cs2[4:0] cs1[4:0] 000 rd[4:0] 1111011"
+yeq rd cs1 cs2            = encode yeq_raw                     cs2      cs1          rd
+yss_raw                   =                            "0001110 cs2[4:0] cs1[4:0] 000 rd[4:0] 1111011"
+yss rd cs1 cs2            = encode yss_raw                     cs2      cs1          rd
 
 -- Adjusting to Compressed Capability Precision
-cram_raw    =                                           "0001000 00111 rs1[4:0] 000 rd[4:0] 0110011"
-cram rd rs1 = encode cram_raw                                          rs1          rd
+yamask_raw    =                                           "1111000 00000 rs1[4:0] 000 rd[4:0] 1111011"
+yamask rd rs1 = encode yamask_raw                                          rs1          rd
 
 -- Memory -- Needs further refinement
-lc_raw                     =                             "imm[11:0] rs1[4:0] 100 cd[4:0] 0001111"
-lc cd rs1 imm              = encode lc_raw                imm       rs1          cd
-sc_raw                     =                             "imm[11:5] cs2[4:0] rs1[4:0] 100 imm[4:0] 0100011"
-sc rs1 cs2 imm             = encode sc_raw                imm       cs2      rs1
+ly_raw                     =                             "imm[11:0] rs1[4:0] 001 cd[4:0] 1111011"
+ly cd rs1 imm              = encode ly_raw                imm       rs1          cd
+sy_raw                     =                             "imm[11:5] cs2[4:0] rs1[4:0] 010 imm[4:0] 1111011"
+sy rs1 cs2 imm             = encode sy_raw                imm       cs2      rs1
 lr_b_raw                   =                             "00010 aq[0] rl[0]    00000 rs1[4:0] 000 rd[4:0] 0101111"
 lr_b rd rs1 aq rl          = encode lr_b_raw                    aq    rl             rs1          rd
 sc_b_raw                   =                             "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 000 rd[4:0] 0101111"
@@ -181,117 +190,125 @@ lr_h_raw                   =                             "00010 aq[0] rl[0]    0
 lr_h rd rs1 aq rl          = encode lr_b_raw                    aq    rl             rs1          rd
 sc_h_raw                   =                             "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 001 rd[4:0] 0101111"
 sc_h rd rs1 rs2 aq rl      = encode sc_h_raw                    aq    rl    rs2      rs1          rd
-lr_c_raw                   =                             "00010 aq[0] rl[0]    00000 rs1[4:0] 100 rd[4:0] 0101111"
-lr_c rd rs1 aq rl          = encode lr_c_raw                    aq    rl             rs1          rd
-sc_c_raw                   =                             "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
-sc_c rd rs1 rs2 aq rl      = encode sc_c_raw                    aq    rl    rs2      rs1          rd
-amoswap_q_raw              =                             "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 100 rd[4:0] 0101111"
-amoswap_q rd rs1 rs2 aq rl = encode amoswap_q_raw               aq    rl    rs2      rs1          rd
+lr_y_raw                   =                             "00010 aq[0] rl[0]    00000 rs1[4:0] 011 rd[4:0] 1111011"
+lr_y rd rs1 aq rl          = encode lr_y_raw                    aq    rl             rs1          rd
+sc_y_raw                   =                             "00011 aq[0] rl[0] rs2[4:0] rs1[4:0] 011 rd[4:0] 1111011"
+sc_y rd rs1 rs2 aq rl      = encode sc_y_raw                    aq    rl    rs2      rs1          rd
+amoswap_y_raw              =                             "00001 aq[0] rl[0] rs2[4:0] rs1[4:0] 011 rd[4:0] 1111011"
+amoswap_y rd rs1 rs2 aq rl = encode amoswap_y_raw               aq    rl    rs2      rs1          rd
 
 -- | Pretty-print a 2 sources instruction
 pretty_2src instr src2 src1 = concat [instr, " ", reg src1, ", ", reg src2]
 
 -- | Scaled I-type instruction pretty printer
-pretty_scbndsi instr s imm cs1 cd =
+pretty_ybndswi instr s imm cs1 cd =
   concat [instr, " ", reg cd, ", ", reg cs1, ", ", int s, ", ", int imm]
 
 -- | Dissassembly of CHERI instructions
 rv32_xcheri_disass :: [DecodeBranch String]
-rv32_xcheri_disass = [ gcperm_raw     --> prettyR_2op "gcperm"
-                     , gctype_raw     --> prettyR_2op "gctype"
-                     , gcbase_raw     --> prettyR_2op "gcbase"
-                     , gclen_raw      --> prettyR_2op "gclen"
-                     , gctag_raw      --> prettyR_2op "gctag"
-                     , gchi_raw     --> prettyR_2op "gchi"
-                     , gcmode_raw     --> prettyR_2op "gcmode"
-                     , acperm_raw     --> prettyR "acperm"
-                     , scaddr_raw     --> prettyR "scaddr"
-                     , schi_raw       --> prettyR "schi"
-                     , cmv_raw        --> prettyR_2op "cmv" -- Ensure this is above cadd
-                     , cadd_raw       --> prettyR "cadd"
-                     , scbndsr_raw    --> prettyR "scbndsr"
-                     , scbnds_raw     --> prettyR "scbnds"
-                     , cbld_raw       --> prettyR "cbld"
-                     , sentry_raw     --> prettyR_2op "sentry"
-                     , caddi_raw      --> prettyI "caddi"
-                     , scbndsi_raw    --> pretty_scbndsi "scbndsi"
-                     , modeswcap_raw  --> "modesw.cap"
-                     , modeswint_raw  --> "modesw.int"
-                     , sceq_raw       --> prettyR "sceq"
-                     , scss_raw       --> prettyR "scss"
-                     , cram_raw       --> prettyR_2op "cram"
-                     , scmode_raw     --> prettyR "scmode"
-                     , sc_raw         --> prettyS "sc"
-                     , lc_raw         --> prettyL "lc"
+rv32_xcheri_disass = [ ypermr_raw     --> prettyR_2op "ypermr"
+                     , ytyper_raw     --> prettyR_2op "ytyper"
+                     , ybaser_raw     --> prettyR_2op "ybaser"
+                     , ylenr_raw      --> prettyR_2op "ylenr"
+                     , ytopr_raw      --> prettyR_2op "ytopr"
+                     , ytagr_raw      --> prettyR_2op "ytagr"
+                     , srliy_raw      --> prettyR_2op "srliy"
+                     , ymoder_raw     --> prettyR_2op "ymoder"
+                     , ypermr_raw     --> prettyR "ypermr"
+                     , yaddrw_raw     --> prettyR "yaddrw"
+                     , packy_raw      --> prettyR "packy"
+                     , yhiw_raw       --> prettyR "yhiw"
+                     , ymv_raw        --> prettyR_2op "ymv" -- Ensure this is above yadd
+                     , yadd_raw       --> prettyR "yadd"
+                     , ybndsrw_raw    --> prettyR "ybndsrw"
+                     , ybndsw_raw     --> prettyR "ybndsw"
+                     , ybld_raw       --> prettyR "ybld"
+                     , ysunseal_raw   --> prettyR "ybld"
+                     , ysentry_raw    --> prettyR_2op "ysentry"
+                     , yaddi_raw      --> prettyI "yaddi"
+                     , ybndswi_raw    --> pretty_ybndswi "ybndswi"
+                     , ymodeswy_raw   --> "modesw.cap"
+                     , ymodeswi_raw   --> "modesw.int"
+                     , yeq_raw        --> prettyR "yeq"
+                     , yss_raw        --> prettyR "yss"
+                     , yamask_raw     --> prettyR_2op "yamask"
+                     , ymodew_raw     --> prettyR "ymodew"
+                     , sy_raw         --> prettyS "sy"
+                     , ly_raw         --> prettyL "ly"
                      , lr_b_raw       --> prettyR_A_1op "lr.b"
                      , sc_b_raw       --> prettyR_A "sc.b"
                      , lr_h_raw       --> prettyR_A_1op "lr.h"
                      , sc_h_raw       --> prettyR_A "sc.h"
-                     , lr_c_raw       --> prettyR_A_1op "lr.c"
-                     , sc_c_raw       --> prettyR_A "sc.c" ]
+                     , lr_y_raw       --> prettyR_A_1op "lr.c"
+                     , sc_y_raw       --> prettyR_A "sc.c" ]
 
-extract_cmv :: Integer -> Integer -> ExtractedRegs
-extract_cmv rs1 rd = (True, Nothing, Just rs1, Just rd, \x y z -> encode cmv_raw y z)
+extract_ymv :: Integer -> Integer -> ExtractedRegs
+extract_ymv rs1 rd = (True, Nothing, Just rs1, Just rd, \x y z -> encode ymv_raw y z)
 
-extract_scbndsi :: String -> Integer -> Integer -> Integer -> Integer -> ExtractedRegs
-extract_scbndsi instr s imm rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode instr s imm y z)
+extract_ybndswi :: String -> Integer -> Integer -> Integer -> Integer -> ExtractedRegs
+extract_ybndswi instr s imm rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode instr s imm y z)
 
 rv32_xcheri_extract :: [DecodeBranch ExtractedRegs]
-rv32_xcheri_extract = [ gcperm_raw      --> extract_1op gcperm_raw
-                      , gctype_raw      --> extract_1op gctype_raw
-                      , gcbase_raw      --> extract_1op gcbase_raw
-                      , gclen_raw       --> extract_1op gclen_raw
-                      , gctag_raw       --> extract_1op gctag_raw
-                      , gchi_raw        --> extract_1op gchi_raw
-                      , gcmode_raw      --> extract_1op gcmode_raw
-                      , acperm_raw      --> extract_2op acperm_raw
-                      , scaddr_raw      --> extract_2op scaddr_raw
-                      , schi_raw        --> extract_2op schi_raw
-                      , cmv_raw         --> extract_cmv -- Ensure this is above cadd
-                      , cadd_raw        --> extract_2op cadd_raw
-                      , scbndsr_raw     --> extract_2op scbndsr_raw
-                      , scbnds_raw      --> extract_2op scbnds_raw
-                      , cbld_raw        --> extract_2op cbld_raw
-                      , sentry_raw      --> extract_1op sentry_raw
-                      , caddi_raw       --> extract_imm caddi_raw
-                      , scbndsi_raw     --> extract_scbndsi scbndsi_raw
-                      , cram_raw        --> extract_1op cram_raw
-                      , scmode_raw      --> extract_2op scmode_raw
-                      , sc_raw          --> extract_nodst sc_raw
-                      , lc_raw          --> extract_imm lc_raw
+rv32_xcheri_extract = [ ypermc_raw      --> extract_1op ypermc_raw
+                      , ytyper_raw      --> extract_1op ytyper_raw
+                      , ybaser_raw      --> extract_1op ybaser_raw
+                      , ylenr_raw       --> extract_1op ylenr_raw
+                      , ytopr_raw       --> extract_1op ytopr_raw
+                      , ytagr_raw       --> extract_1op ytagr_raw
+                      , srliy_raw       --> extract_1op srliy_raw
+                      , ymoder_raw      --> extract_1op ymoder_raw
+                      , ypermc_raw      --> extract_2op ypermc_raw
+                      , yaddrw_raw      --> extract_2op yaddrw_raw
+                      , packy_raw       --> extract_2op packy_raw
+                      , yhiw_raw        --> extract_2op yhiw_raw
+                      , ymv_raw         --> extract_ymv -- Ensure this is above yadd
+                      , yadd_raw        --> extract_2op yadd_raw
+                      , ybndsrw_raw     --> extract_2op ybndsrw_raw
+                      , ybndsw_raw      --> extract_2op ybndsw_raw
+                      , ybld_raw        --> extract_2op ybld_raw
+                      , ysunseal_raw    --> extract_2op ybld_raw
+                      , ysentry_raw     --> extract_1op ysentry_raw
+                      , yaddi_raw       --> extract_imm yaddi_raw
+                      , ybndswi_raw     --> extract_ybndswi ybndswi_raw
+                      , yamask_raw      --> extract_1op yamask_raw
+                      , ymodew_raw      --> extract_2op ymodew_raw
+                      , sy_raw          --> extract_nodst sy_raw
+                      , ly_raw          --> extract_imm ly_raw
                       ]
 
-shrink_gcperm :: Integer -> Integer -> [Instruction]
-shrink_gcperm cs rd = [addi rd 0 0, addi rd 0 0x7ff]
+shrink_ypermr :: Integer -> Integer -> [Instruction]
+shrink_ypermr cs rd = [addi rd 0 0, addi rd 0 0x7ff]
 
-shrink_gctype :: Integer -> Integer -> [Instruction]
-shrink_gctype cs rd = [addi rd 0 0, addi rd 0 6, addi rd 0 0xfff]
+shrink_ytyper :: Integer -> Integer -> [Instruction]
+shrink_ytyper cs rd = [addi rd 0 0, addi rd 0 6, addi rd 0 0xfff]
 
-shrink_gcbase :: Integer -> Integer -> [Instruction]
-shrink_gcbase cs rd = [addi rd 0 0]
+shrink_ybaser :: Integer -> Integer -> [Instruction]
+shrink_ybaser cs rd = [addi rd 0 0]
 
-shrink_gclen :: Integer -> Integer -> [Instruction]
-shrink_gclen cs rd = [addi rd 0 0, addi rd 0 0xfff, gcbase rd cs]
+shrink_ylenr :: Integer -> Integer -> [Instruction]
+shrink_ylenr cs rd = [addi rd 0 0, addi rd 0 0xfff, ybaser rd cs]
 
-shrink_gctag :: Integer -> Integer -> [Instruction]
-shrink_gctag cs rd = [addi rd 0 1, addi rd 0 0]
+shrink_ytopr :: Integer -> Integer -> [Instruction]
+shrink_ytopr cs rd = [addi rd 0 0, addi rd 0 0xfff, ybaser rd cs]
 
-shrink_gchi :: Integer -> Integer -> [Instruction]
-shrink_gchi cs rd = [addi rd cs 0, addi rd cs 0xfff]
+shrink_ytagr :: Integer -> Integer -> [Instruction]
+shrink_ytagr cs rd = [addi rd 0 1, addi rd 0 0]
 
-shrink_gcmode :: Integer -> Integer -> [Instruction]
-shrink_gcmode cs rd = [addi rd 0 1, addi rd 0 0]
+shrink_srliy :: Integer -> Integer -> [Instruction]
+shrink_srliy cs rd = [addi rd cs 0, addi rd cs 0xfff]
+
+shrink_ymoder :: Integer -> Integer -> [Instruction]
+shrink_ymoder cs rd = [addi rd 0 1, addi rd 0 0]
 
 shrink_cap :: Integer -> Integer -> [Instruction]
 shrink_cap cs cd = [ecall,
-                    cmv cd cs,
-                    gchi cd cs,
-                    gcmode cd cs,
-                    gcperm cd cs,
-                    gctype cd cs,
-                    gcbase cd cs,
-                    gclen cd cs,
-                    gctag cd cs
+                    ymv cd cs,
+                    ymoder cd cs,
+                    ypermr cd cs,
+                    ytyper cd cs,
+                    ybaser cd cs,
+                    ylenr cd cs,
+                    ytagr cd cs
                    ]
 
 shrink_capcap :: Integer -> Integer -> Integer -> [Instruction]
@@ -306,86 +323,92 @@ shrink_capint rs cs cd = shrink_cap cs cd
 shrink_capimm :: Integer -> Integer -> Integer -> [Instruction]
 shrink_capimm imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
 
-shrink_scbndsi :: Integer -> Integer -> Integer -> Integer -> [Instruction]
-shrink_scbndsi s imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
+shrink_ybndswi :: Integer -> Integer -> Integer -> Integer -> [Instruction]
+shrink_ybndswi s imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
 
-shrink_sceq cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
-shrink_scss cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
+shrink_yeq cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
+shrink_yss cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
 
 rv32_xcheri_shrink :: [DecodeBranch [Instruction]]
-rv32_xcheri_shrink = [ gcperm_raw       --> shrink_gcperm
-                     , gctype_raw       --> shrink_gctype
-                     , gcbase_raw       --> shrink_gcbase
-                     , gclen_raw        --> shrink_gclen
-                     , gctag_raw        --> shrink_gctag
-                     , gchi_raw         --> shrink_gchi
-                     , gcmode_raw       --> shrink_gcmode
-                     , acperm_raw       --> shrink_capint
-                     , scaddr_raw       --> shrink_capint
-                     , schi_raw         --> shrink_capint
-                     , cmv_raw          --> noshrink_cap -- Ensure this is above cadd
-                     , cadd_raw         --> shrink_capint
-                     , scbndsr_raw      --> shrink_capint
-                     , scbnds_raw       --> shrink_capint
-                     , cbld_raw         --> shrink_capcap
-                     , sentry_raw       --> shrink_cap
-                     , caddi_raw        --> shrink_capimm
-                     , scbndsi_raw      --> shrink_scbndsi
-                     , sceq_raw         --> shrink_sceq
-                     , scss_raw         --> shrink_scss
---                   , cram_raw         --> noshrink
-                     , scmode_raw       --> shrink_capcap
---                   , sc_raw           --> noshrink
---                   , lc_raw           --> noshrink
+rv32_xcheri_shrink = [ ypermr_raw       --> shrink_ypermr
+                     , ytyper_raw       --> shrink_ytyper
+                     , ybaser_raw       --> shrink_ybaser
+                     , ylenr_raw        --> shrink_ylenr
+                     , ytopr_raw        --> shrink_ytopr
+                     , ytagr_raw        --> shrink_ytagr
+                     , srliy_raw        --> shrink_srliy
+                     , ymoder_raw       --> shrink_ymoder
+                     , ypermc_raw       --> shrink_capint
+                     , yaddrw_raw       --> shrink_capint
+                     , packy_raw        --> shrink_capint
+                     , yhiw_raw         --> shrink_capint
+                     , ymv_raw          --> noshrink_cap -- Ensure this is above yadd
+                     , yadd_raw         --> shrink_capint
+                     , ybndsrw_raw      --> shrink_capint
+                     , ybndsw_raw       --> shrink_capint
+                     , ybld_raw         --> shrink_capcap
+                     , ysunseal_raw     --> shrink_capcap
+                     , ysentry_raw      --> shrink_cap
+                     , yaddi_raw        --> shrink_capimm
+                     , ybndswi_raw      --> shrink_ybndswi
+                     , yeq_raw          --> shrink_yeq
+                     , yss_raw          --> shrink_yss
+--                   , yamask_raw         --> noshrink
+                     , ymodew_raw       --> shrink_capcap
+--                   , sy_raw           --> noshrink
+--                   , ly_raw           --> noshrink
                      ]
 
 -- | List of cheri inspection instructions
 rv32_xcheri_inspection :: Integer -> Integer -> [Instruction]
-rv32_xcheri_inspection src dest = [ gcperm dest src
-                                  , gctype dest src
-                                  , gcbase dest src
-                                  , gclen  dest src
-                                  , gctag  dest src
-                                  , gchi dest src
-                                  , gcmode dest src
-                                  , cram   dest src]
+rv32_xcheri_inspection src dest = [ ypermr dest src
+                                  , ytyper dest src
+                                  , ybaser dest src
+                                  , ylenr  dest src
+                                  , ytopr  dest src
+                                  , ytagr  dest src
+                                  , ymoder dest src
+                                  , yamask dest src]
 
 -- | List of cheri arithmetic instructions
 rv32_xcheri_arithmetic :: Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_arithmetic src1 src2 imm dest =
-  [ scaddr              dest src1 src2
-  , schi                dest src1 src2
-  , cadd                dest src1 src2
-  , scbndsr             dest src1 src2
-  , scbnds              dest src1 src2
-  , scbndsi             dest src1 0 imm
-  , caddi               dest src1 imm
-  , sceq                dest src1 src2
-  , scss                dest src1 src2 ]
+  [ yaddrw              dest src1 src2
+  , packy               dest src1 src2
+  , yhiw                dest src1 src2
+  , yadd                dest src1 src2
+  , ybndsrw             dest src1 src2
+  , ybndsw              dest src1 src2
+  , ybndswi             dest src1 0 imm
+  , yaddi               dest src1 imm
+  , yeq                 dest src1 src2
+  , srliy               dest src1 imm
+  , yss                 dest src1 src2 ]
 
 -- | List of cheri miscellaneous instructions
 rv32_xcheri_misc :: Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_misc src1 src2 imm dest =
-  [ acperm      dest src1 src2
-  , scmode      dest src1 src2
-  , cbld        dest src1 src2
-  , sentry      dest src1
-  , cmv         dest src1
+  [ ypermc      dest src1 src2
+  , ymodew      dest src1 src2
+  , ybld        dest src1 src2
+  , ysunseal    dest src1 src2
+  , ysentry     dest src1
+  , ymv         dest src1
   ]
 
 -- | List of cheri control instructions
 rv32_xcheri_control :: Integer -> Integer -> Integer -> [Instruction]
-rv32_xcheri_control src1 src2 dest = [ modeswcap
-                                     , modeswint]
+rv32_xcheri_control src1 src2 dest = [ ymodeswy
+                                     , ymodeswi]
 
 -- | List of cheri memory instructions
 rv32_xcheri_mem :: ArchDesc -> Integer -> Integer -> Integer -> Integer -> [Instruction]
 rv32_xcheri_mem    arch srcAddr srcData imm dest =
-  [ lc dest srcAddr         imm
-  , sc      srcAddr srcData imm
+  [ ly dest srcAddr         imm
+  , sy      srcAddr srcData imm
   ]
-  ++ [ lc    dest srcAddr      imm
-  ,    gctag dest dest ]
+  ++ [ ly    dest srcAddr      imm
+  ,    ytagr dest dest ]
 
 -- | List of cheri memory instructions
 rv32_a_xcheri :: Integer -> Integer -> Integer -> Integer -> Integer -> [Instruction]
@@ -394,8 +417,8 @@ rv32_a_xcheri      srcAddr srcData dest aq rl =
   , sc_b dest srcAddr srcData aq rl
   , lr_h dest srcAddr aq rl
   , sc_h dest srcAddr srcData aq rl
-  , lr_c dest srcAddr aq rl
-  , sc_c dest srcAddr srcData aq rl
+  , lr_y dest srcAddr aq rl
+  , sc_y dest srcAddr srcData aq rl
   ]
 
 -- | List of cheri instructions

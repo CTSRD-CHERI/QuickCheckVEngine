@@ -73,9 +73,9 @@ gen_cheri_a = random $ do
                          <>
                          mconcat [ switchEncodingMode
                                  , noShrink . inst $ fence_i -- fence
-                                 , inst $ lr_c dataReg addrReg 0 0
-                                 , inst $ sc_c dataReg addrReg dataReg 0 0
+                                 , inst $ lr_y dataReg addrReg 0 0
+                                 , inst $ sc_y dataReg addrReg dataReg 0 0
                                  , noShrink . inst $ fence_i -- fence
-                                 , inst $ modeswint
-                                 , inst $ lc dataReg addrReg 0 -- lc via ddc
-                                 , inst $ modeswcap ]
+                                 , inst $ ymodeswi
+                                 , inst $ ly dataReg addrReg 0 -- ly via ddc
+                                 , inst $ ymodeswy ]
