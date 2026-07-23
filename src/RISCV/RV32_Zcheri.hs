@@ -66,15 +66,14 @@ module RISCV.RV32_Zcheri (
 , ypermc
 , ymodew
 , yaddrw
-, packy -- new
-, yhiw
+, packy
 , yadd
 , yaddi
 , ybndsrw
 , ybndsw
 , ybndswi
 , ybld
-, ysunseal -- new
+, ysunseal
 , ysentry
 , ymv
 , ymodeswy
@@ -136,12 +135,10 @@ yaddrw_raw                 =                            "0001011 rs2[4:0] cs1[4:
 yaddrw cd cs1 rs2          = encode yaddrw_raw                   rs2      cs1          cd
 packy_raw                  =                            "0000001 rs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
 packy cd cs1 rs2           = encode packy_raw                    rs2      cs1          cd
-yhiw_raw                   =                            "00000 1000000 cs1[4:0] 101 rd[4:0] 1111011"
-yhiw rd cs1                = encode yhiw_raw                           cs1          rd
 yadd_raw                   =                            "0000011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
 yadd cd cs1 rs2            = encode yadd_raw                     rs2      cs1          cd
 yaddi_raw                  =                            "imm[11:0] cs1[4:0] 100 cd[4:0] 1111011"
-yaddi cd cs1 imm           = encode yaddi_raw            imm        cs1          cd
+yaddi cd cs1 imm           = encode yaddi_raw            imm       cs1          cd
 ybndsrw_raw                =                            "0100011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
 ybndsrw cd cs1 rs2         = encode ybndsrw_raw                  rs2      cs1          cd
 ybndsw_raw                 =                            "0011011 rs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
@@ -201,8 +198,8 @@ amoswap_y rd rs1 rs2 aq rl = encode amoswap_y_raw               aq    rl    rs2 
 pretty_2src instr src2 src1 = concat [instr, " ", reg src1, ", ", reg src2]
 
 -- | Scaled I-type instruction pretty printer
-pretty_ybndswi instr s imm cs1 cd =
-  concat [instr, " ", reg cd, ", ", reg cs1, ", ", int s, ", ", int imm]
+pretty_ybndswi instr imm cs1 cd =
+  concat [instr, " ", reg cd, ", ", reg cs1, ", ", int imm]
 
 -- | Dissassembly of CHERI instructions
 rv32_xcheri_disass :: [DecodeBranch String]
@@ -212,27 +209,26 @@ rv32_xcheri_disass = [ ypermr_raw     --> prettyR_2op "ypermr"
                      , ylenr_raw      --> prettyR_2op "ylenr"
                      , ytopr_raw      --> prettyR_2op "ytopr"
                      , ytagr_raw      --> prettyR_2op "ytagr"
-                     , srliy_raw      --> prettyR_2op "srliy"
+                     , srliy_raw      --> prettyI "srliy"
                      , ymoder_raw     --> prettyR_2op "ymoder"
                      , ypermr_raw     --> prettyR "ypermr"
                      , yaddrw_raw     --> prettyR "yaddrw"
                      , packy_raw      --> prettyR "packy"
-                     , yhiw_raw       --> prettyR "yhiw"
                      , ymv_raw        --> prettyR_2op "ymv" -- Ensure this is above yadd
                      , yadd_raw       --> prettyR "yadd"
                      , ybndsrw_raw    --> prettyR "ybndsrw"
                      , ybndsw_raw     --> prettyR "ybndsw"
-                     , ybld_raw       --> prettyR "ybld"
-                     , ysunseal_raw   --> prettyR "ybld"
-                     , ysentry_raw    --> prettyR_2op "ysentry"
+                     , ybld_raw       --> prettyR "ybld"  --xxx
+                     , ysunseal_raw   --> prettyR "ysunseal" --xxx
+                     , ysentry_raw    --> prettyR_2op "ysentry" --xxx
                      , yaddi_raw      --> prettyI "yaddi"
                      , ybndswi_raw    --> pretty_ybndswi "ybndswi"
-                     , ymodeswy_raw   --> "modesw.cap"
-                     , ymodeswi_raw   --> "modesw.int"
+                     , ymodeswy_raw   --> "modesw.cap" --xxx
+                     , ymodeswi_raw   --> "modesw.int" --xxx
                      , yeq_raw        --> prettyR "yeq"
                      , yss_raw        --> prettyR "yss"
-                     , yamask_raw     --> prettyR_2op "yamask"
-                     , ymodew_raw     --> prettyR "ymodew"
+                     , yamask_raw     --> prettyR_2op "yamask" --xxx
+                     , ymodew_raw     --> prettyR "ymodew" --xxx
                      , sy_raw         --> prettyS "sy"
                      , ly_raw         --> prettyL "ly"
                      , lr_b_raw       --> prettyR_A_1op "lr.b"
@@ -245,8 +241,8 @@ rv32_xcheri_disass = [ ypermr_raw     --> prettyR_2op "ypermr"
 extract_ymv :: Integer -> Integer -> ExtractedRegs
 extract_ymv rs1 rd = (True, Nothing, Just rs1, Just rd, \x y z -> encode ymv_raw y z)
 
-extract_ybndswi :: String -> Integer -> Integer -> Integer -> Integer -> ExtractedRegs
-extract_ybndswi instr s imm rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode instr s imm y z)
+extract_ybndswi :: String -> Integer -> Integer -> Integer -> ExtractedRegs
+extract_ybndswi instr imm rs1 rd = (False, Nothing, Just rs1, Just rd, \x y z -> encode instr imm y z)
 
 rv32_xcheri_extract :: [DecodeBranch ExtractedRegs]
 rv32_xcheri_extract = [ ypermc_raw      --> extract_1op ypermc_raw
@@ -260,13 +256,12 @@ rv32_xcheri_extract = [ ypermc_raw      --> extract_1op ypermc_raw
                       , ypermc_raw      --> extract_2op ypermc_raw
                       , yaddrw_raw      --> extract_2op yaddrw_raw
                       , packy_raw       --> extract_2op packy_raw
-                      , yhiw_raw        --> extract_2op yhiw_raw
                       , ymv_raw         --> extract_ymv -- Ensure this is above yadd
                       , yadd_raw        --> extract_2op yadd_raw
                       , ybndsrw_raw     --> extract_2op ybndsrw_raw
                       , ybndsw_raw      --> extract_2op ybndsw_raw
                       , ybld_raw        --> extract_2op ybld_raw
-                      , ysunseal_raw    --> extract_2op ybld_raw
+                      , ysunseal_raw    --> extract_2op ysunseal_raw
                       , ysentry_raw     --> extract_1op ysentry_raw
                       , yaddi_raw       --> extract_imm yaddi_raw
                       , ybndswi_raw     --> extract_ybndswi ybndswi_raw
@@ -323,8 +318,8 @@ shrink_capint rs cs cd = shrink_cap cs cd
 shrink_capimm :: Integer -> Integer -> Integer -> [Instruction]
 shrink_capimm imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
 
-shrink_ybndswi :: Integer -> Integer -> Integer -> Integer -> [Instruction]
-shrink_ybndswi s imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
+shrink_ybndswi :: Integer -> Integer -> Integer -> [Instruction]
+shrink_ybndswi imm cs cd = shrink_cap cs cd ++ [addi cd 0 imm, addi cd cs imm]
 
 shrink_yeq cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
 shrink_yss cs2 cs1 rd = [addi rd 0 0, addi rd 0 1] ++ shrink_capcap cs2 cs1 rd
@@ -341,7 +336,6 @@ rv32_xcheri_shrink = [ ypermr_raw       --> shrink_ypermr
                      , ypermc_raw       --> shrink_capint
                      , yaddrw_raw       --> shrink_capint
                      , packy_raw        --> shrink_capint
-                     , yhiw_raw         --> shrink_capint
                      , ymv_raw          --> noshrink_cap -- Ensure this is above yadd
                      , yadd_raw         --> shrink_capint
                      , ybndsrw_raw      --> shrink_capint
@@ -375,11 +369,10 @@ rv32_xcheri_arithmetic :: Integer -> Integer -> Integer -> Integer -> [Instructi
 rv32_xcheri_arithmetic src1 src2 imm dest =
   [ yaddrw              dest src1 src2
   , packy               dest src1 src2
-  , yhiw                dest src1 src2
   , yadd                dest src1 src2
   , ybndsrw             dest src1 src2
   , ybndsw              dest src1 src2
-  , ybndswi             dest src1 0 imm
+  , ybndswi             dest src1 imm
   , yaddi               dest src1 imm
   , yeq                 dest src1 src2
   , srliy               dest src1 imm
