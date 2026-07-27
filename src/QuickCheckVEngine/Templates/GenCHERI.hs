@@ -112,6 +112,7 @@ genRandomCHERITest = readParams $ \param -> random $ do
                 , (10, instUniform $ rv32_i srcAddr srcData dest imm longImm fenceOp1 fenceOp2)
                 , (10, instUniform $ rv64_a srcAddr srcData dest 0 0)
                 , (10, instUniform $ rv32_a srcAddr srcData dest 0 0)
+                , (10, instUniform $ rv32_a_xcheri srcAddr srcData dest 0 0)
                 , (10, instUniform $ rv32_xcheri arch srcAddr srcData imm dest)
                 , (5, instUniform $ rv32_zicsr srcData dest csrAddr uimm5)
                 , (20, switchEncodingMode)
