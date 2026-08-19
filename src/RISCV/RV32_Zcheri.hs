@@ -121,8 +121,8 @@ ytopr_raw                =                              "1111010 00010 cs1[4:0] 
 ytopr rd cs1             = encode ytopr_raw                            cs1          rd
 ytagr_raw                =                              "1111010 00100 cs1[4:0] 000 rd[4:0] 1111011"
 ytagr rd cs1             = encode ytagr_raw                            cs1          rd
-srliy_raw                =                              "00000 shamt[6:0] cs1[4:0] 101 rd[4:0] 1111011"
-srliy rd cs1 shamt       = encode srliy_raw                    shamt      cs1          rd
+srliy_raw                =                              "00000 1000000 cs1[4:0] 101 rd[4:0] 1111011"
+srliy rd cs1             = encode srliy_raw                            cs1          rd
 ymoder_raw               =                              "1111010 00110 cs1[4:0] 000 rd[4:0] 1111011"
 ymoder rd cs1            = encode ymoder_raw                           cs1          rd
 
@@ -209,7 +209,7 @@ rv32_xcheri_disass = [ ypermr_raw     --> prettyR_2op "ypermr"
                      , ylenr_raw      --> prettyR_2op "ylenr"
                      , ytopr_raw      --> prettyR_2op "ytopr"
                      , ytagr_raw      --> prettyR_2op "ytagr"
-                     , srliy_raw      --> prettyI "srliy"
+                     , srliy_raw      --> prettyR_2op "srliy"
                      , ymoder_raw     --> prettyR_2op "ymoder"
                      , ypermr_raw     --> prettyR "ypermr"
                      , yaddrw_raw     --> prettyR "yaddrw"
@@ -375,7 +375,7 @@ rv32_xcheri_arithmetic src1 src2 imm dest =
   , ybndswi             dest src1 imm
   , yaddi               dest src1 imm
   , yeq                 dest src1 src2
-  , srliy               dest src1 imm
+  , srliy               dest src1
   , yss                 dest src1 src2 ]
 
 -- | List of cheri miscellaneous instructions
