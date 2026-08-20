@@ -149,8 +149,8 @@ ybld_raw                   =                            "0001111 cs2[4:0] cs1[4:
 ybld cd cs1 cs2            = encode ybld_raw                     cs2      cs1          cd
 ysunseal_raw               =                            "0000111 cs2[4:0] cs1[4:0] 000 cd[4:0] 1111011"
 ysunseal cd cs1 cs2        = encode ysunseal_raw                 cs2      cs1          cd
-ysentry_raw                =                            "1111011 00000 cs1[4:0] 000 cd[4:0] 1111011"
-ysentry cd cs1             = encode ysentry_raw                        cs1          cd
+ysentry_raw                =                            "0010111 cs1[4:0] 00000 000 cd[4:0] 1111011"
+ysentry cd cs1             = encode ysentry_raw                  cs1                cd
 
 
 -- Capability Pointer Arithmetic
@@ -297,7 +297,7 @@ shrink_ymoder cs rd = [addi rd 0 1, addi rd 0 0]
 
 shrink_cap :: Integer -> Integer -> [Instruction]
 shrink_cap cs cd = [ecall,
-                    ymv cd cs,
+                    --ymv cd cs,
                     ymoder cd cs,
                     ypermr cd cs,
                     ytyper cd cs,
@@ -336,7 +336,7 @@ rv32_xcheri_shrink = [ ypermr_raw       --> shrink_ypermr
                      , ypermc_raw       --> shrink_capint
                      , yaddrw_raw       --> shrink_capint
                      , packy_raw        --> shrink_capint
-                     , ymv_raw          --> noshrink_cap -- Ensure this is above yadd
+                     --, ymv_raw          --> noshrink_cap -- Ensure this is above yadd
                      , yadd_raw         --> shrink_capint
                      , ybndsrw_raw      --> shrink_capint
                      , ybndsw_raw       --> shrink_capint
@@ -369,7 +369,7 @@ rv32_xcheri_arithmetic :: Integer -> Integer -> Integer -> Integer -> [Instructi
 rv32_xcheri_arithmetic src1 src2 imm dest =
   [ yaddrw              dest src1 src2
   , packy               dest src1 src2
-  , yadd                dest src1 src2
+  --, yadd                dest src1 src2
   , ybndsrw             dest src1 src2
   , ybndsw              dest src1 src2
   , ybndswi             dest src1 imm
@@ -386,7 +386,7 @@ rv32_xcheri_misc src1 src2 imm dest =
   , ybld        dest src1 src2
   , ysunseal    dest src1 src2
   , ysentry     dest src1
-  , ymv         dest src1
+  --, ymv         dest src1
   ]
 
 -- | List of cheri control instructions
