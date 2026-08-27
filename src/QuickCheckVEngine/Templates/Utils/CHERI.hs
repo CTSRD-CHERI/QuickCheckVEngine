@@ -69,7 +69,7 @@ clearASR tmp1 tmp2 = instSeq [ ymodeswy,
                             <> li32 tmp2 0xfffeffff -- Load immediate without ASR set
                   <> instSeq [ ypermc tmp1 tmp1 tmp2, -- Mask out ASR
                                csrrw 0 (unsafe_csrs_indexFromName "mtvec") tmp1,
-                               jalr tmp1 0 0 ]
+                               jalr 0 tmp1 0 ]
 
 makeCap :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer -> Template
 makeCap dst source tmp base len offset =
@@ -138,7 +138,7 @@ csrRWChain csr = random $ do
   tmpReg6 <- src
   return $ switchEncodingMode <>
            instSeq [ csrrw tmpReg2 csr tmpReg1
-                   , jalr tmpReg2 0 0
+                   , jalr 0 tmpReg2 0
                    , csrrw tmpReg4 csr tmpReg3
                    , csrrw tmpReg6 csr tmpReg5 ]
 
