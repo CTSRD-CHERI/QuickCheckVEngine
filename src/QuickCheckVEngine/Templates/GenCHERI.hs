@@ -105,7 +105,7 @@ genRandomCHERITest = readParams $ \param -> random $ do
                  [ "mcause", "scause", "mtval", "mtval2", "stval", "stval2"
                  , "mseccfg", "menvcfg", "senvcfg", "mtid", "stid", "utid"
                  , "mepc", "sepc", "mtvec", "stvec", "mscratch", "sscratch"
-                 , "ddc"])
+                 , "ddc", "misa"])
   return $ dist [ (5, legalLoad)
                 , (5, legalStore)
                 , (5, legalCapLoad srcAddr dest)
