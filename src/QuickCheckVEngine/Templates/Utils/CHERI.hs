@@ -66,7 +66,7 @@ boundPCC tmp1 tmp2 offset size =
 clearASR :: Integer -> Integer -> Template
 clearASR tmp1 tmp2 = instSeq [ ymodeswy,
                                auipc tmp1 0 ] -- Get PCC
-                            <> li32 tmp2 0xfffeffff -- Load immediate without ASR set
+                            <> li32 tmp2 0x00010000 -- Load immediate without ASR set
                   <> instSeq [ ypermc tmp1 tmp1 tmp2, -- Mask out ASR
                                csrrw 0 (unsafe_csrs_indexFromName "mtvec") tmp1,
                                jalr 0 tmp1 0 ]
