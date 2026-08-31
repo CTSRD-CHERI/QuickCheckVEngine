@@ -182,14 +182,12 @@ gen_pte_perms = random $
   do lperms_rng <- bits 10
      let lperms_all = 0x3ff
      lperms <- choose (lperms_all, lperms_rng)
-     uperms_rng <- bits 5
-     uperms_legal <- bits 2
-     uperms <- choose (uperms_legal, uperms_rng)
+     uperms_legal <- bits 3
      let satp = unsafe_csrs_indexFromName "satp"
      let sstatus = unsafe_csrs_indexFromName "sstatus"
-     let excCSRs = unsafe_csrs_indexFromName <$> ["mcause", "mtval", "mtval2"]
-     return $ shrinkScope $ instSeq [ori 1 0 uperms, -- two cheri pte bits
-                                     slli 1 1 16,
+     let excCSRs = unsafe_csrs_indexFromName <$> ["mcause", "mtval"]
+     return $ shrinkScope $ instSeq [ori 1 0 uperms_legal, -- three cheri pte bits
+                                     slli 1 1 13,
                                      ori 1 1 0x000, -- 11 msbs of PA
                                      slli 1 1 11,
                                      ori 1 1 0x000, -- next 11 bits of PA
@@ -211,7 +209,11 @@ gen_pte_perms = random $
                                      <>
                                      csrw satp 5
                                      <>
-                                     li64 8 0x2000000000000000
+                                     li64 8 0x2000000000000000 -- ucrg
+                                     <>
+                                     uniform [csrs sstatus 8, csrc sstatus 8]
+                                     <>
+                                     li64 8 0x1000000000000000 -- crge
                                      <>
                                      uniform [csrs sstatus 8, csrc sstatus 8]
                                      <>
