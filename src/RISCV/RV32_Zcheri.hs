@@ -211,7 +211,7 @@ rv32_xcheri_disass = [ ypermr_raw     --> prettyR_2op "ypermr"
                      , ytagr_raw      --> prettyR_2op "ytagr"
                      , srliy_raw      --> prettyR_2op "srliy"
                      , ymoder_raw     --> prettyR_2op "ymoder"
-                     , ypermr_raw     --> prettyR "ypermr"
+                     , ypermc_raw     --> prettyR "ypermc"
                      , yaddrw_raw     --> prettyR "yaddrw"
                      , packy_raw      --> prettyR "packy"
                      , ymv_raw        --> prettyR_2op "ymv" -- Ensure this is above yadd
